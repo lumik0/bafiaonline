@@ -64,9 +64,7 @@ export default class Authorization extends Screen {
 
         const btnReg = document.createElement('button');
         btnReg.textContent = 'Регистрация';
-        btnReg.addEventListener('click', async() => {
-            await MessageBox(`Скоро..\nЕсли вам нужно зарегистрироваться, то зарегистрируйтесь в лаунчере либо в Мафии онлайн с телефона`, { height: '225px' });
-        });
+        btnReg.disabled = true;
         div.appendChild(btnReg);
 
         const text = document.createElement('p');
@@ -75,9 +73,6 @@ export default class Authorization extends Screen {
 Наш исходный код открыт <a href="https://github.com/lumik0/bafiaonline">Github</a><br/>
 <br/>
 Если вам нужно зарегистрироваться, то зарегистрируйтесь в лаунчере либо в Мафии онлайн с телефона<br/>
-<br/>
-Это не Зафия онлайн<br/>
-Это Бафия Онлайн
 `;
         div.appendChild(text);
     }

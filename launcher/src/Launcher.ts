@@ -4,7 +4,7 @@ import fs from '../../core/src/fs/fs';
 import config, { Config } from '../../core/src/config';
 import { Version, Profile } from './enums'
 import { uriServer } from '../../core/src/Constants';
-import { createScript, noXSS } from '../../core/src/utils/utils'
+import { createScript, noXSS, wait } from '../../core/src/utils/utils'
 import PacketDataKeys from '../../core/src/PacketDataKeys'
 import MD5 from '../../core/src/utils/md5'
 import { isMobile } from '../../core/src/utils/mobile';
@@ -50,7 +50,7 @@ export default class Launcher {
         if(this.versions.length == 0){
             console.log(`Downloading default version [vanilla]..`);
             try{
-                const src = './images/vanilla.js';
+                const src = `https://cdn.jsdelivr.net/gh/lumik0/bafiaonline@main/run/images/vanilla.js`;
                 await createScript({ src });
                 // @ts-ignore
                 const version: Version = window['version'];
@@ -167,10 +167,22 @@ export default class Launcher {
         this.win.content.appendChild(btns);
         this.btnPlay = document.createElement('button');
         this.btnPlay.innerHTML = `Играть`;
-        this.btnPlay.onclick = () => {
+        this.btnPlay.onclick = async() => {
             const v = this.versions.find(e => e.name == listVersions.value);
             const p = this.profiles.find(e => e.name == listProfiles.value);
-            if(v) this.runGame(v, p);
+            if(v) {
+                if(!p){
+                    const e = confirm(`у вас нет профиля. Вы можете создать его в лаунчере, вы уверены что будете входить в игре?\n\nС профилем автоматический вход будет`);
+                    if(!e) {
+                        btnAddProfile.style.transition = '1s'
+                        btnAddProfile.style.transform = 'scale(5)';
+                        await wait(1000);
+                        btnAddProfile.style.transform = 'none';
+                        return;
+                    }
+                }
+                this.runGame(v, p);
+            }
         };
         btns.appendChild(this.btnPlay);
 
@@ -193,7 +205,7 @@ export default class Launcher {
         const win = new Window({
             title: 'Добавление профиля',
             width,
-            height: 200,
+            height: 220,
             resizable: false,
             moveable: false,
             noMobile: true,
@@ -207,31 +219,35 @@ export default class Launcher {
             this.win.unlock();
         });
 
+        const div = document.createElement('div');
+        div.style.padding = '10px';
+        win.content.appendChild(div);
+
         const status = document.createElement('div');
         status.innerHTML = `Подключение к серверу..`
         status.style.textAlign = 'center';
         const inputEmail = document.createElement('input');
-        inputEmail.style.width = '100%';
+        inputEmail.style.width = '-webkit-fill-available';
         inputEmail.placeholder = 'e-mail или никнейм';
-        win.content.appendChild(inputEmail);
+        div.appendChild(inputEmail);
         const inputPassword = document.createElement('input');
-        inputPassword.style.width = '100%';
+        inputPassword.style.width = '-webkit-fill-available';
         inputPassword.placeholder = 'пароль';
-        win.content.appendChild(inputPassword);
+        div.appendChild(inputPassword);
         const or = document.createElement('div');
         or.style.textAlign = 'center';
         or.style.width = '100%';
         or.style.margin = '2px';
         or.innerHTML = 'или';
-        win.content.appendChild(or);
+        div.appendChild(or);
         const inputToken = document.createElement('input');
-        inputToken.style.width = '100%';
+        inputToken.style.width = '-webkit-fill-available';
         inputToken.placeholder = 'токен';
-        win.content.appendChild(inputToken);
+        div.appendChild(inputToken);
         const inputUserId = document.createElement('input');
-        inputUserId.style.width = '100%';
+        inputUserId.style.width = '-webkit-fill-available';
         inputUserId.placeholder = 'ID пользователя';
-        win.content.appendChild(inputUserId);
+        div.appendChild(inputUserId);
         const btn = document.createElement('button');
         btn.style.width = '100%'
         btn.innerHTML = 'Создать';
@@ -297,8 +313,36 @@ export default class Launcher {
                 }));
             }
         }
-        win.content.appendChild(btn);
-        win.content.appendChild(status);
+        div.appendChild(btn);
+        div.appendChild(status);
+        
+        const why = document.createElement('div');
+        why.style.width = '100%'
+        why.style.textAlign = 'center';
+        why.style.fontSize = '12px';
+        why.style.color = '#8888f8';
+        why.style.textDecoration = 'underline';
+        why.style.cursor = 'pointer';
+        why.style.userSelect = 'none';
+        why.innerHTML = 'Почему?';
+        why.onclick = () => {
+            alert(`Мы не собираем данные аккаунтов\n\nНаш исходный код открыт https://github.com/lumik0/bafiaonline\n\nВы в любом случае можете войти с второго аккаунта`);
+        }
+        div.appendChild(why);
+        
+        const whereIsReg = document.createElement('div');
+        whereIsReg.style.width = '100%'
+        whereIsReg.style.textAlign = 'center';
+        whereIsReg.style.fontSize = '12px';
+        whereIsReg.style.color = '#8888f8';
+        whereIsReg.style.textDecoration = 'underline';
+        whereIsReg.style.cursor = 'pointer';
+        whereIsReg.style.userSelect = 'none';
+        whereIsReg.innerHTML = 'А где регистрация?';
+        whereIsReg.onclick = () => {
+            alert(`потом будет`);
+        }
+        div.appendChild(whereIsReg);
     }
 
     async addVersion(version?: Version){

@@ -399,14 +399,14 @@ export default class Window extends Events<WindowEvents> implements IWindow {
         this.isLocked = true;
         this.el.style.pointerEvents = 'none';
         this.el.style.userSelect = 'none';
-        this.el.style.opacity = '.5';
+        this.el.style.filter = 'brightness(0.5)';
     }
     unlock(){
         if(!this.isLocked) return;
         this.isLocked = false;
         this.el.style.pointerEvents = 'all';
         this.el.style.userSelect = 'text';
-        this.el.style.opacity = '1';
+        this.el.style.filter = 'none';
     }
     
     show(){
