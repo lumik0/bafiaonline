@@ -8,6 +8,7 @@ import { createScript, noXSS, wait } from '../../core/src/utils/utils'
 import PacketDataKeys from '../../core/src/PacketDataKeys'
 import MD5 from '../../core/src/utils/md5'
 import { isMobile } from '../../core/src/utils/mobile';
+import App from './App';
 
 function uuidv4() {
     return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16));
@@ -32,7 +33,7 @@ export default class Launcher {
     
     constructor(){
         this.win = new Window({
-            title: 'Лаунчер',
+            title: `Лаунчер (${App.version})`,
             // width: 700,
             width: 400,
             height: 300,
@@ -42,24 +43,44 @@ export default class Launcher {
         this.#init();
     }
 
+    async readVersion(src: string): Promise<Version|null> {
+        try {
+            await createScript({ src });
+            // @ts-ignore
+            const version: Version = window['version'];
+            // @ts-ignore
+            delete window['version'];
+            return version;
+        } catch {
+            try{
+                const t = await(await fetch(src)).text();
+                window['eval'](t);
+                // @ts-ignore
+                const version: Version = window['version'];
+                // @ts-ignore
+                delete window['version'];
+                return version;
+            }catch{
+                return null;
+            }
+        }
+        return null;
+    }
+
     async #init(){
         await this.readData();
 
         this.#initContent();
 
         if(this.versions.length == 0){
+            this.statusText.textContent = `Скачивание версии..`;
             console.log(`Downloading default version [vanilla]..`);
             try{
-                const src = `https://cdn.jsdelivr.net/gh/lumik0/bafiaonline@main/run/images/vanilla.js`;
-                await createScript({ src });
-                // @ts-ignore
-                const version: Version = window['version'];
-                // @ts-ignore
-                delete window['version'];
-                await this.downloadVersion({...version, scriptPath: src});
+                const src = `https://raw.githubusercontent.com/lumik0/bafiaonline/refs/heads/master/run/images/vanilla.js?v=${Math.random()}`;
+                const version = await this.readVersion(src);
+                if(version) await this.downloadVersion({...version, scriptPath: src});
             }catch(e){
-                console.log(`Error or no default version`);
-                alert(e)
+                console.error(e);
             }
         }
     }
@@ -76,18 +97,22 @@ export default class Launcher {
         this.profiles = JSON.parse(await fs.readFile(`/profiles.json`));
     }
 
-    async #initContent(){
+    async #initContent(checkVersions = true){
         const updateVersions = [];
         this.win.content.innerHTML = '';
 
+        const div = document.createElement('div');
+        div.style.padding = '5px';
+        this.win.content.appendChild(div);
+
         this.statusText = document.createElement('div');
         this.statusText.style.margin = '5px 5px 0 5px';
-        this.win.content.appendChild(this.statusText);
+        div.appendChild(this.statusText);
 
         this.progressBar = document.createElement('progress');
         this.progressBar.value = 0
         this.progressBar.style.width = '100%'
-        this.win.content.appendChild(this.progressBar);
+        div.appendChild(this.progressBar);
 
         const versions = document.createElement('div');
         versions.style.display = 'flex';
@@ -103,7 +128,7 @@ export default class Launcher {
         for(const ver of this.versions){
             const el = document.createElement('option');
             el.innerHTML = ver.name;
-            if(ver.scriptPath) updateVersions.push(ver);
+            if(ver.scriptPath && checkVersions) updateVersions.push(ver);
             listVersions.appendChild(el);
         }
         versions.appendChild(listVersions);
@@ -123,7 +148,7 @@ export default class Launcher {
             }
         }
         versions.appendChild(btnRemoveVersion);
-        this.win.content.appendChild(versions);
+        div.appendChild(versions);
 
         const profiles = document.createElement('div');
         profiles.style.display = 'flex';
@@ -158,13 +183,13 @@ export default class Launcher {
             }
         }
         profiles.appendChild(btnRemoveProfile);
-        this.win.content.appendChild(profiles);
+        div.appendChild(profiles);
 
         const btns = document.createElement('div');
         btns.style.display = 'flex';
         btns.style.margin = '5px';
         btns.style.justifyContent = 'center';
-        this.win.content.appendChild(btns);
+        div.appendChild(btns);
         this.btnPlay = document.createElement('button');
         this.btnPlay.innerHTML = `Играть`;
         this.btnPlay.onclick = async() => {
@@ -182,18 +207,21 @@ export default class Launcher {
                     }
                 }
                 this.runGame(v, p);
+            } else {
+                alert(`Не найдена версия`);
+                btnAddVersion.style.transition = '1s'
+                btnAddVersion.style.transform = 'scale(5)';
+                await wait(1000);
+                btnAddVersion.style.transform = 'none';
             }
         };
         btns.appendChild(this.btnPlay);
 
         for await(const ver of updateVersions){
             this.statusText.textContent = 'Проверка..';
-            await createScript({ src: ver.scriptPath });
-            // @ts-ignore
-            const version: Version = window['version'];
-            // @ts-ignore
-            delete window['version'];
-            await this.downloadVersion({...version, ...ver});
+            
+            const version = await this.readVersion(ver.scriptPath!);
+            if(version) await this.downloadVersion({...version, ...ver});
         }
     }
 
@@ -361,7 +389,7 @@ export default class Launcher {
                 this.versions.push(version);
             }
             await this.writeData();
-            if(i == -1) await this.#initContent();
+            if(i == -1) await this.#initContent(false);
             return;
         }
         this.win.lock();
@@ -400,16 +428,16 @@ export default class Launcher {
         btnLoadScript.onclick = async() => {
             const src = inputPathScript.value;
             try{
-                await createScript({ src });
-                // @ts-ignore
-                const version: Version = window['version'];
-                // @ts-ignore
-                delete window['version'];
-                win.lock();
-                await self.downloadVersion({...version, scriptPath: src});
-                win.close();
+                const version = await this.readVersion(src);
+                if(version){
+                    win.lock();
+                    await self.downloadVersion({...version, scriptPath: src});
+                    win.close();
+                } else {
+                    alert(`Ошибка: ${e}`);
+                }
             } catch(e) {
-                alert(`Скрипт не найден: ${e}`);
+                alert(`Ошибка: ${e}`);
             }
         }
         div.appendChild(btnLoadScript);
@@ -426,21 +454,18 @@ export default class Launcher {
         let found = false;
         for await(const url of urls){
             try{
-                await createScript({ src: url });
-                // @ts-ignore
-                const version: Version = window['version'];
-                // @ts-ignore
-                delete window['version'];
-                
-                const e = document.createElement('button');
-                e.textContent = noXSS(url);
-                e.onclick = async() => {
-                    win.lock();
-                    await self.downloadVersion({...version, scriptPath: url});
-                    win.close();
+                const version = await this.readVersion(url);
+                if(version){
+                    const e = document.createElement('button');
+                    e.textContent = noXSS(url);
+                    e.onclick = async() => {
+                        win.lock();
+                        await self.downloadVersion({...version, scriptPath: url});
+                        win.close();
+                    }
+                    foundScripts.appendChild(e);
+                    found = true;
                 }
-                foundScripts.appendChild(e);
-                found = true;
             } catch{}
         }
         if(found) win.content.appendChild(foundScripts);
@@ -454,15 +479,16 @@ export default class Launcher {
         await readImage('image', `${version.path}/`, false, {
             startProcessFS(s) {
                 size = s;
-                try{self.progressBar.max = s;}catch{}
+                self.progressBar.max = s;
             },
             processFS(path, write) {
                 total++
-                try{self.progressBar.value = total;}catch{}
+                self.progressBar.value = total
                 if(write) {
-                    self.statusText.textContent = `Скачан файл (${total/size})`;
+                    self.statusText.textContent = `Скачан файл (${total}/${size})`;
                     console.log(`downloading..`, path);
-                }
+                } else
+                    self.statusText.textContent = `Проверка (${total}/${size})`;
             },
         });
         this.btnPlay.disabled = false;

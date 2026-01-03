@@ -28,7 +28,7 @@ interface AppEvents {
 
 // @ts-ignore
 class App extends Events<AppEvents> {
-    version = '1.1 Alpha'
+    version = 'Alpha 1.1'
 
     element!: HTMLElement
     config!: Config

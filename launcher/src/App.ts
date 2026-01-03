@@ -13,6 +13,8 @@ interface AppEvents {
 
 // @ts-ignore
 class App extends Events<AppEvents> {
+    version = `Alpha 1.1`;
+
     windowsElem!: HTMLElement
 
     launcher?: Launcher
