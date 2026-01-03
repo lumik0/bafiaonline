@@ -1,0 +1,93 @@
+{
+    "&":{
+        "background-color": "black",
+        "font-family": "Arial, Helvetica, sans-serif",
+        "color": "white",
+        "user-select": "none",
+        "height": "100%",
+        "& button": {
+            "color": "white",
+            "outline": "none",
+            "padding": "6px 20px",
+            "font-size": "18px",
+            "background": "#D1343C",
+            "border": "1px solid black",
+            "border-radius": "7px"
+        },
+        "& button:enabled:hover": {
+            "background-color": "#A41B1E"
+        },
+        "& button:enabled:active": {
+            "background-color": "#7a1215"
+        },
+        "& button:disabled": {
+            "background-color": "#620d10"
+        },
+        "& input": {
+            "background": "white",
+            "color": "black",
+            "border": "none",
+            "outline": "none",
+            "font-size": "16px",
+            "padding": "2px 10px",
+            "box-sizing": "border-box",
+            "border-radius": "3px"
+        },
+        "& input.android": {
+            "padding": "0 3px",
+            "font-size": "20px",
+            "background": "transparent",
+            "border-bottom": "2px solid #D1343C"
+        },
+        "& .header": {
+            "background": "#D1343C",
+            "width": "100%",
+            "height": "40px",
+            "display": "flex",
+            "align-items": "center"
+        },
+        "& .header > label": {
+            "marginLeft": "15px"
+        },
+        "& .rooms-filter": {
+            "width": "100%",
+            "margin": "5px 5px 0",
+            "display": "flex"
+        },
+        "& .room": {
+            "border-radius": "5px",
+            "margin": "5px",
+            "padding": "3px 10px",
+            "color": "black",
+            "text-align": "left"
+        },
+        "& .room-lvl": {
+            "width": "25px",
+            "height": "25px",
+            "vertical-align": "middle",
+            "margin-right": "5px",
+            "margin-left": "-5px"
+        },
+        "& .room-title": {
+            "padding": "7px"
+        },
+        "& .room-status": {
+            "float": "right",
+            "padding": "3px"
+        },
+        "& .room-btn-players": {
+            "float": "right",
+            "background": "rgba(200,200,200,.3)",
+            "padding": "7px 10px",
+            "border-radius": "5px"
+        },
+        "& .input-chat": {
+            "width": "100%"
+        },
+        "& .back": {
+            "border": "none",
+            "padding": "8px 15px",
+            "margin-left": "5px"
+        }
+    }
+}
