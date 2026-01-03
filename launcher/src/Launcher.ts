@@ -192,6 +192,7 @@ export default class Launcher {
         div.appendChild(btns);
         this.btnPlay = document.createElement('button');
         this.btnPlay.innerHTML = `Играть`;
+        this.btnPlay.style.margin = '1px';
         this.btnPlay.onclick = async() => {
             const v = this.versions.find(e => e.name == listVersions.value);
             const p = this.profiles.find(e => e.name == listProfiles.value);
@@ -216,6 +217,12 @@ export default class Launcher {
             }
         };
         btns.appendChild(this.btnPlay);
+
+        const githubBtn = document.createElement('button');
+        githubBtn.innerHTML = `Github`;
+        githubBtn.style.margin = '1px';
+        githubBtn.onclick = () => window.open('https://github.com/lumik0/bafiaonline', '_blank');
+        btns.appendChild(githubBtn);
 
         for await(const ver of updateVersions){
             this.statusText.textContent = 'Проверка..';
