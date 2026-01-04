@@ -1659,9 +1659,15 @@
     }
   };
 
+  // core/version.json
+  var version_default = {
+    launcher: "Alpha 1.1.1",
+    vanilla: "Alpha 1.1.1"
+  };
+
   // launcher/src/App.ts
   var App = class extends Events {
-    version = `Alpha 1.1`;
+    version = version_default.launcher;
     windowsElem;
     launcher;
     constructor() {
