@@ -106,10 +106,10 @@ export default class Box extends Events<BoxEvents> {
         // App.screen.element.style.opacity = '1';
         this.element.style.transform = 'translate(-50%, -55%)';
         this.element.style.opacity = '0';
-        wait(200).then(() => this.#destroy());
+        wait(200).then(() => this.destroy());
     }
 
-    #destroy(){
+    destroy(){
         this.emit('destroy');
         App.boxs.splice(this.id, 1);
         if(App.boxs.length == 0) App.screen.element.style.pointerEvents = 'all';

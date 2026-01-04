@@ -148,7 +148,7 @@ export default class Dashboard extends Screen {
             btnClose.textContent = 'Закрыть игру';
             btnClose.style.width = '60%'
             btnClose.style.margin = '3px';
-            btnClose.onclick = async() => App.win.close()
+            btnClose.onclick = () => App.win.close()
             div.appendChild(btnClose);
         }
         

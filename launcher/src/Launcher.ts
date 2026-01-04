@@ -301,13 +301,61 @@ export default class Launcher {
                     status.innerHTML = `Ошибка. Код ошибки: ${json[PacketDataKeys.ERROR]}`;
                     status.style.color = 'red';
                 } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USER_SIGN_IN){
+                    const u = json[PacketDataKeys.USER][PacketDataKeys.USERNAME];
+                    if(u == '') return;
                     self.profiles.push({
-                        name: json[PacketDataKeys.USER][PacketDataKeys.USERNAME],
+                        name: u,
                         email: inputEmail.value,
                         password: inputPassword.value,
                         token: json[PacketDataKeys.USER][PacketDataKeys.TOKEN],
                         userId: json[PacketDataKeys.USER][PacketDataKeys.OBJECT_ID]
                     });
+                    await self.writeData();
+                    win.close();
+                    self.#initContent();
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USERNAME_HAS_WRONG_SYMBOLS){
+                    alert(`Для никнейма вы можете использовать только 0-9 а-Я a-Z символы`);
+                    const uu = prompt(`Для игры и общения с другими игроками у вас должен быть установлен Никнэйм`);
+                    webSocket.send(JSON.stringify({
+                        [PacketDataKeys.TYPE]: PacketDataKeys.USERNAME_SET,
+                        [PacketDataKeys.OBJECT_ID]: inputUserId.value,
+                        [PacketDataKeys.TOKEN]: inputToken.value,
+                        [PacketDataKeys.USERNAME]: uu
+                    }));
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USERNAME_IS_EXISTS){
+                    alert(`Данный никнейм уже зарегистрирован`);
+                    const uu = prompt(`Для игры и общения с другими игроками у вас должен быть установлен Никнэйм`);
+                    webSocket.send(JSON.stringify({
+                        [PacketDataKeys.TYPE]: PacketDataKeys.USERNAME_SET,
+                        [PacketDataKeys.OBJECT_ID]: inputUserId.value,
+                        [PacketDataKeys.TOKEN]: inputToken.value,
+                        [PacketDataKeys.USERNAME]: uu
+                    }));
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USERNAME_IS_OUT_OF_BOUNDS){
+                    alert(`Никнейм слишком короткий или длинный.\nНикнейм должен состоять из 3-12 символы`);
+                    const uu = prompt(`Для игры и общения с другими игроками у вас должен быть установлен Никнэйм`);
+                    webSocket.send(JSON.stringify({
+                        [PacketDataKeys.TYPE]: PacketDataKeys.USERNAME_SET,
+                        [PacketDataKeys.OBJECT_ID]: inputUserId.value,
+                        [PacketDataKeys.TOKEN]: inputToken.value,
+                        [PacketDataKeys.USERNAME]: uu
+                    }));
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USERNAME_IS_EMPTY){
+                    alert(`Никнейм не может быть пустым`);
+                    const uu = prompt(`Для игры и общения с другими игроками у вас должен быть установлен Никнэйм`);
+                    webSocket.send(JSON.stringify({
+                        [PacketDataKeys.TYPE]: PacketDataKeys.USERNAME_SET,
+                        [PacketDataKeys.OBJECT_ID]: inputUserId.value,
+                        [PacketDataKeys.TOKEN]: inputToken.value,
+                        [PacketDataKeys.USERNAME]: uu
+                    }));
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USERNAME_SET){
+                    const acc = self.profiles.find(e => e.name == '');
+                    if(!acc){
+                        alert('Нет аккаунта');
+                        return;
+                    }
+                    acc.name = json[PacketDataKeys.USERNAME];
                     await self.writeData();
                     win.close();
                     self.#initContent();
@@ -351,6 +399,70 @@ export default class Launcher {
             }
         }
         div.appendChild(btn);
+
+        const btnReg = document.createElement('button');
+        btnReg.style.width = '100%'
+        btnReg.innerHTML = 'Регистрация';
+        btnReg.onclick = async() => {
+            if(this.profiles.find(e => e.name == '')){
+                const uu = prompt(`Найден аккаунт без никнейма.\nДля игры и общения с другими игроками у вас должен быть установлен Никнэйм`);
+                webSocket.send(JSON.stringify({
+                    [PacketDataKeys.TYPE]: PacketDataKeys.USERNAME_SET,
+                    [PacketDataKeys.OBJECT_ID]: inputUserId.value,
+                    [PacketDataKeys.TOKEN]: inputToken.value,
+                    [PacketDataKeys.USERNAME]: uu
+                }));
+                return;
+            }
+
+            if(inputEmail.value != '' && inputPassword.value != ''){
+                const data = await fetch(`https://api.mafia.dottap.com/user/sign_up`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                    },
+                    body: new URLSearchParams({
+                        email: inputEmail.value,
+                        username: '',
+                        password: MD5(inputPassword.value),
+                        deviceId: tokenHex(8),
+                        lang: 'RUS'
+                    })
+                });
+                const result = await data.json();
+                if(result.error){
+                    if(result.error == 'USING_TEMP_EMAIL'){
+                        alert(`Запрещено использовать сервисы для временной регистрации email.\nИспользуйте популярные сервисы, например Gmail, Mail.Ru, Yandex, Yahoo и тд.`);
+                    } else if(result.error == 'EMAIL_EXISTS'){
+                        alert(`Данный email уже зарегистрирован`);
+                    }
+                    return;
+                }
+
+                if(result[PacketDataKeys.OBJECT_ID]){
+                    btn.disabled = true;
+
+                    self.profiles.push({
+                        name: '',
+                        email: inputEmail.value,
+                        password: inputPassword.value,
+                        token: result[PacketDataKeys.TOKEN],
+                        userId: result[PacketDataKeys.OBJECT_ID]
+                    });
+                    this.writeData();
+
+                    const uu = prompt(`Для игры и общения с другими игроками у вас должен быть установлен Никнэйм`);
+                    webSocket.send(JSON.stringify({
+                        [PacketDataKeys.TYPE]: PacketDataKeys.USERNAME_SET,
+                        [PacketDataKeys.OBJECT_ID]: inputUserId.value,
+                        [PacketDataKeys.TOKEN]: inputToken.value,
+                        [PacketDataKeys.USERNAME]: uu
+                    }));
+                }
+            }
+        }
+        div.appendChild(btnReg);
+
         div.appendChild(status);
         
         const why = document.createElement('div');
@@ -366,20 +478,6 @@ export default class Launcher {
             alert(`Мы не собираем данные аккаунтов\n\nНаш исходный код открыт https://github.com/lumik0/bafiaonline\n\nВы в любом случае можете войти с второго аккаунта`);
         }
         div.appendChild(why);
-        
-        const whereIsReg = document.createElement('div');
-        whereIsReg.style.width = '100%'
-        whereIsReg.style.textAlign = 'center';
-        whereIsReg.style.fontSize = '12px';
-        whereIsReg.style.color = '#8888f8';
-        whereIsReg.style.textDecoration = 'underline';
-        whereIsReg.style.cursor = 'pointer';
-        whereIsReg.style.userSelect = 'none';
-        whereIsReg.innerHTML = 'А где регистрация?';
-        whereIsReg.onclick = () => {
-            alert(`потом будет`);
-        }
-        div.appendChild(whereIsReg);
     }
 
     async addVersion(version?: Version){

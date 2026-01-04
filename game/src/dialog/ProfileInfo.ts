@@ -7,6 +7,8 @@ import { getAvatarImg } from '../utils/Resources';
 import { getZoom, wait } from '../../../core/src/utils/utils';
 import Rooms from '../screen/Rooms';
 import { formatDate } from '../../../core/src/utils/format';
+import MessageBox from './MessageBox';
+import ConfirmBox from './ConfirmBox';
 
 function calculateStatsWithRoles(profile: any) {
     const mafiaRoles = [Role.MAFIA, Role.TERRORIST, Role.BARMAN, Role.INFORMER];
@@ -46,7 +48,7 @@ function calculateStatsWithRoles(profile: any) {
     };
 }
 
-export default async function(userObjectId: string){
+export default async function ProfileInfo(userObjectId: string){
     const zoom = getZoom();
     const box = new Box({ title: 'ПРОФИЛЬ', width: `${(App.width/zoom)/.75}px`, height: `${(App.height/zoom)/.75}px`, canCloseAnywhere: true });
     box.element.style.zoom = (zoom / 1.75) + '';
@@ -84,6 +86,9 @@ export default async function(userObjectId: string){
 
         sliver: ud[PacketDataKeys.USER_ACCOUNT_COINS][PacketDataKeys.SILVER_COINS],
         gold: ud[PacketDataKeys.USER_ACCOUNT_COINS][PacketDataKeys.GOLD_COINS],
+
+        friend: ud[PacketDataKeys.FRIENDSHIP],
+        friendFlag: ud[PacketDataKeys.FRIENDSHIP_FLAG]
     }
 
     const isMe = typeof profile.gold == 'number';
@@ -159,7 +164,54 @@ export default async function(userObjectId: string){
     }
 
     if(userObjectId != App.user.objectId) {
-        addButton('Добавить в друзья', () => {});
+        if(!profile.friend){
+            addButton('Добавить в друзья', async() => {
+                App.server.send(PacketDataKeys.ADD_FRIEND, {
+                    [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+                });
+                const data = await App.server.awaitPacket([PacketDataKeys.ADD_FRIEND, PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL]);
+                if(data[PacketDataKeys.TYPE] == PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL){
+                    MessageBox(`Список ваших друзей полон. Вы уже добавили ${data[PacketDataKeys.FRIENDSHIP_LIST_LIMIT]} друзей в список друзей\n\nВы сможете добавить 200 друзей, если подключите VIP\n\nПожалуйста, освободите список ваших друзей`);
+                    return;
+                }
+                if(data[PacketDataKeys.TYPE] == PacketDataKeys.ADD_FRIEND){
+                    box.destroy();
+                    ProfileInfo(userObjectId);
+                }
+            });
+        } else if(profile.friendFlag == 2){
+            addButton('Принять дружбу', async() => {
+                const e = await ConfirmBox(`Принять заявку в друзья от данного пользователя`, { title: `ПРИНЯТЬ ДРУЖБУ` });
+                if(e) {
+                    App.server.send(PacketDataKeys.ADD_FRIEND, {
+                        [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+                    });
+                    const data = await App.server.awaitPacket([PacketDataKeys.ADD_FRIEND, PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL]);
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL){
+                        MessageBox(`Список ваших друзей полон. Вы уже добавили ${data[PacketDataKeys.FRIENDSHIP_LIST_LIMIT]} друзей в список друзей\n\nВы сможете добавить 200 друзей, если подключите VIP\n\nПожалуйста, освободите список ваших друзей`);
+                        return;
+                    }
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.ADD_FRIEND){
+                        box.destroy();
+                        ProfileInfo(userObjectId);
+                    }
+                }
+            });
+        } else {
+            addButton('Отменить дружбу', async() => {
+                const e = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ` });
+                if(e) {
+                    App.server.send(PacketDataKeys.REMOVE_FRIEND, {
+                        [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+                    });
+                    const data = await App.server.awaitPacket([PacketDataKeys.REMOVE_FRIEND]);
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.REMOVE_FRIEND){
+                        box.destroy();
+                        ProfileInfo(userObjectId);
+                    }
+                }
+            });
+        }
     }
 
     if(room){

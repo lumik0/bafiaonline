@@ -354,7 +354,9 @@ const PacketDataKeys = {
     MATCH_MAKING_ROLES_COUNT: "mmrc",
     
     NEED_MINIMUM_LEVEL_CHAT: "nelfpc",
-    NEED_MINIMUM_LEVEL_MM: "nelfmm"
+    NEED_MINIMUM_LEVEL_MM: "nelfmm",
+
+    USER_CHANGE_EMAIL: "uche",
 } as const
 
 export default PacketDataKeys

@@ -6,6 +6,7 @@ import MessageBox from "../dialog/MessageBox";
 import Authorization from "../screen/Authorization";
 import Dashboard from "../screen/Dashboard";
 import format from '../../../core/src/utils/format';
+import ConfirmBox from "../dialog/ConfirmBox";
 
 interface ServerEvents {
     connect: () => void
@@ -43,7 +44,7 @@ export default class Server extends Events<ServerEvents> {
         this.webSocket.addEventListener('error', (e) => console.error(e));
         this.webSocket.addEventListener('close', () => {
             console.log(`Connection is closed.. Reconnecting in 2 seconds..`);
-            this.call('close');
+            this.emit('close');
             setTimeout(() => this.#connect.bind(this), 2000);
         });
         
@@ -97,7 +98,7 @@ export default class Server extends Events<ServerEvents> {
             App.screen = new Authorization();
         }
 
-        this.on('message', data => {
+        this.on('message', async data => {
             if(data[PacketDataKeys.TYPE] == PacketDataKeys.USER_BLOCKED){
                 const reason = data[PacketDataKeys.REASON];
                 const tsr = data[PacketDataKeys.TIME_SEC_REMAINING];
@@ -111,6 +112,21 @@ export default class Server extends Events<ServerEvents> {
                 if(data[PacketDataKeys.ERROR] == -4){
                     App.screen = new Authorization();
                     MessageBox(`Сессия не валидна. Авторизуйтесь снова`);
+                }
+            } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.EMAIL_NOT_VERIFIED){
+                const e = await ConfirmBox(`Вы не подтвердили ваш email.\nПожалуйста проверьте вашу элоктронную почту и следуйте инструкции в письме.\n\nТак же проверьте папку СПАМ. Возможно письмо попало туда\n\nЕсли вам на email не пришло письмо подтверждения вы можете отправить его снова\n\nЕсли вы неправильно указали email при регистрации вы можете указать новый`, { title: 'ПОДТВЕРЖДЕНИЕ', btnYes: 'Отправить', btnNo: 'Изменить email' });
+                console.log(e);
+                if(e == true){
+                    const json = await(await fetch(`https://api.mafia.dottap.com/user/email/verify`, {
+                        method: 'POST',
+                        body: new URLSearchParams({ lang: 'RUS' })
+                    })).json();
+                    
+                    if(json.error == "TOO_MANY_REQUESTS"){
+                        MessageBox(`Вы можете запросить письмо для подтверждения email через ${json.data} секунд`);
+                    }
+                } else if(e == false){
+                    const e = prompt('Введите новый email');
                 }
             }
         });

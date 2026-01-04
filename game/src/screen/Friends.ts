@@ -1,6 +1,7 @@
 import PacketDataKeys from '../../../core/src/PacketDataKeys';
 import { formatDate } from '../../../core/src/utils/format';
 import App from '../App';
+import ConfirmBox from '../dialog/ConfirmBox';
 import ProfileInfo from '../dialog/ProfileInfo';
 import { getAvatarImg, getBackgroundImg } from '../utils/Resources';
 import Dashboard from './Dashboard';
@@ -172,6 +173,17 @@ export default class Friends extends Screen {
             const btnRemoveFriend = document.createElement('button');
             btnRemoveFriend.className = 'gray';
             btnRemoveFriend.textContent = 'X';
+            btnRemoveFriend.onclick = async() => {
+                const c = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ` });
+                if(c) {
+                    App.server.send(PacketDataKeys.REMOVE_FRIEND, {
+                        [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+                    });
+                    const data = await App.server.awaitPacket([PacketDataKeys.REMOVE_FRIEND]);
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.REMOVE_FRIEND)
+                        e.remove();
+                }
+            }
             btns.appendChild(btnRemoveFriend);
 
             this.list.appendChild(e);

@@ -2946,7 +2946,8 @@
     MATCH_MAKING_ROOM: "mmrr",
     MATCH_MAKING_ROLES_COUNT: "mmrc",
     NEED_MINIMUM_LEVEL_CHAT: "nelfpc",
-    NEED_MINIMUM_LEVEL_MM: "nelfmm"
+    NEED_MINIMUM_LEVEL_MM: "nelfmm",
+    USER_CHANGE_EMAIL: "uche"
   };
   var PacketDataKeys_default = PacketDataKeys;
 
@@ -3224,13 +3225,62 @@
             status.innerHTML = `\u041E\u0448\u0438\u0431\u043A\u0430. \u041A\u043E\u0434 \u043E\u0448\u0438\u0431\u043A\u0438: ${json[PacketDataKeys_default.ERROR]}`;
             status.style.color = "red";
           } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USER_SIGN_IN) {
+            const u = json[PacketDataKeys_default.USER][PacketDataKeys_default.USERNAME];
+            if (u == "") return;
             self2.profiles.push({
-              name: json[PacketDataKeys_default.USER][PacketDataKeys_default.USERNAME],
+              name: u,
               email: inputEmail.value,
               password: inputPassword.value,
               token: json[PacketDataKeys_default.USER][PacketDataKeys_default.TOKEN],
               userId: json[PacketDataKeys_default.USER][PacketDataKeys_default.OBJECT_ID]
             });
+            await self2.writeData();
+            win.close();
+            self2.#initContent();
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USERNAME_HAS_WRONG_SYMBOLS) {
+            alert(`\u0414\u043B\u044F \u043D\u0438\u043A\u043D\u0435\u0439\u043C\u0430 \u0432\u044B \u043C\u043E\u0436\u0435\u0442\u0435 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C \u0442\u043E\u043B\u044C\u043A\u043E 0-9 \u0430-\u042F a-Z \u0441\u0438\u043C\u0432\u043E\u043B\u044B`);
+            const uu = prompt(`\u0414\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0438\u0433\u0440\u043E\u043A\u0430\u043C\u0438 \u0443 \u0432\u0430\u0441 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u041D\u0438\u043A\u043D\u044D\u0439\u043C`);
+            webSocket.send(JSON.stringify({
+              [PacketDataKeys_default.TYPE]: PacketDataKeys_default.USERNAME_SET,
+              [PacketDataKeys_default.OBJECT_ID]: inputUserId.value,
+              [PacketDataKeys_default.TOKEN]: inputToken.value,
+              [PacketDataKeys_default.USERNAME]: uu
+            }));
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USERNAME_IS_EXISTS) {
+            alert(`\u0414\u0430\u043D\u043D\u044B\u0439 \u043D\u0438\u043A\u043D\u0435\u0439\u043C \u0443\u0436\u0435 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043D`);
+            const uu = prompt(`\u0414\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0438\u0433\u0440\u043E\u043A\u0430\u043C\u0438 \u0443 \u0432\u0430\u0441 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u041D\u0438\u043A\u043D\u044D\u0439\u043C`);
+            webSocket.send(JSON.stringify({
+              [PacketDataKeys_default.TYPE]: PacketDataKeys_default.USERNAME_SET,
+              [PacketDataKeys_default.OBJECT_ID]: inputUserId.value,
+              [PacketDataKeys_default.TOKEN]: inputToken.value,
+              [PacketDataKeys_default.USERNAME]: uu
+            }));
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USERNAME_IS_OUT_OF_BOUNDS) {
+            alert(`\u041D\u0438\u043A\u043D\u0435\u0439\u043C \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0438\u043B\u0438 \u0434\u043B\u0438\u043D\u043D\u044B\u0439.
+\u041D\u0438\u043A\u043D\u0435\u0439\u043C \u0434\u043E\u043B\u0436\u0435\u043D \u0441\u043E\u0441\u0442\u043E\u044F\u0442\u044C \u0438\u0437 3-12 \u0441\u0438\u043C\u0432\u043E\u043B\u044B`);
+            const uu = prompt(`\u0414\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0438\u0433\u0440\u043E\u043A\u0430\u043C\u0438 \u0443 \u0432\u0430\u0441 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u041D\u0438\u043A\u043D\u044D\u0439\u043C`);
+            webSocket.send(JSON.stringify({
+              [PacketDataKeys_default.TYPE]: PacketDataKeys_default.USERNAME_SET,
+              [PacketDataKeys_default.OBJECT_ID]: inputUserId.value,
+              [PacketDataKeys_default.TOKEN]: inputToken.value,
+              [PacketDataKeys_default.USERNAME]: uu
+            }));
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USERNAME_IS_EMPTY) {
+            alert(`\u041D\u0438\u043A\u043D\u0435\u0439\u043C \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u0431\u044B\u0442\u044C \u043F\u0443\u0441\u0442\u044B\u043C`);
+            const uu = prompt(`\u0414\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0438\u0433\u0440\u043E\u043A\u0430\u043C\u0438 \u0443 \u0432\u0430\u0441 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u041D\u0438\u043A\u043D\u044D\u0439\u043C`);
+            webSocket.send(JSON.stringify({
+              [PacketDataKeys_default.TYPE]: PacketDataKeys_default.USERNAME_SET,
+              [PacketDataKeys_default.OBJECT_ID]: inputUserId.value,
+              [PacketDataKeys_default.TOKEN]: inputToken.value,
+              [PacketDataKeys_default.USERNAME]: uu
+            }));
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USERNAME_SET) {
+            const acc = self2.profiles.find((e2) => e2.name == "");
+            if (!acc) {
+              alert("\u041D\u0435\u0442 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430");
+              return;
+            }
+            acc.name = json[PacketDataKeys_default.USERNAME];
             await self2.writeData();
             win.close();
             self2.#initContent();
@@ -3272,6 +3322,66 @@
         }
       };
       div.appendChild(btn);
+      const btnReg = document.createElement("button");
+      btnReg.style.width = "100%";
+      btnReg.innerHTML = "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F";
+      btnReg.onclick = async () => {
+        if (this.profiles.find((e) => e.name == "")) {
+          const uu = prompt(`\u041D\u0430\u0439\u0434\u0435\u043D \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0431\u0435\u0437 \u043D\u0438\u043A\u043D\u0435\u0439\u043C\u0430.
+\u0414\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0438\u0433\u0440\u043E\u043A\u0430\u043C\u0438 \u0443 \u0432\u0430\u0441 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u041D\u0438\u043A\u043D\u044D\u0439\u043C`);
+          webSocket.send(JSON.stringify({
+            [PacketDataKeys_default.TYPE]: PacketDataKeys_default.USERNAME_SET,
+            [PacketDataKeys_default.OBJECT_ID]: inputUserId.value,
+            [PacketDataKeys_default.TOKEN]: inputToken.value,
+            [PacketDataKeys_default.USERNAME]: uu
+          }));
+          return;
+        }
+        if (inputEmail.value != "" && inputPassword.value != "") {
+          const data = await fetch(`https://api.mafia.dottap.com/user/sign_up`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+            },
+            body: new URLSearchParams({
+              email: inputEmail.value,
+              username: "",
+              password: md5salt(inputPassword.value),
+              deviceId: tokenHex(8),
+              lang: "RUS"
+            })
+          });
+          const result = await data.json();
+          if (result.error) {
+            if (result.error == "USING_TEMP_EMAIL") {
+              alert(`\u0417\u0430\u043F\u0440\u0435\u0449\u0435\u043D\u043E \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C \u0441\u0435\u0440\u0432\u0438\u0441\u044B \u0434\u043B\u044F \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E\u0439 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 email.
+\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043F\u043E\u043F\u0443\u043B\u044F\u0440\u043D\u044B\u0435 \u0441\u0435\u0440\u0432\u0438\u0441\u044B, \u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440 Gmail, Mail.Ru, Yandex, Yahoo \u0438 \u0442\u0434.`);
+            } else if (result.error == "EMAIL_EXISTS") {
+              alert(`\u0414\u0430\u043D\u043D\u044B\u0439 email \u0443\u0436\u0435 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043D`);
+            }
+            return;
+          }
+          if (result[PacketDataKeys_default.OBJECT_ID]) {
+            btn.disabled = true;
+            self2.profiles.push({
+              name: "",
+              email: inputEmail.value,
+              password: inputPassword.value,
+              token: result[PacketDataKeys_default.TOKEN],
+              userId: result[PacketDataKeys_default.OBJECT_ID]
+            });
+            this.writeData();
+            const uu = prompt(`\u0414\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0438\u0433\u0440\u043E\u043A\u0430\u043C\u0438 \u0443 \u0432\u0430\u0441 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u041D\u0438\u043A\u043D\u044D\u0439\u043C`);
+            webSocket.send(JSON.stringify({
+              [PacketDataKeys_default.TYPE]: PacketDataKeys_default.USERNAME_SET,
+              [PacketDataKeys_default.OBJECT_ID]: inputUserId.value,
+              [PacketDataKeys_default.TOKEN]: inputToken.value,
+              [PacketDataKeys_default.USERNAME]: uu
+            }));
+          }
+        }
+      };
+      div.appendChild(btnReg);
       div.appendChild(status);
       const why = document.createElement("div");
       why.style.width = "100%";
@@ -3290,19 +3400,6 @@
 \u0412\u044B \u0432 \u043B\u044E\u0431\u043E\u043C \u0441\u043B\u0443\u0447\u0430\u0435 \u043C\u043E\u0436\u0435\u0442\u0435 \u0432\u043E\u0439\u0442\u0438 \u0441 \u0432\u0442\u043E\u0440\u043E\u0433\u043E \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430`);
       };
       div.appendChild(why);
-      const whereIsReg = document.createElement("div");
-      whereIsReg.style.width = "100%";
-      whereIsReg.style.textAlign = "center";
-      whereIsReg.style.fontSize = "12px";
-      whereIsReg.style.color = "#8888f8";
-      whereIsReg.style.textDecoration = "underline";
-      whereIsReg.style.cursor = "pointer";
-      whereIsReg.style.userSelect = "none";
-      whereIsReg.innerHTML = "\u0410 \u0433\u0434\u0435 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F?";
-      whereIsReg.onclick = () => {
-        alert(`\u043F\u043E\u0442\u043E\u043C \u0431\u0443\u0434\u0435\u0442`);
-      };
-      div.appendChild(whereIsReg);
     }
     async addVersion(version) {
       const self2 = this;
