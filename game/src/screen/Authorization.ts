@@ -2,6 +2,7 @@ import App from "../App";
 import Screen from "./Screen";
 import MessageBox from "../dialog/MessageBox";
 import { getBackgroundImg } from "../utils/Resources";
+import { isMobile } from "../../../core/src/utils/mobile";
 
 export default class Authorization extends Screen {
     constructor(){
@@ -75,5 +76,12 @@ export default class Authorization extends Screen {
 Если вам нужно зарегистрироваться, то зарегистрируйтесь в лаунчере либо в Мафии онлайн с телефона<br/>
 `;
         div.appendChild(text);
+
+        if(isMobile()){
+            const btnCloseGame = document.createElement('button');
+            btnCloseGame.textContent = 'Закрыть игру';
+            btnCloseGame.addEventListener('click', () => App.win.close());
+            div.appendChild(btnCloseGame);
+        }
     }
 }
