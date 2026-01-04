@@ -6,7 +6,7 @@
 
 ## Запуск
 
-[Тут](https://lumik0.github.io/bafiaonline/run/index.html)
+Ссылка: [тут](https://lumik0.github.io/bafiaonline/run/index.html)
 
 или
 
