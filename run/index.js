@@ -2973,6 +2973,11 @@
   var Launcher = class {
     win;
     openedWindows = [];
+    options = {
+      version: "",
+      profile: "",
+      theme: "macos"
+    };
     versions = [];
     profiles = [];
     statusText;
@@ -3027,13 +3032,20 @@
     async writeData() {
       await fs_default.writeFile(`/versions.json`, JSON.stringify(this.versions));
       await fs_default.writeFile(`/profiles.json`, JSON.stringify(this.profiles));
+      await fs_default.writeFile(`/options.json`, JSON.stringify(this.options));
     }
     async readData() {
       if (!await fs_default.existsFile("/urlsVersions.json")) fs_default.writeFile(`/urlsVersions.json`, JSON.stringify(["./images/vanilla.js", "./vanilla.js"]));
       if (!await fs_default.existsFile("/versions.json")) fs_default.writeFile(`/versions.json`, "[]");
       if (!await fs_default.existsFile("/profiles.json")) fs_default.writeFile(`/profiles.json`, "[]");
+      if (!await fs_default.existsFile("/options.json")) fs_default.writeFile(`/options.json`, JSON.stringify({
+        version: "",
+        profile: "",
+        theme: "macos"
+      }));
       this.versions = JSON.parse(await fs_default.readFile(`/versions.json`));
       this.profiles = JSON.parse(await fs_default.readFile(`/profiles.json`));
+      this.options = JSON.parse(await fs_default.readFile(`/options.json`));
     }
     async #initContent(checkVersions = true) {
       const updateVersions = [];
@@ -3059,6 +3071,7 @@
       const listVersions = document.createElement(`select`);
       listVersions.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044E..";
       listVersions.style.width = "100%";
+      listVersions.value = this.options.version;
       for (const ver of this.versions) {
         const el = document.createElement("option");
         el.innerHTML = ver.name;
@@ -3094,9 +3107,14 @@
       const listProfiles = document.createElement(`select`);
       listProfiles.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C..";
       listProfiles.style.width = "100%";
+      listProfiles.value = this.options.profile;
       for (const pr of this.profiles) {
         const el = document.createElement("option");
         el.innerHTML = pr.name;
+        if (pr.name == "") {
+          pr.name = "\u041D\u043E\u0432\u044B\u0439 \u0430\u043A\u043A\u0430\u0443\u043D\u0442";
+          el.style.background = "#57e057";
+        }
         listProfiles.appendChild(el);
       }
       profiles.appendChild(listProfiles);
@@ -3559,6 +3577,11 @@
           // token: profile.token,
           // userId: profile.userId
         };
+      }
+      if (this.options.version != version.name || this.options.profile != profile?.name) {
+        this.options.version = version.name;
+        this.options.profile = profile ? profile.name : "";
+        this.writeData();
       }
       const win = new Window({
         title: `${version.name}`,

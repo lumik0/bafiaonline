@@ -5,7 +5,7 @@ import { getZoom, noXSS, wait } from '../../core/src/utils/utils';
 import IWindow from '../../core/src/IWindow'
 import App from './App';
 
-interface WindowEvents {
+export interface WindowEvents {
     focus: () => void
     unfocus: () => void
     resize: (e: {

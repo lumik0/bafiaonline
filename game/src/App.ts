@@ -142,6 +142,8 @@ class App extends Events<AppEvents> {
                 }
             }
         });
+
+        this.win.on('close', () => this.destroy());
     }
 
     private tick(dt: number){
@@ -160,6 +162,15 @@ class App extends Events<AppEvents> {
 
     get zoom(){
         return this.settings.data.window.zoom
+    }
+
+    destroy(){
+        this.resources = {};
+        this.components.forEach(e => e.destroy());
+        this.boxs.forEach(e => e.destroy());
+        this.element.remove();
+        this.removeAllEvents();
+        this.server.destroy();
     }
 }
 

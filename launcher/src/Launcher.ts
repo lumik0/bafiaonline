@@ -24,6 +24,11 @@ export default class Launcher {
 
     openedWindows: Window[] = [];
 
+    options = {
+        version: '',
+        profile: '',
+        theme: 'macos'
+    }
     versions: Version[] = [];
     profiles: Profile[] = [];
     
@@ -90,13 +95,20 @@ export default class Launcher {
     async writeData(){
         await fs.writeFile(`/versions.json`, JSON.stringify(this.versions));
         await fs.writeFile(`/profiles.json`, JSON.stringify(this.profiles));
+        await fs.writeFile(`/options.json`, JSON.stringify(this.options));
     }
     async readData(){
         if(!(await fs.existsFile('/urlsVersions.json'))) fs.writeFile(`/urlsVersions.json`, JSON.stringify(['./images/vanilla.js', './vanilla.js']));
         if(!(await fs.existsFile('/versions.json'))) fs.writeFile(`/versions.json`, '[]');
         if(!(await fs.existsFile('/profiles.json'))) fs.writeFile(`/profiles.json`, '[]');
+        if(!(await fs.existsFile('/options.json'))) fs.writeFile(`/options.json`, JSON.stringify({
+            version: '',
+            profile: '',
+            theme: 'macos'
+        }));
         this.versions = JSON.parse(await fs.readFile(`/versions.json`));
         this.profiles = JSON.parse(await fs.readFile(`/profiles.json`));
+        this.options = JSON.parse(await fs.readFile(`/options.json`));
     }
 
     async #initContent(checkVersions = true){
@@ -127,6 +139,7 @@ export default class Launcher {
         const listVersions = document.createElement(`select`);
         listVersions.value = 'Выберите версию..';
         listVersions.style.width = '100%';
+        listVersions.value = this.options.version;
         for(const ver of this.versions){
             const el = document.createElement('option');
             el.innerHTML = ver.name;
@@ -163,9 +176,14 @@ export default class Launcher {
         const listProfiles = document.createElement(`select`);
         listProfiles.value = 'Выберите профиль..';
         listProfiles.style.width = '100%';
+        listProfiles.value = this.options.profile;
         for(const pr of this.profiles){
             const el = document.createElement('option');
             el.innerHTML = pr.name;
+            if(pr.name == '') {
+                pr.name = 'Новый аккаунт';
+                el.style.background = '#57e057';
+            }
             listProfiles.appendChild(el);
         }
         profiles.appendChild(listProfiles);
@@ -648,14 +666,21 @@ export default class Launcher {
             console.error(`No main function`);
             return;
         }
+        
 
         if(profile){
+
             config.auth = {
                 email: profile.email,
                 password: profile.password
                 // token: profile.token,
                 // userId: profile.userId
             }
+        }
+        if(this.options.version != version.name || this.options.profile != profile?.name){
+            this.options.version = version.name;
+            this.options.profile = profile ? profile.name : '';
+            this.writeData();
         }
 
         const win = new Window({

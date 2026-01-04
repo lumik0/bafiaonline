@@ -1,3 +1,6 @@
+import { WindowEvents } from '../../launcher/src/Window'
+import { EventHandle, EventPriority } from './Events'
+
 export default interface IWindow {
     isAlive: boolean
     isActivated: boolean
@@ -29,4 +32,18 @@ export default interface IWindow {
     min: () => void
     max: () => void
     close: (force?: boolean) => void
+
+    // @ts-ignore
+    on: <K extends keyof WindowEvents>(evt: K, callback: WindowEvents[K], priority: EventPriority = EventPriority.NORMAL) => EventHandle<WindowEvents[K]>
+    // @ts-ignore
+    once: <K extends keyof WindowEvents>(evt: K, callback: WindowEvents[K], priority: EventPriority = EventPriority.NORMAL) => EventHandle<WindowEvents[K]>
+    off: <K extends keyof WindowEvents>(evt: K, callback: WindowEvents[K]) => boolean
+    // @ts-ignore
+    call: <K extends keyof WindowEvents>(evt: K, event: Parameters<WindowEvents[K]>[0] = undefined) => Promise<Parameters<WindowEvents[K]>[0]>
+    emit: <K extends keyof WindowEvents>(evt: K, ...args: Parameters<WindowEvents[K]> | []) => boolean
+    emitR: <K extends keyof WindowEvents>(evt: K, ...args: Parameters<WindowEvents[K]> | []) => Promise<ReturnType<WindowEvents[K]>[]>
+    // @ts-ignore
+    wait: <K extends keyof WindowEvents>(type: K, timeout = 10_000_000) => Promise<Parameters<WindowEvents[K]> | []>
+    removeByKey: (key: string) => boolean
+    removeAllEvents: () => void
 }

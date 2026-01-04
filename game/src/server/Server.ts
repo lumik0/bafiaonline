@@ -7,6 +7,7 @@ import Authorization from "../screen/Authorization";
 import Dashboard from "../screen/Dashboard";
 import format from '../../../core/src/utils/format';
 import ConfirmBox from "../dialog/ConfirmBox";
+import { wait } from "../../../core/src/utils/utils";
 
 interface ServerEvents {
     connect: () => void
@@ -34,6 +35,13 @@ export default class Server extends Events<ServerEvents> {
     
     constructor(){
         super();
+
+        this.on('close', async() => {
+            console.log(`Connection is closed.. Reconnecting in 1 second..`);
+            await wait(50);
+            this.#connect();
+        });
+
         this.#connect();
     }
 
@@ -42,11 +50,7 @@ export default class Server extends Events<ServerEvents> {
         this.webSocket = new WebSocket(App.config.uriServer);
         this.webSocket.addEventListener('open', this.#init.bind(this));
         this.webSocket.addEventListener('error', (e) => console.error(e));
-        this.webSocket.addEventListener('close', () => {
-            console.log(`Connection is closed.. Reconnecting in 2 seconds..`);
-            this.emit('close');
-            setTimeout(() => this.#connect.bind(this), 2000);
-        });
+        this.webSocket.addEventListener('close', () => this.emit('close'));
         
         const ReversePacketDataKeys = Object.fromEntries(Object.entries(PacketDataKeys).map(([k, v]) => [v, k]));
 
@@ -166,5 +170,10 @@ export default class Server extends Events<ServerEvents> {
 
             this.on("message", onMessage);
         });
+    }
+
+    destroy(){
+        this.removeAllEvents();
+        this.webSocket.close();
     }
 }

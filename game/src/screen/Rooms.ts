@@ -228,11 +228,11 @@ export default class Rooms extends Screen {
         const myStatus = isProfileInfo ? 2 : room[PacketDataKeys.ROOM_STATUS];
         const rank = level == 3 ? 2 : level == 5 ? 3 : level == 7 ? 4 : level == 9 ? 5 : level == 11 ? 6 : 1;
         const selectedRoles = room[PacketDataKeys.SELECTED_ROLES] ?? [];
+        const hasPassword = room[PacketDataKeys.PASSWORD]
 
         async function join(){
-            let password;
-            if(room[PacketDataKeys.PASSWORD]){
-                password = await PromptBox(`Эта комната под замком\n\nПожалуйста введите пароль`, { btnText: `Применить`, placeholder: `Пароль`, title: 'ВВЕСТИ ПАРОЛЬ', height: '200px' });
+            if(hasPassword){
+                let password = await PromptBox(`Эта комната под замком\n\nПожалуйста введите пароль`, { btnText: `Применить`, placeholder: `Пароль`, title: 'ВВЕСТИ ПАРОЛЬ', height: '200px' });
                 if(password == '') return;
                 
                 App.server.send(PacketDataKeys.ROOM_ENTER, {
@@ -242,11 +242,13 @@ export default class Rooms extends Screen {
                 const rData = await App.server.awaitPacket([PacketDataKeys.ROOM_ENTER, PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR, PacketDataKeys.GAME_STARTED, PacketDataKeys.USER_IN_ANOTHER_ROOM, PacketDataKeys.USER_USING_DOUBLE_ACCOUNT, PacketDataKeys.USER_LEVEL_NOT_ENOUGH, PacketDataKeys.USER_KICKED]);
                 if(rData[PacketDataKeys.TYPE] == PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR){
                     await MessageBox('Неправильный пароль!');
-                    div.click();
+                    join();
                     return;
                 }
+                App.screen = new Room(objectId, { password, sendRoomEnter: false });
+                return;
             }
-            App.screen = new Room(objectId, { password });
+            App.screen = new Room(objectId);
         }
 
         const div = document.createElement('div');
@@ -278,8 +280,8 @@ export default class Rooms extends Screen {
         if(selectedRoles.length == 0) div.style.height = myStatus < 2 ? '110px' : '80px';
         div.onmouseenter = () => myStatus == 0 ? 'rgb(114 202 137 / 40%)' : myStatus == 1 ? 'rgb(219 103 111 / 40%)' : div.style.background = 'rgba(200,200,200,.3)';
         div.onmouseleave = () => myStatus == 0 ? 'rgb(137 242 165 / 40%)' : myStatus == 1 ? 'rgb(255 138 146 / 40%)' : div.style.background = 'rgba(200,200,200,.4)';
-        div.addEventListener('click', join);
-        if(!isProfileInfo) div.addEventListener('contextmenu', async(e)=>{
+        div.onclick = () => join();
+        if(!isProfileInfo) div.oncontextmenu = async(e)=>{
             e.preventDefault();
             const joinPl = `Зайти когда ${room[PacketDataKeys.MAX_PLAYERS]-1} игроков будет`;
             const cx = new ContextMenu(['Зайти',joinPl,'Скопировать object id'], e);
@@ -316,7 +318,7 @@ export default class Rooms extends Screen {
                 .case(`Скопировать object id`, () => {
 
                 });
-        });
+        };
         getTexture(`rank/rank${rank}_36.png`).then(e => levelImg.src = e);
         title.textContent = `${room[PacketDataKeys.PASSWORD] ? '🔒 ' : ''}` + room[PacketDataKeys.TITLE];// + ` (${room[PacketDataKeys.MIN_LEVEL]})`;
         status.textContent = room[PacketDataKeys.STATUS] == 0 ? `Регистрация` : `Игра началась`
