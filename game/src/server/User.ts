@@ -5,6 +5,7 @@ export default class User {
     username = "User"
     objectId = ""
     token = ""
+    bToken = '';
     serverLanguage = ""
     status = 0
     level = 0

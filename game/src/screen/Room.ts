@@ -454,10 +454,9 @@ export default class Room extends Screen {
         });
         if(isMobile()){
             this.input.addEventListener('focus', () => {
-                this.headerElem.style.height = 500 + 'px !important';
+                this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
             });
             this.input.addEventListener('blur', () => {
-                // this.headerElem.style.height = 50 + 'px !important';
             });
         }
         this.on('keydown', e => e.key == 'Enter' && this.input.focus());

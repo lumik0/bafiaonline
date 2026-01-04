@@ -7,6 +7,16 @@ import MessageBox from "../dialog/MessageBox";
 import Dashboard from "../screen/Dashboard";
 import MD5 from '../../../core/src/utils/md5'
 
+function generateRandomToken(length = 32) {
+    const hex = '0123456789abcdef';
+    let result = '';
+
+    for(let i = 0; i < length; i++) {
+        result += hex[Math.floor(Math.random() * hex.length)];
+    }
+
+    return result;
+}
 function tokenHex(nBytes: number): string {
     const bytes = new Uint8Array(nBytes);
     crypto.getRandomValues(bytes);
@@ -25,12 +35,7 @@ export default class Auth {
             const data = await this.signIn(auth.email, auth.password, auth.token, auth.userId);
             if(data[PacketDataKeys.TYPE] == PacketDataKeys.SIGN_IN_ERROR) {
                 const err = data[PacketDataKeys.ERROR];
-                // await MessageBox(`Пизда, ошибка авторизации ${err}`, { btnText: `бляяя, лан похуй`, title: `ОШИБКА` });
-                // if(App.screen.name == 'Loading') (App.screen as Loading).title = 'Повторная авторизация..';
-                // // const loading = LoadingBox();
-                // // setTimeout(() => loading(), 100000);
-                // await this.auth();
-
+                
                 if(err == -7){
                     await MessageBox(`Повторите позже\nКод ошибки: -7`, { title: `ОШИБКА` });
                 } else if(err == -4) {
@@ -43,7 +48,8 @@ export default class Auth {
                 App.screen = new Authorization();
             } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.USER_SIGN_IN) {
                 App.user.update(data[PacketDataKeys.USER]);
-                // await MessageBox(`Прикинь ты зашел, блять я в афиге`);
+                
+                App.user.bToken = generateRandomToken();
                 App.screen = new Dashboard();
                 return true;
             }

@@ -119,6 +119,9 @@ export default class Server extends Events<ServerEvents> {
                 if(e == true){
                     const json = await(await fetch(`https://api.mafia.dottap.com/user/email/verify`, {
                         method: 'POST',
+                        headers: {
+                            Authorization: btoa(`${App.user.objectId}=:=${App.user.bToken}`)
+                        },
                         body: new URLSearchParams({ lang: 'RUS' })
                     })).json();
                     
