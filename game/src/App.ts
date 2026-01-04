@@ -12,6 +12,7 @@ import { isMobile } from '../../core/src/utils/mobile';
 import fs from "../../core/src/fs/fs";
 import Component from "./component/Component";
 import IWindow from "../../core/src/IWindow";
+import versions from '../../core/version.json';
 
 interface AppEvents {
     tick: (dt: number) => void
@@ -28,7 +29,7 @@ interface AppEvents {
 
 // @ts-ignore
 class App extends Events<AppEvents> {
-    version = 'Alpha 1.1'
+    version = versions.vanilla
 
     element!: HTMLElement
     config!: Config

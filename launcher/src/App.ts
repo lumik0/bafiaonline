@@ -1,4 +1,5 @@
 import Events from "../../core/src/Events";
+import versions from '../../core/version.json';
 import Launcher from "./Launcher";
 
 interface AppEvents {
@@ -13,7 +14,7 @@ interface AppEvents {
 
 // @ts-ignore
 class App extends Events<AppEvents> {
-    version = `Alpha 1.1`;
+    version = versions.launcher
 
     windowsElem!: HTMLElement
 
