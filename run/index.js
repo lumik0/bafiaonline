@@ -862,6 +862,7 @@
     async getSHA1(path) {
       path = this.getPath(path);
       const bytes = await this.readFileBytes(path);
+      if (typeof crypto.subtle == "undefined") return Math.random().toString();
       const hashBuffer = await crypto.subtle.digest("SHA-1", bytes);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -1660,6 +1661,7 @@
 
   // launcher/src/App.ts
   var App = class extends Events {
+    version = `Alpha 1.1`;
     windowsElem;
     launcher;
     constructor() {
@@ -1751,6 +1753,9 @@
       if (options.type == "importmap") res(1);
     });
     ;
+  }
+  function noXSS(input) {
+    return String(input).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x2F;/gi, "/");
   }
 
   // launcher/src/Window.ts
@@ -1907,6 +1912,9 @@
       this.resizable = options.resizable ?? true;
       this.moveable = options.moveable ?? true;
       this.hasTitleBar = options.hasTitleBar ?? true;
+      this.closeButton = options.closeButton ?? true;
+      this.minButton = options.minButton ?? true;
+      this.maxButton = options.maxButton ?? true;
       this.zoom = options.zoom ?? 1;
       const isM = isMobile() && !options.noMobile;
       if (isM) {
@@ -1959,6 +1967,9 @@
     resizable = false;
     moveable = false;
     hasTitleBar = false;
+    closeButton = false;
+    minButton = false;
+    maxButton = false;
     zoom = 0;
     oldPos = { x: 0, y: 0, width: 0, height: 0 };
     #init() {
@@ -1980,19 +1991,23 @@
       this.titleBar.onmousedown = (e) => this.drag(e);
       const closeBtn = document.createElement("div");
       closeBtn.classList.add("closeBtn");
+      closeBtn.style.display = !this.closeButton ? "none" : "block";
       closeBtn.style.top = (this.titleBarHeight - 10) / 2 - 1 + "px";
       closeBtn.onclick = () => this.close();
       const minBtn = document.createElement("div");
       minBtn.classList.add("minBtn");
+      minBtn.style.display = !this.minButton ? "none" : "block";
       minBtn.style.top = (this.titleBarHeight - 10) / 2 - 1 + "px";
       minBtn.onclick = () => this.min();
       const maxBtn = document.createElement("div");
       maxBtn.classList.add("maxBtn");
+      maxBtn.style.display = !this.maxButton ? "none" : "block";
       maxBtn.style.top = (this.titleBarHeight - 10) / 2 - 1 + "px";
       maxBtn.onclick = () => this.max();
       const title = document.createElement("div");
       title.classList.add("title");
       title.innerHTML = this.title;
+      wrap(this, "title", (v) => title.textContent = noXSS(v));
       const corners = [
         { dir: "se", style: { background: "transparent", position: "absolute", width: "8px", height: "8px", zIndex: "10", right: "0px", bottom: "0px", cursor: "nwse-resize" } },
         { dir: "ne", style: { background: "transparent", position: "absolute", width: "8px", height: "8px", zIndex: "10", right: "0px", top: "0px", cursor: "nesw-resize" } },
@@ -2061,14 +2076,14 @@
       this.isLocked = true;
       this.el.style.pointerEvents = "none";
       this.el.style.userSelect = "none";
-      this.el.style.opacity = ".5";
+      this.el.style.filter = "brightness(0.5)";
     }
     unlock() {
       if (!this.isLocked) return;
       this.isLocked = false;
       this.el.style.pointerEvents = "all";
       this.el.style.userSelect = "text";
-      this.el.style.opacity = "1";
+      this.el.style.filter = "none";
     }
     show() {
       this.el.style.display = "block";
@@ -2110,16 +2125,16 @@
         this.el.style.outline = "none";
       });
     }
-    setSize(width, height) {
-      if (this.minWidth > width) return;
-      if (this.minHeight > height) return;
-      this.width = width;
-      this.height = height;
-      this.el.style.transition = "none";
-      this.el.style.width = width + "px";
-      this.el.style.height = width + "px";
-      this.el.style.transition = "width 1s ease, height 1s ease";
-    }
+    // setSize(width: number, height: number) {
+    //     if(this.minWidth > width) return
+    //     if(this.minHeight > height) return
+    //     this.width = width;
+    //     this.height = height;
+    //     this.el.style.transition = 'none';
+    //     this.el.style.width = width+'px';
+    //     this.el.style.height = width+'px';
+    //     this.el.style.transition = 'width 1s ease, height 1s ease';
+    // }
     _relativeToCenter = null;
     get relativeToCenter() {
       const width = window.innerWidth;
@@ -2959,9 +2974,12 @@
     openedWindows = [];
     versions = [];
     profiles = [];
+    statusText;
+    progressBar;
+    btnPlay;
     constructor() {
       this.win = new Window({
-        title: "\u041B\u0430\u0443\u043D\u0447\u0435\u0440",
+        title: `\u041B\u0430\u0443\u043D\u0447\u0435\u0440 (${App_default.version})`,
         // width: 700,
         width: 400,
         height: 300,
@@ -2969,19 +2987,37 @@
       });
       this.#init();
     }
+    async readVersion(src) {
+      try {
+        await createScript({ src });
+        const version = window["version"];
+        delete window["version"];
+        return version;
+      } catch {
+        try {
+          const t = await (await fetch(src)).text();
+          window["eval"](t);
+          const version = window["version"];
+          delete window["version"];
+          return version;
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
     async #init() {
       await this.readData();
       this.#initContent();
       if (this.versions.length == 0) {
+        this.statusText.textContent = `\u0421\u043A\u0430\u0447\u0438\u0432\u0430\u043D\u0438\u0435 \u0432\u0435\u0440\u0441\u0438\u0438..`;
         console.log(`Downloading default version [vanilla]..`);
         try {
-          const src = "./images/vanilla.js";
-          await createScript({ src });
-          const version = window["version"];
-          delete window["version"];
-          await this.downloadVersion({ ...version, scriptPath: src });
-        } catch {
-          console.log(`Error or no default version`);
+          const src = `https://raw.githubusercontent.com/lumik0/bafiaonline/refs/heads/master/run/images/vanilla.js?v=${Math.random()}`;
+          const version = await this.readVersion(src);
+          if (version) await this.downloadVersion({ ...version, scriptPath: src });
+        } catch (e) {
+          console.error(e);
         }
       }
     }
@@ -2990,28 +3026,40 @@
       await fs_default.writeFile(`/profiles.json`, JSON.stringify(this.profiles));
     }
     async readData() {
+      if (!await fs_default.existsFile("/urlsVersions.json")) fs_default.writeFile(`/urlsVersions.json`, JSON.stringify(["./images/vanilla.js", "./vanilla.js"]));
       if (!await fs_default.existsFile("/versions.json")) fs_default.writeFile(`/versions.json`, "[]");
       if (!await fs_default.existsFile("/profiles.json")) fs_default.writeFile(`/profiles.json`, "[]");
       this.versions = JSON.parse(await fs_default.readFile(`/versions.json`));
       this.profiles = JSON.parse(await fs_default.readFile(`/profiles.json`));
     }
-    progressBar;
-    async #initContent() {
+    async #initContent(checkVersions = true) {
       const updateVersions = [];
       this.win.content.innerHTML = "";
+      const div = document.createElement("div");
+      div.style.padding = "5px";
+      this.win.content.appendChild(div);
+      this.statusText = document.createElement("div");
+      this.statusText.style.margin = "5px 5px 0 5px";
+      div.appendChild(this.statusText);
       this.progressBar = document.createElement("progress");
       this.progressBar.value = 0;
       this.progressBar.style.width = "100%";
-      this.win.content.appendChild(this.progressBar);
+      div.appendChild(this.progressBar);
       const versions = document.createElement("div");
       versions.style.display = "flex";
+      versions.style.alignItems = "center";
+      versions.style.fontSize = "13px";
+      const txtVersions = document.createElement("span");
+      txtVersions.style.minWidth = "70px";
+      txtVersions.textContent = `\u0412\u0435\u0440\u0441\u0438\u0438:`;
+      versions.appendChild(txtVersions);
       const listVersions = document.createElement(`select`);
       listVersions.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044E..";
       listVersions.style.width = "100%";
       for (const ver of this.versions) {
         const el = document.createElement("option");
         el.innerHTML = ver.name;
-        if (ver.scriptPath) updateVersions.push(ver);
+        if (ver.scriptPath && checkVersions) updateVersions.push(ver);
         listVersions.appendChild(el);
       }
       versions.appendChild(listVersions);
@@ -3019,9 +3067,27 @@
       btnAddVersion.innerHTML = `+`;
       btnAddVersion.onclick = () => this.addVersion();
       versions.appendChild(btnAddVersion);
-      this.win.content.appendChild(versions);
+      const btnRemoveVersion = document.createElement("button");
+      btnRemoveVersion.innerHTML = `-`;
+      btnRemoveVersion.onclick = async () => {
+        const p = this.versions.findIndex((e) => e.name == listVersions.value);
+        if (p != -1) {
+          btnRemoveVersion.disabled = true;
+          this.versions.splice(p, 1);
+          await this.writeData();
+          this.#initContent();
+        }
+      };
+      versions.appendChild(btnRemoveVersion);
+      div.appendChild(versions);
       const profiles = document.createElement("div");
       profiles.style.display = "flex";
+      profiles.style.alignItems = "center";
+      profiles.style.fontSize = "13px";
+      const txtProfiles = document.createElement("span");
+      txtProfiles.style.minWidth = "70px";
+      txtProfiles.textContent = `\u041F\u0440\u043E\u0444\u0438\u043B\u0438:`;
+      profiles.appendChild(txtProfiles);
       const listProfiles = document.createElement(`select`);
       listProfiles.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C..";
       listProfiles.style.width = "100%";
@@ -3047,20 +3113,50 @@
         }
       };
       profiles.appendChild(btnRemoveProfile);
-      this.win.content.appendChild(profiles);
-      const btnPlay = document.createElement("button");
-      btnPlay.innerHTML = `\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C`;
-      btnPlay.onclick = () => {
+      div.appendChild(profiles);
+      const btns = document.createElement("div");
+      btns.style.display = "flex";
+      btns.style.margin = "5px";
+      btns.style.justifyContent = "center";
+      div.appendChild(btns);
+      this.btnPlay = document.createElement("button");
+      this.btnPlay.innerHTML = `\u0418\u0433\u0440\u0430\u0442\u044C`;
+      this.btnPlay.style.margin = "1px";
+      this.btnPlay.onclick = async () => {
         const v = this.versions.find((e) => e.name == listVersions.value);
         const p = this.profiles.find((e) => e.name == listProfiles.value);
-        if (v) this.runGame(v, p);
+        if (v) {
+          if (!p) {
+            const e = confirm(`\u0443 \u0432\u0430\u0441 \u043D\u0435\u0442 \u043F\u0440\u043E\u0444\u0438\u043B\u044F. \u0412\u044B \u043C\u043E\u0436\u0435\u0442\u0435 \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u0435\u0433\u043E \u0432 \u043B\u0430\u0443\u043D\u0447\u0435\u0440\u0435, \u0432\u044B \u0443\u0432\u0435\u0440\u0435\u043D\u044B \u0447\u0442\u043E \u0431\u0443\u0434\u0435\u0442\u0435 \u0432\u0445\u043E\u0434\u0438\u0442\u044C \u0432 \u0438\u0433\u0440\u0435?
+
+\u0421 \u043F\u0440\u043E\u0444\u0438\u043B\u0435\u043C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0432\u0445\u043E\u0434 \u0431\u0443\u0434\u0435\u0442`);
+            if (!e) {
+              btnAddProfile.style.transition = "1s";
+              btnAddProfile.style.transform = "scale(5)";
+              await wait(1e3);
+              btnAddProfile.style.transform = "none";
+              return;
+            }
+          }
+          this.runGame(v, p);
+        } else {
+          alert(`\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430 \u0432\u0435\u0440\u0441\u0438\u044F`);
+          btnAddVersion.style.transition = "1s";
+          btnAddVersion.style.transform = "scale(5)";
+          await wait(1e3);
+          btnAddVersion.style.transform = "none";
+        }
       };
-      this.win.content.appendChild(btnPlay);
+      btns.appendChild(this.btnPlay);
+      const githubBtn = document.createElement("button");
+      githubBtn.innerHTML = `Github`;
+      githubBtn.style.margin = "1px";
+      githubBtn.onclick = () => window.open("https://github.com/lumik0/bafiaonline", "_blank");
+      btns.appendChild(githubBtn);
       for await (const ver of updateVersions) {
-        await createScript({ src: ver.scriptPath });
-        const version = window["version"];
-        delete window["version"];
-        await this.downloadVersion({ ...version, ...ver });
+        this.statusText.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430..";
+        const version = await this.readVersion(ver.scriptPath);
+        if (version) await this.downloadVersion({ ...version, ...ver });
       }
     }
     addProfile() {
@@ -3071,10 +3167,12 @@
       const win = new Window({
         title: "\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044F",
         width,
-        height: 200,
+        height: 220,
         resizable: false,
         moveable: false,
         noMobile: true,
+        minButton: false,
+        maxButton: false,
         x: this.win.x + (this.win.width - width) / 2,
         y: this.win.y + (this.win.height - 200) / 2
       });
@@ -3082,31 +3180,34 @@
       win.on("close", () => {
         this.win.unlock();
       });
+      const div = document.createElement("div");
+      div.style.padding = "10px";
+      win.content.appendChild(div);
       const status = document.createElement("div");
       status.innerHTML = `\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A \u0441\u0435\u0440\u0432\u0435\u0440\u0443..`;
       status.style.textAlign = "center";
       const inputEmail = document.createElement("input");
-      inputEmail.style.width = "100%";
+      inputEmail.style.width = "-webkit-fill-available";
       inputEmail.placeholder = "e-mail \u0438\u043B\u0438 \u043D\u0438\u043A\u043D\u0435\u0439\u043C";
-      win.content.appendChild(inputEmail);
+      div.appendChild(inputEmail);
       const inputPassword = document.createElement("input");
-      inputPassword.style.width = "100%";
+      inputPassword.style.width = "-webkit-fill-available";
       inputPassword.placeholder = "\u043F\u0430\u0440\u043E\u043B\u044C";
-      win.content.appendChild(inputPassword);
+      div.appendChild(inputPassword);
       const or = document.createElement("div");
       or.style.textAlign = "center";
       or.style.width = "100%";
       or.style.margin = "2px";
       or.innerHTML = "\u0438\u043B\u0438";
-      win.content.appendChild(or);
+      div.appendChild(or);
       const inputToken = document.createElement("input");
-      inputToken.style.width = "100%";
+      inputToken.style.width = "-webkit-fill-available";
       inputToken.placeholder = "\u0442\u043E\u043A\u0435\u043D";
-      win.content.appendChild(inputToken);
+      div.appendChild(inputToken);
       const inputUserId = document.createElement("input");
-      inputUserId.style.width = "100%";
+      inputUserId.style.width = "-webkit-fill-available";
       inputUserId.placeholder = "ID \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F";
-      win.content.appendChild(inputUserId);
+      div.appendChild(inputUserId);
       const btn = document.createElement("button");
       btn.style.width = "100%";
       btn.innerHTML = "\u0421\u043E\u0437\u0434\u0430\u0442\u044C";
@@ -3168,8 +3269,38 @@
           }));
         }
       };
-      win.content.appendChild(btn);
-      win.content.appendChild(status);
+      div.appendChild(btn);
+      div.appendChild(status);
+      const why = document.createElement("div");
+      why.style.width = "100%";
+      why.style.textAlign = "center";
+      why.style.fontSize = "12px";
+      why.style.color = "#8888f8";
+      why.style.textDecoration = "underline";
+      why.style.cursor = "pointer";
+      why.style.userSelect = "none";
+      why.innerHTML = "\u041F\u043E\u0447\u0435\u043C\u0443?";
+      why.onclick = () => {
+        alert(`\u041C\u044B \u043D\u0435 \u0441\u043E\u0431\u0438\u0440\u0430\u0435\u043C \u0434\u0430\u043D\u043D\u044B\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u043E\u0432
+
+\u041D\u0430\u0448 \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u043A\u043E\u0434 \u043E\u0442\u043A\u0440\u044B\u0442 https://github.com/lumik0/bafiaonline
+
+\u0412\u044B \u0432 \u043B\u044E\u0431\u043E\u043C \u0441\u043B\u0443\u0447\u0430\u0435 \u043C\u043E\u0436\u0435\u0442\u0435 \u0432\u043E\u0439\u0442\u0438 \u0441 \u0432\u0442\u043E\u0440\u043E\u0433\u043E \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430`);
+      };
+      div.appendChild(why);
+      const whereIsReg = document.createElement("div");
+      whereIsReg.style.width = "100%";
+      whereIsReg.style.textAlign = "center";
+      whereIsReg.style.fontSize = "12px";
+      whereIsReg.style.color = "#8888f8";
+      whereIsReg.style.textDecoration = "underline";
+      whereIsReg.style.cursor = "pointer";
+      whereIsReg.style.userSelect = "none";
+      whereIsReg.innerHTML = "\u0410 \u0433\u0434\u0435 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F?";
+      whereIsReg.onclick = () => {
+        alert(`\u043F\u043E\u0442\u043E\u043C \u0431\u0443\u0434\u0435\u0442`);
+      };
+      div.appendChild(whereIsReg);
     }
     async addVersion(version) {
       const self2 = this;
@@ -3180,14 +3311,14 @@
           await fs_default.writeFile(`${version.path}/config.json`, JSON.stringify(conf));
         }
         if (!version.uuid) version.uuid = uuidv4();
-        const i = this.versions.findIndex((e) => e.path == version.path);
+        const i = this.versions.findIndex((e2) => e2.path == version.path);
         if (i != -1) {
           this.versions[i] = version;
         } else {
           this.versions.push(version);
         }
         await this.writeData();
-        if (i == -1) await this.#initContent();
+        if (i == -1) await this.#initContent(false);
         return;
       }
       this.win.lock();
@@ -3199,6 +3330,8 @@
         resizable: false,
         moveable: false,
         noMobile: true,
+        minButton: false,
+        maxButton: false,
         x: this.win.x + (this.win.width - width) / 2,
         y: this.win.y + (this.win.height - 200) / 2
       });
@@ -3222,40 +3355,71 @@
       btnLoadScript.onclick = async () => {
         const src = inputPathScript.value;
         try {
-          await createScript({ src });
-          const version2 = window["version"];
-          delete window["version"];
-          await self2.downloadVersion({ ...version2, scriptPath: src });
-          win.close();
-        } catch (e) {
-          alert(`\u0421\u043A\u0440\u0438\u043F\u0442 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D: ${e}`);
+          const version2 = await this.readVersion(src);
+          if (version2) {
+            win.lock();
+            await self2.downloadVersion({ ...version2, scriptPath: src });
+            win.close();
+          } else {
+            alert(`\u041E\u0448\u0438\u0431\u043A\u0430: ${e}`);
+          }
+        } catch (e2) {
+          alert(`\u041E\u0448\u0438\u0431\u043A\u0430: ${e2}`);
         }
       };
       div.appendChild(btnLoadScript);
       win.content.appendChild(div);
+      const foundScripts = document.createElement("div");
+      foundScripts.style.display = "flex";
+      foundScripts.style.flexDirection = "column";
+      const e = document.createElement("p");
+      e.style.margin = "5px";
+      e.textContent = `\u041D\u0430\u0439\u0434\u0435\u043D\u044B \u0432\u0435\u0440\u0441\u0438\u0438:`;
+      foundScripts.appendChild(e);
+      const urls = JSON.parse(await fs_default.readFile(`/urlsVersions.json`));
+      let found = false;
+      for await (const url of urls) {
+        try {
+          const version2 = await this.readVersion(url);
+          if (version2) {
+            const e2 = document.createElement("button");
+            e2.textContent = noXSS(url);
+            e2.onclick = async () => {
+              win.lock();
+              await self2.downloadVersion({ ...version2, scriptPath: url });
+              win.close();
+            };
+            foundScripts.appendChild(e2);
+            found = true;
+          }
+        } catch {
+        }
+      }
+      if (found) win.content.appendChild(foundScripts);
     }
     async downloadVersion(version) {
       const self2 = this;
       const dirName = version.name.replaceAll(`/`, `_`);
       if (!version.path) version.path = `/versions/${dirName}`;
       let size = 0, total = 0;
+      this.btnPlay.disabled = true;
       await readImage("image", `${version.path}/`, false, {
         startProcessFS(s) {
           size = s;
-          try {
-            self2.progressBar.max = s;
-          } catch {
-          }
+          self2.progressBar.max = s;
         },
         processFS(path, write) {
           total++;
-          try {
-            self2.progressBar.value = total;
-          } catch {
-          }
-          if (write) console.log(`downloading..`, path);
+          self2.progressBar.value = total;
+          if (write) {
+            self2.statusText.textContent = `\u0421\u043A\u0430\u0447\u0430\u043D \u0444\u0430\u0439\u043B (${total}/${size})`;
+            console.log(`downloading..`, path);
+          } else
+            self2.statusText.textContent = `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 (${total}/${size})`;
         }
       });
+      this.btnPlay.disabled = false;
+      self2.statusText.textContent = ``;
       self2.addVersion(version);
     }
     readDownloadVersion() {
@@ -3306,7 +3470,7 @@
         center: true,
         zoom: 0.7
       });
-      window["main"](config2, win.content);
+      window["main"](config2, win, win.content);
       this.openedWindows.push(win);
     }
   };
