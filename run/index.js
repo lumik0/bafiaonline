@@ -3010,6 +3010,7 @@
       await this.readData();
       this.#initContent();
       if (this.versions.length == 0) {
+        this.btnPlay.disabled = true;
         this.statusText.textContent = `\u0421\u043A\u0430\u0447\u0438\u0432\u0430\u043D\u0438\u0435 \u0432\u0435\u0440\u0441\u0438\u0438..`;
         console.log(`Downloading default version [vanilla]..`);
         try {
@@ -3018,6 +3019,7 @@
           if (version) await this.downloadVersion({ ...version, scriptPath: src });
         } catch (e) {
           console.error(e);
+          this.btnPlay.disabled = false;
         }
       }
     }

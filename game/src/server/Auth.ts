@@ -38,7 +38,7 @@ export default class Auth {
                 } else if(err == -3) {
                     await MessageBox(`Неверный пароль\nКод ошибки: -3`, { title: `ОШИБКА` });
                 } else if(err == -1) {
-                    await MessageBox(`Неверная почта\nКод ошибки: -3`, { title: `ОШИБКА` });
+                    await MessageBox(`Неверная почта\nКод ошибки: -1`, { title: `ОШИБКА` });
                 }
                 App.screen = new Authorization();
             } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.USER_SIGN_IN) {

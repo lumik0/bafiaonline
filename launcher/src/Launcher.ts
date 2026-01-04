@@ -73,6 +73,7 @@ export default class Launcher {
         this.#initContent();
 
         if(this.versions.length == 0){
+            this.btnPlay.disabled = true;
             this.statusText.textContent = `Скачивание версии..`;
             console.log(`Downloading default version [vanilla]..`);
             try{
@@ -81,6 +82,7 @@ export default class Launcher {
                 if(version) await this.downloadVersion({...version, scriptPath: src});
             }catch(e){
                 console.error(e);
+                this.btnPlay.disabled = false;
             }
         }
     }
