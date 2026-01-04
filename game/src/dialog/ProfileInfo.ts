@@ -97,12 +97,9 @@ export default async function(userObjectId: string){
     div.style.alignItems = 'center';
     div.style.overflowY = 'overlay';
     const badge = document.createElement('div');
-    badge.style.width = '15px';
-    badge.style.height = '15px';
-    badge.style.minWidth = '15px';
-    badge.style.minHeight = '15px';
-    badge.style.maxWidth = '15px';
-    badge.style.maxHeight = '15px';
+    badge.style.width = badge.style.height = '20px';
+    badge.style.minWidth = badge.style.minHeight = '20px';
+    badge.style.maxWidth = badge.style.maxHeight = '20px';
     badge.style.boxSizing = 'border-box';
     badge.style.background = profile.isOnline ? '#3fe33f' : '#636363';
     badge.style.border = '2px solid white';
