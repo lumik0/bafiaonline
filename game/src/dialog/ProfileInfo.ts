@@ -4,8 +4,9 @@ import PacketDataKeys from "../../../core/src/PacketDataKeys";
 import Box from './Box';
 import fs from '../../../core/src/fs/fs';
 import { getAvatarImg } from '../utils/Resources';
-import { getZoom } from '../../../core/src/utils/utils';
+import { getZoom, wait } from '../../../core/src/utils/utils';
 import Rooms from '../screen/Rooms';
+import { formatDate } from '../../../core/src/utils/format';
 
 function calculateStatsWithRoles(profile: any) {
     const mafiaRoles = [Role.MAFIA, Role.TERRORIST, Role.BARMAN, Role.INFORMER];
@@ -95,12 +96,21 @@ export default async function(userObjectId: string){
     div.style.flexDirection = 'column';
     div.style.alignItems = 'center';
     div.style.overflowY = 'overlay';
+    const badge = document.createElement('div');
+    badge.style.width = badge.style.height = '15px';
+    badge.style.background = profile.isOnline ? '#3fe33f' : '#636363';
+    badge.style.border = '2px solid white';
+    badge.style.borderRadius = '100%';
+    badge.style.position = 'relative';
+    badge.style.left = '-40px'
+    badge.style.top = '-80px'
     const avatar = document.createElement('img');
     avatar.src = await getAvatarImg(pud);
     avatar.style.borderRadius = '100%'
     avatar.width = avatar.height = 100;
     avatar.style.margin = '5px';
     avatar.style.transition = '.5s';
+    avatar.style.marginBottom = '-10px';
     avatar.onmousedown = e => e.preventDefault();
     avatar.onclick = () => {
         const zoom = getZoom();
@@ -108,16 +118,19 @@ export default async function(userObjectId: string){
             avatar.style.position = 'static';
             avatar.style.width = ''
             avatar.style.height = ''
-            avatar.style.borderRadius = '100%'
+            avatar.style.borderRadius = '100%';
+            wait(500).then(() => badge.style.display = 'block');
         } else {
             avatar.style.position = 'relative';
             avatar.style.width = (App.width/zoom)/1.75 + 'px';
             avatar.style.height = (App.width/zoom)/1.75 + 'px';
             avatar.style.borderRadius = '0'
+            badge.style.display = 'none';
         }
         isViewingAvatar = !isViewingAvatar;
     }
     div.appendChild(avatar);
+    div.appendChild(badge);
 
     function addH(text: string, userSelect = false){
         const h = document.createElement('h4');
@@ -185,7 +198,6 @@ export default async function(userObjectId: string){
 
     const dataStats = calculateStatsWithRoles(profile);
 
-    add(stat, `Онлайн`, profile.isOnline ? 'Да' : 'Нет')
     add(stat, 'Сыграно игр', profile.playedGames);
     add(stat, 'Сыграно игр за Мафию', dataStats.gamesAsMafia);
     add(stat, 'Сыграно игр за Мирных', dataStats.gamesAsPeaceful);
@@ -232,7 +244,7 @@ export default async function(userObjectId: string){
     statDev.style.alignItems = 'stretch';
     statDev.style.width = '95%';
     add(statDev, `ID Объекта`, userObjectId);
-    add(statDev, `Updated`, profile.updated);
+    add(statDev, `Последний вход`, formatDate(profile.updated));
     add(statDev, `Сервер`, profile.serverLanguage);
     div.appendChild(statDev);
 

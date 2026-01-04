@@ -13,6 +13,7 @@ import ContextMenu from "../component/ContextMenu";
 import { when } from "../../../core/src/utils/TypeScript";
 import LoadingBox from "../dialog/LoadingBox";
 import { noXSS, wait } from "../../../core/src/utils/utils";
+import RoomCreation from "./RoomCreation";
 
 export default class Rooms extends Screen {
     div!: HTMLDivElement
@@ -120,7 +121,8 @@ export default class Rooms extends Screen {
         
         const btnCreateRoom = document.createElement('button');
         btnCreateRoom.textContent = 'Создать комнату';
-        btnCreateRoom.style.width = '99%'
+        btnCreateRoom.style.width = '99%';
+        btnCreateRoom.onclick = () => App.screen = new RoomCreation();
         divBtns.appendChild(btnCreateRoom);
 
         this.on('message', data => {
@@ -244,7 +246,7 @@ export default class Rooms extends Screen {
                     return;
                 }
             }
-            App.screen = new Room(objectId, password);
+            App.screen = new Room(objectId, { password });
         }
 
         const div = document.createElement('div');

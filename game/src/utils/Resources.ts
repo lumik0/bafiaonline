@@ -3,14 +3,53 @@ import App from "../App";
 import { Role } from "../enums";
 import PacketDataKeys from "../../../core/src/PacketDataKeys";
 
-export async function getAvatarImg(user?: any){
+export async function getAvatarImg(user?: any): Promise<string> {
     if(!user) return App.resources['unknownChat'];
+
     const ph = user[PacketDataKeys.PHOTO];
     const uo = user[PacketDataKeys.OBJECT_ID];
-    if(ph == "1") return `https://dottap.com/mafia/profile_photo/${uo}.jpg`;
-    if(App.resources[`avatars_${uo}`]) return App.resources[`avatars_${uo}`];
-    App.resources[`avatars_${uo}`] = await getDefaultAvatar(ph);
-    return App.resources[`avatars_${uo}`];
+
+    if(App.resources[`avatars_${uo}`]) {
+        return App.resources[`avatars_${uo}`];
+    }
+
+    const defaultImage = async () => {
+        const avatar = await getDefaultAvatar(ph);
+        App.resources[`avatars_${uo}`] = avatar;
+        return avatar;
+    };
+
+    const avatarUrl = `https://dottap.com/mafia/profile_photo/${uo}.jpg`;
+
+    const loadImage = () =>
+        new Promise<string>((resolve) => {
+            const img = new Image();
+            let finished = false;
+
+            img.onload = () => {
+                finished = true;
+                App.resources[`avatars_${uo}`] = avatarUrl;
+                resolve(avatarUrl);
+            };
+
+            img.onerror = async () => {
+                if(!finished) {
+                    finished = true;
+                    resolve(await defaultImage());
+                }
+            };
+
+            img.src = avatarUrl;
+
+            setTimeout(async () => {
+                if(!finished) {
+                    finished = true;
+                    resolve(await defaultImage());
+                }
+            }, 10000);
+        });
+
+    return loadImage();
 }
 export async function getDefaultAvatar(ph = ""){
     if(App.resources[`defaultAvatars_${ph}`]) return App.resources[`defaultAvatars_${ph}`];

@@ -4,13 +4,23 @@ import App from "./App";
 
 export default class Settings {
     data = {
-        version: 1,
+        version: 2,
         window: {
             zoom: 1
         },
         game: {
             widthPL: 130,
             zoomPL: 1,
+        },
+        roomCreate: {
+            title: "",
+            dayTime: 0,
+            minPlayers: 5,
+            maxPlayers: 8,
+            minLevel: 1,
+            selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10],
+            password: '',
+            vip: false
         }
     }
 
@@ -71,14 +81,21 @@ export default class Settings {
         let data = { ...savedData };
         
         // Миграция с v1 на v2
-        // if(savedVersion === 1 && currentVersion >= 2) {
-        //     if(data.zoom !== undefined) {
-        //         data.window = data.window || {};
-        //         data.window.zoom = data.zoom;
-        //         delete data.zoom;
-        //     }
-        //     data.version = 2;
-        // }
+        if(savedVersion == 1 && currentVersion >= 2) {
+            if(typeof data.settings == 'undefined') {
+                data.settings = {
+                    title: "",
+                    dayTime: 0,
+                    minPlayers: 5,
+                    maxPlayers: 8,
+                    minLevel: 1,
+                    selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10],
+                    password: '',
+                    vip: false
+                };
+            }
+            data.version = 2;
+        }
         
         return data;
     }

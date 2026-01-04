@@ -79,8 +79,13 @@ export default class Room extends Screen {
         divM?: HTMLElement
     }
 
-    constructor(public roomObjectId: string, public password = ""){
+    constructor(public roomObjectId: string, public options: {
+        password?: string
+        sendRoomEnter?: boolean
+    } = {}){
         super('Room');
+
+        if(typeof options.sendRoomEnter != 'boolean') options.sendRoomEnter = true;
 
         App.title = 'Комната';
 
@@ -127,11 +132,11 @@ export default class Room extends Screen {
     }
     
     async init(){
-        App.server.send(PacketDataKeys.ROOM_ENTER, {
-            [PacketDataKeys.ROOM_PASS]: this.password,
+        if(this.options.sendRoomEnter) App.server.send(PacketDataKeys.ROOM_ENTER, {
+            [PacketDataKeys.ROOM_PASS]: this.options.password,
             [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId
         });
-        const rData = await App.server.awaitPacket([PacketDataKeys.ROOM_ENTER, PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR, PacketDataKeys.GAME_STARTED, PacketDataKeys.USER_IN_ANOTHER_ROOM, PacketDataKeys.USER_USING_DOUBLE_ACCOUNT, PacketDataKeys.USER_LEVEL_NOT_ENOUGH, PacketDataKeys.USER_KICKED], 2000);
+        const rData = await App.server.awaitPacket([PacketDataKeys.ROOM_ENTER, PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR, PacketDataKeys.GAME_STARTED, PacketDataKeys.USER_IN_ANOTHER_ROOM, PacketDataKeys.USER_USING_DOUBLE_ACCOUNT, PacketDataKeys.USER_LEVEL_NOT_ENOUGH, PacketDataKeys.USER_KICKED, PacketDataKeys.ROOM_CREATED], 2000);
         if(rData[PacketDataKeys.TYPE] == PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR){
             App.screen = new Rooms();
             MessageBox('Неправильный пароль!');
@@ -162,6 +167,7 @@ export default class Room extends Screen {
             return;
         }
         const roomData = rData[PacketDataKeys.ROOM];
+        this.roomObjectId = roomData[PacketDataKeys.OBJECT_ID]
         this.modelType = roomData[PacketDataKeys.ROOM_MODEL_TYPE];
         this.title = roomData[PacketDataKeys.TITLE];
         this.maxPlayers = roomData[PacketDataKeys.MAX_PLAYERS];
@@ -983,9 +989,9 @@ export default class Room extends Screen {
     }
 
     destroy() {
-        super.destroy();
         App.server.send(PacketDataKeys.REMOVE_PLAYER, {
             [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId,
         });
+        super.destroy();
     }
 }

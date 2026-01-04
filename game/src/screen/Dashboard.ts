@@ -9,6 +9,7 @@ import GlobalChat from "./GlobalChat";
 import Rooms from "./Rooms";
 import Screen from "./Screen";
 import { isMobile } from "../../../core/src/utils/mobile";
+import Friends from "./Friends";
 
 export default class Dashboard extends Screen {
     constructor(){
@@ -56,7 +57,7 @@ export default class Dashboard extends Screen {
         btnRooms.textContent = 'Комнаты';
         btnRooms.style.width = '60%'
         btnRooms.style.margin = '3px'
-        btnRooms.addEventListener('click', () => App.screen = new Rooms());
+        btnRooms.onclick = () => App.screen = new Rooms();
         div.appendChild(btnRooms);
         div.appendChild(document.createElement('br'));
 
@@ -72,7 +73,7 @@ export default class Dashboard extends Screen {
         btnGlobalChat.textContent = 'Чат';
         btnGlobalChat.style.width = '60%'
         btnGlobalChat.style.margin = '3px'
-        btnGlobalChat.addEventListener('click', () => App.screen = new GlobalChat());
+        btnGlobalChat.onclick = () => App.screen = new GlobalChat();
         div.appendChild(btnGlobalChat);
         div.appendChild(document.createElement('br'));
 
@@ -80,25 +81,25 @@ export default class Dashboard extends Screen {
         btnFriends.textContent = 'Друзья';
         btnFriends.style.width = '60%'
         btnFriends.style.margin = '3px'
-        btnFriends.disabled = true;
+        btnFriends.onclick = () => App.screen = new Friends();
         div.appendChild(btnFriends);
         div.appendChild(document.createElement('br'));
 
-        const btnBackpack = document.createElement('button');
-        btnBackpack.textContent = 'Рюкзак';
-        btnBackpack.style.width = '60%'
-        btnBackpack.style.margin = '3px'
-        btnBackpack.disabled = true;
-        div.appendChild(btnBackpack);
-        div.appendChild(document.createElement('br'));
+        // const btnBackpack = document.createElement('button');
+        // btnBackpack.textContent = 'Рюкзак';
+        // btnBackpack.style.width = '60%'
+        // btnBackpack.style.margin = '3px'
+        // btnBackpack.disabled = true;
+        // div.appendChild(btnBackpack);
+        // div.appendChild(document.createElement('br'));
 
-        const btnShop = document.createElement('button');
-        btnShop.textContent = 'Магазин';
-        btnShop.style.width = '60%';
-        btnShop.style.margin = '3px';
-        btnShop.disabled = true;
-        div.appendChild(btnShop);
-        div.appendChild(document.createElement('br'));
+        // const btnShop = document.createElement('button');
+        // btnShop.textContent = 'Магазин';
+        // btnShop.style.width = '60%';
+        // btnShop.style.margin = '3px';
+        // btnShop.disabled = true;
+        // div.appendChild(btnShop);
+        // div.appendChild(document.createElement('br'));
 
         const btnSettings = document.createElement('button');
         btnSettings.textContent = 'Настройки';
@@ -112,17 +113,17 @@ export default class Dashboard extends Screen {
         btnProfile.textContent = 'Профиль';
         btnProfile.style.width = '60%'
         btnProfile.style.margin = '3px'
-        btnProfile.addEventListener('click', () => ProfileInfo(App.user.objectId));
+        btnProfile.onclick = () => ProfileInfo(App.user.objectId);
         div.appendChild(btnProfile);
         div.appendChild(document.createElement('br'));
 
-        const btnRules = document.createElement('button');
-        btnRules.textContent = 'Правила';
-        btnRules.style.width = '60%'
-        btnRules.style.margin = '3px'
-        btnRules.disabled = true;
-        div.appendChild(btnRules);
-        div.appendChild(document.createElement('br'));
+        // const btnRules = document.createElement('button');
+        // btnRules.textContent = 'Правила';
+        // btnRules.style.width = '60%'
+        // btnRules.style.margin = '3px'
+        // btnRules.disabled = true;
+        // div.appendChild(btnRules);
+        // div.appendChild(document.createElement('br'));
 
         if(isMobile()){
             const btnFullScreen = document.createElement('button');
