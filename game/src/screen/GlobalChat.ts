@@ -64,7 +64,7 @@ export default class GlobalChat extends Screen {
         this.messagesElem.style.background = 'rgba(255,255,255,.5)';
         this.messagesElem.style.display = 'flex';
         this.messagesElem.style.flexDirection = 'column';
-        this.messagesElem.style.justifyContent = 'flexEnd';
+        this.messagesElem.style.justifyContent = 'flex-start';
         this.element.appendChild(this.messagesElem);
         
         const data = await App.server.awaitPacket(PacketDataKeys.MESSAGES);

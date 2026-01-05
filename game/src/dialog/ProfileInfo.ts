@@ -155,11 +155,12 @@ export default async function ProfileInfo(userObjectId: string){
     btns.style.width = '80%';
     btns.style.textAlign = 'center';
     div.appendChild(btns);
-    function addButton(text: string, callback: (this: GlobalEventHandlers, ev: PointerEvent) => any){
+    function addButton(text: string, callback?: (this: GlobalEventHandlers, ev: PointerEvent) => any){
         const e = document.createElement('button');
         e.style.margin = '1px';
         e.textContent = text;
-        e.onclick = callback;
+        if(callback) e.onclick = callback;
+        else e.disabled = true
         btns.appendChild(e);
     }
 
@@ -234,7 +235,7 @@ export default async function ProfileInfo(userObjectId: string){
     if(room){
         if(room[PacketDataKeys.SAME_ROOM] && !isMe)
             addButton('Выгнать', async() => {
-                const c = await ConfirmBox(`Если все проголосуют за исключение игрока из комнаты, это будет стоить вам 200 серебряных монет`, { title: `ВЫГНАТЬ ИГРОКА` });
+                const c = await ConfirmBox(`Если все проголосуют за исключение игрока из комнаты, это будет стоить вам 200 серебряных монет`, { title: `ВЫГНАТЬ ИГРОКА`, height: '175px' });
                 if(c){
                     App.server.send(PacketDataKeys.KICK_USER, {
                         [PacketDataKeys.ROOM_OBJECT_ID]: room[PacketDataKeys.OBJECT_ID],
@@ -249,7 +250,7 @@ export default async function ProfileInfo(userObjectId: string){
         roomElem.style.width = '90%';
         div.appendChild(roomElem);
     }
-    if(!isMe) addButton('Подать жалобу', () => {});
+    if(!isMe) addButton('Подать жалобу');
     
     addH(`Статистика`);
 

@@ -198,7 +198,7 @@ export default class Room extends Screen {
             } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.REMOVE_PLAYER && !this.isGame){
                 this.players.splice(this.players.findIndex(e => e[PacketDataKeys.USER][PacketDataKeys.USER_OBJECT_ID] == data[PacketDataKeys.USER_OBJECT_ID]), 1);
                 this.updatePlayersWaiting(this.players);
-            } else if(typeof data[PacketDataKeys.TIMER] == 'number' && !this.isGame){
+            } else if(typeof data[PacketDataKeys.TIMER] == 'number' && typeof data[PacketDataKeys.TYPE] == 'undefined' && !this.isGame){
                 this.infoElem.textContent = noXSS(`Игра начнётся через ${data[PacketDataKeys.TIMER]}`);
             } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.PLAYERS_STAT){
                 this.playersStat = data;
@@ -382,11 +382,13 @@ export default class Room extends Screen {
         this.messagesElem.style.background = 'rgba(255,255,255,.5)';
         this.messagesElem.style.display = 'flex';
         this.messagesElem.style.flexDirection = 'column';
-        this.messagesElem.style.justifyContent = 'flexEnd';
+        this.messagesElem.style.justifyContent = 'flex-start';
         this.element.appendChild(this.messagesElem);
         
         const rs = data[PacketDataKeys.ROOM_STATISTICS];
-        for(const m of rs[PacketDataKeys.MESSAGES]) this.addMessage(m, false);
+        for(const m of rs[PacketDataKeys.MESSAGES]) {
+            wait(50).then(() => this.addMessage(m, false));
+        }
         this.players = rs[PacketDataKeys.PLAYERS];
         this.titleElem.textContent = `${this.title} (${this.players.length}/${this.maxPlayers})`;
         if(rs[PacketDataKeys.GAME_STATUS]){
@@ -899,7 +901,7 @@ export default class Room extends Screen {
             else if(type == 20) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в разных командах`; color = '#7D080E' }
             else if(type == 22) { msg = `ничья` }
             else if(type == 23) {
-                msg = `${text.split('#')[0]} начал голосование, чтобы выгнать игрока ${text.split('#')[2]} из комнаты\n`;
+                msg = `[${text.split('#')[0]}] начал голосование, чтобы выгнать игрока [${text.split('#')[2]}] из комнаты\n`;
                 xssAllowed = true;
                 color = '#1D3E67';
             }
@@ -913,6 +915,7 @@ export default class Room extends Screen {
 
             if(type == 23){
                 const timer = document.createElement('p');
+                timer.style.margin = '5px';
                 timer.textContent = `10`;
                 div.appendChild(timer);
                 const btnYes = document.createElement('button');
@@ -922,6 +925,8 @@ export default class Room extends Screen {
                         [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId,
                         [PacketDataKeys.VOTE]: true
                     });
+                    btnYes.disabled = true;
+                    btnNo.disabled = true;
                 }
                 div.appendChild(btnYes);
                 const btnNo = document.createElement('button');
@@ -931,6 +936,8 @@ export default class Room extends Screen {
                         [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId,
                         [PacketDataKeys.VOTE]: true
                     });
+                    btnYes.disabled = true;
+                    btnNo.disabled = true;
                 }
                 div.appendChild(btnNo);
 
@@ -938,7 +945,7 @@ export default class Room extends Screen {
                     if(data[PacketDataKeys.TYPE] == PacketDataKeys.KICK_TIMER){
                         const t = data[PacketDataKeys.TIMER];
                         timer.textContent = t;
-                        if(t < 2){
+                        if(t < 1){
                             this.removeByKey('kick');
                         }
                     }
@@ -951,7 +958,7 @@ export default class Room extends Screen {
                 this.joinLeaveMessages[text] = div;
             }
         }
-        // console.log(this.messages.scrollTop, this.messages.scrollHeight)
+        
         if(this.messagesElem.scrollHeight - App.height - this.messagesElem.scrollTop < 75)
             this.messagesElem.scroll({ top: this.messagesElem.scrollHeight, behavior: 'smooth' });
 
