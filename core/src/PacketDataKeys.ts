@@ -357,6 +357,11 @@ const PacketDataKeys = {
     NEED_MINIMUM_LEVEL_MM: "nelfmm",
 
     USER_CHANGE_EMAIL: "uche",
+    USER_RESET_PASSWORD: "usrp",
+    USER_RESET_PASSWORD_SENDED: "usrps",
+    USER_WITH_EMAIL_NOT_EXISTS: "uwene",
+    USTMR: 'ustmr',
+    USRSFR: 'usrsfr'
 } as const
 
 export default PacketDataKeys

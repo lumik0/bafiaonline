@@ -377,6 +377,12 @@ export default class Launcher {
                     await self.writeData();
                     win.close();
                     self.#initContent();
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USER_RESET_PASSWORD_SENDED){
+                    alert(`Отправлено письмо на сброс пароля`);
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USER_WITH_EMAIL_NOT_EXISTS){
+                    alert(`Пользователь с таким email не найден. Возможно, вы забыли свой email?`);
+                } else if(json[PacketDataKeys.TYPE] == PacketDataKeys.USTMR){
+                    alert(`Вы можете запросить сброс пароля после ${json[PacketDataKeys.USRSFR]} секунд`);
                 }
                 console.log(json);
             }
@@ -482,9 +488,14 @@ export default class Launcher {
         div.appendChild(btnReg);
 
         div.appendChild(status);
+
+        const links = document.createElement('div');
+        links.style.display = 'flex';
+        links.style.justifyContent = 'center';
+        div.appendChild(links);
         
         const why = document.createElement('div');
-        why.style.width = '100%'
+        why.style.margin = '3px';
         why.style.textAlign = 'center';
         why.style.fontSize = '12px';
         why.style.color = '#8888f8';
@@ -495,7 +506,26 @@ export default class Launcher {
         why.onclick = () => {
             alert(`Мы не собираем данные аккаунтов\n\nНаш исходный код открыт https://github.com/lumik0/bafiaonline\n\nВы в любом случае можете войти с второго аккаунта`);
         }
-        div.appendChild(why);
+        links.appendChild(why);
+        
+        const forgetPass = document.createElement('div');
+        forgetPass.style.margin = '3px';
+        forgetPass.style.textAlign = 'center';
+        forgetPass.style.fontSize = '12px';
+        forgetPass.style.color = '#8888f8';
+        forgetPass.style.textDecoration = 'underline';
+        forgetPass.style.cursor = 'pointer';
+        forgetPass.style.userSelect = 'none';
+        forgetPass.innerHTML = 'Забыл пароль?';
+        forgetPass.onclick = () => {
+            const email = prompt(`Для сброса пароля, пожалуйста, введите зарегистрированный в игре email`);
+            if(email != '') webSocket.send(JSON.stringify({
+                [PacketDataKeys.TYPE]: PacketDataKeys.USER_RESET_PASSWORD,
+                [PacketDataKeys.EMAIL]: email,
+                [PacketDataKeys.APP_LANGUAGE]: 'RUS',
+            }));
+        }
+        links.appendChild(forgetPass);
     }
 
     async addVersion(version?: Version){

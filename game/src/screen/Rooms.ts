@@ -14,6 +14,7 @@ import { when } from "../../../core/src/utils/TypeScript";
 import LoadingBox from "../dialog/LoadingBox";
 import { noXSS, wait } from "../../../core/src/utils/utils";
 import RoomCreation from "./RoomCreation";
+import md5salt from "../../../core/src/utils/md5";
 
 export default class Rooms extends Screen {
     div!: HTMLDivElement
@@ -236,7 +237,7 @@ export default class Rooms extends Screen {
                 if(password == '') return;
                 
                 App.server.send(PacketDataKeys.ROOM_ENTER, {
-                    [PacketDataKeys.ROOM_PASS]: password,
+                    [PacketDataKeys.ROOM_PASS]: md5salt(password),
                     [PacketDataKeys.ROOM_OBJECT_ID]: objectId
                 });
                 const rData = await App.server.awaitPacket([PacketDataKeys.ROOM_ENTER, PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR, PacketDataKeys.GAME_STARTED, PacketDataKeys.USER_IN_ANOTHER_ROOM, PacketDataKeys.USER_USING_DOUBLE_ACCOUNT, PacketDataKeys.USER_LEVEL_NOT_ENOUGH, PacketDataKeys.USER_KICKED]);
@@ -245,7 +246,7 @@ export default class Rooms extends Screen {
                     join();
                     return;
                 }
-                App.screen = new Room(objectId, { password, sendRoomEnter: false });
+                App.screen = new Room(objectId, { password, sendRoomEnter: true });
                 return;
             }
             App.screen = new Room(objectId);

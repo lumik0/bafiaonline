@@ -166,17 +166,20 @@ export default async function ProfileInfo(userObjectId: string){
     if(userObjectId != App.user.objectId) {
         if(!profile.friend){
             addButton('Добавить в друзья', async() => {
-                App.server.send(PacketDataKeys.ADD_FRIEND, {
-                    [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
-                });
-                const data = await App.server.awaitPacket([PacketDataKeys.ADD_FRIEND, PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL]);
-                if(data[PacketDataKeys.TYPE] == PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL){
-                    MessageBox(`Список ваших друзей полон. Вы уже добавили ${data[PacketDataKeys.FRIENDSHIP_LIST_LIMIT]} друзей в список друзей\n\nВы сможете добавить 200 друзей, если подключите VIP\n\nПожалуйста, освободите список ваших друзей`);
-                    return;
-                }
-                if(data[PacketDataKeys.TYPE] == PacketDataKeys.ADD_FRIEND){
-                    box.destroy();
-                    ProfileInfo(userObjectId);
+                const e = await ConfirmBox(`Отправить заявку на добавление данного пользователя в друзья?`, { title: `ДОБАВИТЬ В ДРУЗЬЯ` });
+                if(e){
+                    App.server.send(PacketDataKeys.ADD_FRIEND, {
+                        [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+                    });
+                    const data = await App.server.awaitPacket([PacketDataKeys.ADD_FRIEND, PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL]);
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL){
+                        MessageBox(`Список ваших друзей полон. Вы уже добавили ${data[PacketDataKeys.FRIENDSHIP_LIST_LIMIT]} друзей в список друзей\n\nВы сможете добавить 200 друзей, если подключите VIP\n\nПожалуйста, освободите список ваших друзей`);
+                        return;
+                    }
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.ADD_FRIEND){
+                        box.destroy();
+                        ProfileInfo(userObjectId);
+                    }
                 }
             });
         } else if(profile.friendFlag == 2){
@@ -197,9 +200,23 @@ export default async function ProfileInfo(userObjectId: string){
                     }
                 }
             });
-        } else {
+        } else if(profile.friendFlag == 1) {
+            addButton('Отменить запрос', async() => {
+                const e = await ConfirmBox(`Отменить запрос дружбы?`, { title: `ОТМЕНИТЬ ЗАПРОС` });
+                if(e) {
+                    App.server.send(PacketDataKeys.REMOVE_FRIEND, {
+                        [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+                    });
+                    const data = await App.server.awaitPacket([PacketDataKeys.REMOVE_FRIEND]);
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.REMOVE_FRIEND){
+                        box.destroy();
+                        ProfileInfo(userObjectId);
+                    }
+                }
+            });
+        } if(profile.friendFlag == 3) {
             addButton('Отменить дружбу', async() => {
-                const e = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ` });
+                const e = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ`, height: '175px' });
                 if(e) {
                     App.server.send(PacketDataKeys.REMOVE_FRIEND, {
                         [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
@@ -216,7 +233,16 @@ export default async function ProfileInfo(userObjectId: string){
 
     if(room){
         if(room[PacketDataKeys.SAME_ROOM] && !isMe)
-            addButton('Выгнать игрока', () => {});
+            addButton('Выгнать', async() => {
+                const c = await ConfirmBox(`Если все проголосуют за исключение игрока из комнаты, это будет стоить вам 200 серебряных монет`, { title: `ВЫГНАТЬ ИГРОКА` });
+                if(c){
+                    App.server.send(PacketDataKeys.KICK_USER, {
+                        [PacketDataKeys.ROOM_OBJECT_ID]: room[PacketDataKeys.OBJECT_ID],
+                        [PacketDataKeys.USER_OBJECT_ID]: userObjectId
+                    });
+                    box.destroy();
+                }
+            });
         addH(`Сейчас играет в комнате`);
         const roomElem = Rooms.getRoomElement(room);
         roomElem.addEventListener('click', () => box.close());

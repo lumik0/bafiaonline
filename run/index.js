@@ -2953,7 +2953,12 @@
     MATCH_MAKING_ROLES_COUNT: "mmrc",
     NEED_MINIMUM_LEVEL_CHAT: "nelfpc",
     NEED_MINIMUM_LEVEL_MM: "nelfmm",
-    USER_CHANGE_EMAIL: "uche"
+    USER_CHANGE_EMAIL: "uche",
+    USER_RESET_PASSWORD: "usrp",
+    USER_RESET_PASSWORD_SENDED: "usrps",
+    USER_WITH_EMAIL_NOT_EXISTS: "uwene",
+    USTMR: "ustmr",
+    USRSFR: "usrsfr"
   };
   var PacketDataKeys_default = PacketDataKeys;
 
@@ -3308,6 +3313,12 @@
             await self2.writeData();
             win.close();
             self2.#initContent();
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USER_RESET_PASSWORD_SENDED) {
+            alert(`\u041E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E \u043F\u0438\u0441\u044C\u043C\u043E \u043D\u0430 \u0441\u0431\u0440\u043E\u0441 \u043F\u0430\u0440\u043E\u043B\u044F`);
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USER_WITH_EMAIL_NOT_EXISTS) {
+            alert(`\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C \u0441 \u0442\u0430\u043A\u0438\u043C email \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D. \u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u0432\u044B \u0437\u0430\u0431\u044B\u043B\u0438 \u0441\u0432\u043E\u0439 email?`);
+          } else if (json[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USTMR) {
+            alert(`\u0412\u044B \u043C\u043E\u0436\u0435\u0442\u0435 \u0437\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u044C \u0441\u0431\u0440\u043E\u0441 \u043F\u0430\u0440\u043E\u043B\u044F \u043F\u043E\u0441\u043B\u0435 ${json[PacketDataKeys_default.USRSFR]} \u0441\u0435\u043A\u0443\u043D\u0434`);
           }
           console.log(json);
         };
@@ -3407,8 +3418,12 @@
       };
       div.appendChild(btnReg);
       div.appendChild(status);
+      const links = document.createElement("div");
+      links.style.display = "flex";
+      links.style.justifyContent = "center";
+      div.appendChild(links);
       const why = document.createElement("div");
-      why.style.width = "100%";
+      why.style.margin = "3px";
       why.style.textAlign = "center";
       why.style.fontSize = "12px";
       why.style.color = "#8888f8";
@@ -3423,7 +3438,25 @@
 
 \u0412\u044B \u0432 \u043B\u044E\u0431\u043E\u043C \u0441\u043B\u0443\u0447\u0430\u0435 \u043C\u043E\u0436\u0435\u0442\u0435 \u0432\u043E\u0439\u0442\u0438 \u0441 \u0432\u0442\u043E\u0440\u043E\u0433\u043E \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430`);
       };
-      div.appendChild(why);
+      links.appendChild(why);
+      const forgetPass = document.createElement("div");
+      forgetPass.style.margin = "3px";
+      forgetPass.style.textAlign = "center";
+      forgetPass.style.fontSize = "12px";
+      forgetPass.style.color = "#8888f8";
+      forgetPass.style.textDecoration = "underline";
+      forgetPass.style.cursor = "pointer";
+      forgetPass.style.userSelect = "none";
+      forgetPass.innerHTML = "\u0417\u0430\u0431\u044B\u043B \u043F\u0430\u0440\u043E\u043B\u044C?";
+      forgetPass.onclick = () => {
+        const email = prompt(`\u0414\u043B\u044F \u0441\u0431\u0440\u043E\u0441\u0430 \u043F\u0430\u0440\u043E\u043B\u044F, \u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439 \u0432 \u0438\u0433\u0440\u0435 email`);
+        if (email != "") webSocket.send(JSON.stringify({
+          [PacketDataKeys_default.TYPE]: PacketDataKeys_default.USER_RESET_PASSWORD,
+          [PacketDataKeys_default.EMAIL]: email,
+          [PacketDataKeys_default.APP_LANGUAGE]: "RUS"
+        }));
+      };
+      links.appendChild(forgetPass);
     }
     async addVersion(version) {
       const self2 = this;

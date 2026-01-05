@@ -12,6 +12,7 @@ import fs from "../../../core/src/fs/fs";
 import { getZoom, noXSS, wait } from "../../../core/src/utils/utils";
 import LoadingBox from "../dialog/LoadingBox";
 import { isMobile } from "../../../core/src/utils/mobile";
+import md5salt from "../../../core/src/utils/md5";
 
 export function isMafia(role: Role): boolean {
     return [Role.MAFIA, Role.BARMAN, Role.TERRORIST, Role.INFORMER].includes(role);
@@ -133,7 +134,7 @@ export default class Room extends Screen {
     
     async init(){
         if(this.options.sendRoomEnter) App.server.send(PacketDataKeys.ROOM_ENTER, {
-            [PacketDataKeys.ROOM_PASS]: this.options.password,
+            [PacketDataKeys.ROOM_PASS]: this.options.password ? md5salt(this.options.password) : '',
             [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId
         });
         const rData = await App.server.awaitPacket([PacketDataKeys.ROOM_ENTER, PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR, PacketDataKeys.GAME_STARTED, PacketDataKeys.USER_IN_ANOTHER_ROOM, PacketDataKeys.USER_USING_DOUBLE_ACCOUNT, PacketDataKeys.USER_LEVEL_NOT_ENOUGH, PacketDataKeys.USER_KICKED, PacketDataKeys.ROOM_CREATED], 2000);
@@ -882,7 +883,7 @@ export default class Room extends Screen {
             }
         } else {
             const div = document.createElement('div');
-            let msg = text, color = 'black';
+            let msg = text, color = 'black', xssAllowed = false;
             if(type == 2) { msg = `Игрок ${text} вошёл`; color = '#22640A' }
             else if(type == 3) { msg = `Игрок ${text} вышел`; color = '#7D080E' }
             else if(type == 4) { msg = `Игра началась` }
@@ -897,14 +898,52 @@ export default class Room extends Screen {
             else if(type == 19) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в одной команде`; color = '#7D080E' }
             else if(type == 20) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в разных командах`; color = '#7D080E' }
             else if(type == 22) { msg = `ничья` }
-            else if(type == 23) { msg = `кикает чела ${text}` }
-            else if(type == 24) { msg = `гс закончилось кик ${text}` }
-            div.innerHTML = noXSS(msg).replaceAll(`\n`,'<br/>');
+            else if(type == 23) {
+                msg = `${text.split('#')[0]} начал голосование, чтобы выгнать игрока ${text.split('#')[2]} из комнаты\n`;
+                xssAllowed = true;
+                color = '#1D3E67';
+            }
+            else if(type == 24) { msg = `Завершилось голосование. Выгнать игрока?\nРезультат голосования:\nДа: ${text.split('|')[0]} | Нет: ${text.split('|')[1]}`; color = '#1D3E67' }
+            div.innerHTML = (xssAllowed ? msg : noXSS(msg)).replaceAll(`\n`,'<br/>');
             div.style.color = color;
             div.style.userSelect = 'text';
             div.style.margin = '3px'
             this.messagesElem.appendChild(div);
             this.lastMessage = {};
+
+            if(type == 23){
+                const timer = document.createElement('p');
+                timer.textContent = `10`;
+                div.appendChild(timer);
+                const btnYes = document.createElement('button');
+                btnYes.textContent = `Выгнать`;
+                btnYes.onclick = () => {
+                    App.server.send(PacketDataKeys.KICK_USER_VOTE, {
+                        [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId,
+                        [PacketDataKeys.VOTE]: true
+                    });
+                }
+                div.appendChild(btnYes);
+                const btnNo = document.createElement('button');
+                btnNo.textContent = `Не выгонять`;
+                btnNo.onclick = () => {
+                    App.server.send(PacketDataKeys.KICK_USER_VOTE, {
+                        [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId,
+                        [PacketDataKeys.VOTE]: true
+                    });
+                }
+                div.appendChild(btnNo);
+
+                this.on('message', data => {
+                    if(data[PacketDataKeys.TYPE] == PacketDataKeys.KICK_TIMER){
+                        const t = data[PacketDataKeys.TIMER];
+                        timer.textContent = t;
+                        if(t < 2){
+                            this.removeByKey('kick');
+                        }
+                    }
+                }).key('kick');
+            }
 
             if(type == 2 || type == 3){
                 if(this.joinLeaveMessages[text])
