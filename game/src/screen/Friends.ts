@@ -123,7 +123,7 @@ export default class Friends extends Screen {
             e.style.borderRadius = '10px';
             e.style.display = 'flex';
             e.onclick = () => {
-                wait(10).then(() => {
+                wait(5).then(() => {
                     if(!isClicked) App.screen = new PrivateChat(objectId, userObjectId, user)
                 });
             }
