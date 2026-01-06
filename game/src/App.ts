@@ -81,6 +81,8 @@ class App extends Events<AppEvents> {
 
         await this.settings.init();
 
+        if(isMobile() && this.settings.data.window.zoom > .9) this.settings.data.window.zoom = .6;
+
         this.element.tabIndex = 0;
         this.element.style.zoom = this.settings.data.window.zoom + '';
         this.element.appendChild(await style(`${this.config.path}/assets/styles/main.json`));

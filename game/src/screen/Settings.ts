@@ -115,7 +115,7 @@ export default class Settings extends Screen{
         addSlider('Масштаб', v => {
             App.settings.data.window.zoom = v;
             App.element.style.zoom = v + '';
-        }, isMobile() ? .6 : .3, isMobile() ? 1 : 1.5, App.settings.data.window.zoom, .1);
+        }, isMobile() ? .4 : .3, isMobile() ? .9 : 1.5, App.settings.data.window.zoom, .1);
         
         // addSelect('Сервер', ['русский', 'английский'], v => {});
 
