@@ -1,5 +1,6 @@
 import PacketDataKeys from '../../../core/src/PacketDataKeys';
 import { formatDate } from '../../../core/src/utils/format';
+import { wait } from '../../../core/src/utils/utils';
 import App from '../App';
 import ConfirmBox from '../dialog/ConfirmBox';
 import ProfileInfo from '../dialog/ProfileInfo';
@@ -113,6 +114,7 @@ export default class Friends extends Screen {
             const objectId = f[PacketDataKeys.OBJECT_ID];
             const userObjectId = user[PacketDataKeys.OBJECT_ID];
             const username = user[PacketDataKeys.USERNAME];
+            let isClicked = false;
 
             const e = document.createElement('div');
             e.style.background = 'rgba(200,200,200,.4)';
@@ -121,14 +123,19 @@ export default class Friends extends Screen {
             e.style.borderRadius = '10px';
             e.style.display = 'flex';
             e.onclick = () => {
-                App.screen = new PrivateChat(objectId, userObjectId, user);
+                wait(10).then(() => {
+                    if(!isClicked) App.screen = new PrivateChat(objectId, userObjectId, user)
+                });
             }
             
             const avatar = document.createElement('img');
             avatar.width = avatar.height = 40;
             avatar.style.borderRadius = '100%';
             avatar.onmousedown = e => e.preventDefault();
-            avatar.onclick = () => ProfileInfo(userObjectId);
+            avatar.onclick = () => {
+                isClicked = true;
+                ProfileInfo(userObjectId);
+            }
             getAvatarImg(user).then(s => avatar.src = s);
             e.appendChild(avatar);
 
@@ -173,6 +180,7 @@ export default class Friends extends Screen {
                 const btnRoom = document.createElement('button');
                 btnRoom.textContent = 'В комнате';
                 btnRoom.onclick = () => {
+                    isClicked = true;
                     App.screen = new Room(f[PacketDataKeys.ROOM][PacketDataKeys.OBJECT_ID]);
                 }
                 btns.appendChild(btnRoom);
@@ -182,6 +190,7 @@ export default class Friends extends Screen {
             btnRemoveFriend.className = 'gray';
             btnRemoveFriend.textContent = 'X';
             btnRemoveFriend.onclick = async() => {
+                isClicked = true;
                 const c = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ`, height: '175px' });
                 if(c) {
                     App.server.send(PacketDataKeys.REMOVE_FRIEND, {
