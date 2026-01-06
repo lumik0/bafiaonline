@@ -33,9 +33,12 @@ export default class RoomCreation extends Screen {
         this.element.appendChild(header);
         const back = document.createElement('button');
         back.className = 'back';
-        back.textContent = '<';
         back.onclick = () => this.emit('back');
         header.appendChild(back);
+        const backImg = document.createElement('img');
+        backImg.width = 24;
+        getTexture(`ui/Jb.png`).then(e => backImg.src = e);
+        back.appendChild(backImg);
         const title = document.createElement('label');
         title.textContent = 'Создание комнаты';
         header.appendChild(title);

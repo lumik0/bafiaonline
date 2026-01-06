@@ -6,8 +6,8 @@ import PacketDataKeys from "../../../core/src/PacketDataKeys";
 export async function getAvatarImg(user?: any): Promise<string> {
     if(!user) return App.resources['unknownChat'];
 
-    const ph = user[PacketDataKeys.PHOTO];
-    const uo = user[PacketDataKeys.OBJECT_ID];
+    const ph = user[PacketDataKeys.PHOTO] ?? user.photo;
+    const uo = user[PacketDataKeys.OBJECT_ID] ?? user.objectId;
 
     const cacheKey = `avatars_${uo}`;
     if(App.resources[cacheKey]) {

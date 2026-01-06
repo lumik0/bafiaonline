@@ -35,9 +35,12 @@ export default class Rooms extends Screen {
         this.element.appendChild(header);
         const back = document.createElement('button');
         back.className = 'back';
-        back.textContent = '<';
         back.onclick = () => this.emit('back');
         header.appendChild(back);
+        const backImg = document.createElement('img');
+        backImg.width = 24;
+        getTexture(`ui/Jb.png`).then(e => backImg.src = e);
+        back.appendChild(backImg);
         this.titleElem = document.createElement('label');
         this.titleElem.textContent = 'Комнаты';
         header.appendChild(this.titleElem);
@@ -264,15 +267,15 @@ export default class Rooms extends Screen {
         btnPlayers.className = 'room-btn-players'
         if(myStatus == 0){
             const text = document.createElement('div');
+            text.className = 'black';
             text.style.textAlign = 'center';
-            text.style.color = 'black';
             text.style.padding = '5px';
             text.textContent = `Вы играете в этой комнате`;
             div.appendChild(text);
         } else if(myStatus == 1){
             const text = document.createElement('div');
+            text.className = 'black';
             text.style.textAlign = 'center';
-            text.style.color = 'black';
             text.style.padding = '5px';
             text.textContent = `Вас убили в этой комнате`;
             div.appendChild(text);

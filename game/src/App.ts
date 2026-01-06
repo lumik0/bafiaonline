@@ -56,19 +56,15 @@ class App extends Events<AppEvents> {
     #windowEvents = {
         popState: (e: PopStateEvent) => this.emit('popstate', e),
         focusOut: (e: FocusEvent) => {
-            setTimeout(() => {
-                window.scrollTo(0, 0);
-                document.body.style.transform = "translateZ(0)";
+            if(isMobile()){
                 setTimeout(() => {
-                    document.body.style.transform = "";
-                }, 50);
-            }, 100);
-            // window.requestAnimationFrame(() => {
-            //     window.scrollTo({ top: window.scrollY - 1 });
-            //     window.requestAnimationFrame(() => {
-            //         window.scrollTo({ top: window.scrollY + 1 });
-            //     });
-            // });
+                    window.scrollTo(0, 0);
+                    document.body.style.transform = "translateZ(0)";
+                    setTimeout(() => {
+                        document.body.style.transform = "";
+                    }, 50);
+                }, 100);
+            }
         }
     }
 

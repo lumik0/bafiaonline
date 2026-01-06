@@ -6,7 +6,7 @@ import Screen from "./Screen";
 import { insertAtCaret } from '../utils/DOM'
 import ProfileInfo from "../dialog/ProfileInfo";
 import fs from "../../../core/src/fs/fs";
-import { getAvatarImg, getBackgroundImg } from "../utils/Resources";
+import { getAvatarImg, getBackgroundImg, getTexture } from "../utils/Resources";
 import { noXSS, wait } from "../../../core/src/utils/utils";
 import { isMobile } from "../../../core/src/utils/mobile";
 
@@ -27,9 +27,12 @@ export default class GlobalChat extends Screen {
         this.element.appendChild(header);
         const back = document.createElement('button');
         back.className = 'back';
-        back.textContent = '<';
         back.onclick = () => this.emit('back');
         header.appendChild(back);
+        const backImg = document.createElement('img');
+        backImg.width = 24;
+        getTexture(`ui/Jb.png`).then(e => backImg.src = e);
+        back.appendChild(backImg);
         const logo = document.createElement('label');
         logo.textContent = 'Общий чат';
         header.appendChild(logo);
@@ -137,15 +140,19 @@ export default class GlobalChat extends Screen {
             if(this.lastMessage && this.lastMessage.divM && this.lastMessage.user[PacketDataKeys.USERNAME] == user[PacketDataKeys.USERNAME]){
                 const msg = document.createElement('span');
                 msg.textContent = noXSS(text);
-                msg.style.color = 'black';
+                msg.className = 'black';
                 msg.style.userSelect = 'text';
                 this.lastMessage.divM.appendChild(msg);
             } else {
                 const div = document.createElement('div');
-                const avatar = document.createElement('img');
+                div.style.display = 'flex';
+                div.style.textAlign = 'left';
                 const divM = document.createElement('div');
-                const nick = document.createElement('span');
-                const msg = document.createElement('span');
+                divM.style.display = 'flex';
+                divM.style.flexDirection = 'column';
+                divM.style.justifyContent = 'center';
+                divM.style.wordBreak = 'auto-phrase';
+                const avatar = document.createElement('img');
                 getAvatarImg(user).then(e => avatar.src = e);
                 avatar.style.borderRadius = '100%'
                 avatar.width = 35;
@@ -153,18 +160,14 @@ export default class GlobalChat extends Screen {
                 avatar.style.margin = '5px';
                 avatar.onmousedown = e => e.preventDefault();
                 avatar.onclick = () => ProfileInfo(user[PacketDataKeys.OBJECT_ID]);
+                const nick = document.createElement('span');
                 nick.textContent = noXSS(user[PacketDataKeys.USERNAME]);
-                nick.style.color = 'black';
+                nick.className = 'black';
                 nick.onclick = () => this.addNickToInput(user[PacketDataKeys.USERNAME]);
+                const msg = document.createElement('span');
                 msg.textContent = noXSS(text);
-                msg.style.color = type == 9 ? '#22640A' : type == 11 ? 'gray' : type == 17 ? '#1D3E67' : type == 27 ? '#7D080E' : 'black';
+                msg.style.color = type == 9 ? '#186400' : type == 11 ? 'gray' : type == 17 ? '#113B81' : type == 27 ? '#940000' : 'black';
                 msg.style.userSelect = 'text';
-                divM.style.display = 'flex';
-                divM.style.flexDirection = 'column';
-                divM.style.justifyContent = 'center';
-                divM.style.wordBreak = 'auto-phrase';
-                div.style.display = 'flex';
-                div.style.textAlign = 'left';
                 div.appendChild(avatar);
                 div.appendChild(divM);
                 divM.appendChild(nick);
@@ -175,7 +178,7 @@ export default class GlobalChat extends Screen {
         } else {
             const div = document.createElement('div');
             div.textContent = noXSS(type == 2 ? `Игрок ${text} вошёл` : type == 3 ? `Игрок ${text} вышел` : text);
-            div.style.color = type == 2 ? '#22640A' : type == 3 ? '#7D080E' : 'black';
+            div.style.color = type == 2 ? '#22640A' : type == 3 ? '#940000' : 'black';
             div.style.userSelect = 'text';
             div.style.margin = '3px'
             this.messagesElem.appendChild(div);
@@ -239,20 +242,20 @@ export default class GlobalChat extends Screen {
         for(let i = 0; i < users.length; i++){
             const user = users[i];
             const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.textAlign = 'left';
+            div.style.alignItems = 'center';
             const avatar = document.createElement('img');
-            const nick = document.createElement('span');
             getAvatarImg(user).then(e => avatar.src = e);
             avatar.style.borderRadius = '100%'
             avatar.width = avatar.height = 25;
             avatar.style.margin = '5px';
             avatar.onmousedown = e => e.preventDefault();
             avatar.onclick = () => ProfileInfo(user[PacketDataKeys.OBJECT_ID]);
+            const nick = document.createElement('span');
             nick.textContent = noXSS(user[PacketDataKeys.USERNAME]);
-            nick.style.color = 'black';
+            nick.className = 'black';
             nick.onclick = () => this.addNickToInput(user[PacketDataKeys.USERNAME]);
-            div.style.display = 'flex';
-            div.style.textAlign = 'left';
-            div.style.alignItems = 'center';
             div.appendChild(avatar);
             div.appendChild(nick);
             this.playersListElem.appendChild(div);

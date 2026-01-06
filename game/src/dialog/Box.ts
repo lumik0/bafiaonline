@@ -52,7 +52,7 @@ export default class Box extends Events<BoxEvents> {
         App.element.appendChild(this.background);
 
         const div = document.createElement('div');
-        div.style.background = '#D1343C';
+        div.style.background = '#d03a41';
         div.style.width = '100%'
         // div.style.height = '100%';
         div.style.borderRadius = '10px';
@@ -78,7 +78,7 @@ export default class Box extends Events<BoxEvents> {
         this.content.style.background = '#B4AEAC';
         this.content.style.margin = '0 5px 5px 5px';
         this.content.style.width = '100%';
-        this.content.style.height = options.height ? (parseInt(options.height.replace('px', '')) - 40) + 'px' : 'calc(150px - 40px)' //options.heightContent ?? '74%';
+        this.content.style.height = options.height ? (parseInt(options.height.replace('px', '')) - 40) + 'px' : 'calc(150px - 40px)'
         this.content.style.borderRadius = '10px';
         contentBackground.appendChild(this.content);
 

@@ -102,8 +102,11 @@ export default class Room extends Screen {
         this.element.appendChild(this.headerElem);
         const back = document.createElement('button');
         back.className = 'back';
-        back.textContent = '<';
         back.onclick = () => this.emit('back');
+        const backImg = document.createElement('img');
+        backImg.width = 24;
+        getTexture(`ui/Jb.png`).then(e => backImg.src = e);
+        back.appendChild(backImg);
         this.headerElem.appendChild(back);
         this.titleElem = document.createElement('label');
         this.titleElem.textContent = ``;
@@ -278,8 +281,8 @@ export default class Room extends Screen {
         this.titleElem.innerHTML = noXSS(this.title);
 
         this.infoElem = document.createElement('div');
+        this.infoElem.className = 'black';
         this.infoElem.style.textAlign = 'center';
-        this.infoElem.style.color = 'black';
         this.infoElem.style.margin = '5px 0';
         this.infoElem.innerHTML = `Загрузка комнаты..`
         this.element.appendChild(this.infoElem);
@@ -554,14 +557,14 @@ export default class Room extends Screen {
                 this.meElem.style.padding = '0 5px';
                 this.yourRoleElem = document.createElement('span');
                 this.yourRoleElem.innerHTML = yourRoleMsg;
+                this.yourRoleElem.className = 'black';
                 this.yourRoleElem.style.fontSize = 'smaller';
                 this.yourRoleElem.style.textAlign = 'center';
-                this.yourRoleElem.style.color = 'black';
                 this.yourRoleElem.style.padding = '1px';
                 nick.textContent = noXSS(App.user.username);
+                nick.className = 'black';
                 nick.style.fontSize = 'smaller';
                 nick.style.textAlign = 'center';
-                nick.style.color = 'black';
                 nick.style.padding = '1px';
                 myRoleImg.src = await getRoleImg(this.playersData[App.user.objectId].role ?? 1);
                 myRoleImg.width = 50;
@@ -585,13 +588,13 @@ export default class Room extends Screen {
                 div.style.width = '100%';
                 mafia = document.createElement('div');
                 mafia.textContent = noXSS(`Мафия: ${playersStat[PacketDataKeys.MAFIA_ALL]} | ${playersStat[PacketDataKeys.MAFIA_ALIVE]}`);
-                mafia.style.color = '#7D080E';
+                mafia.style.color = '#940000';
                 mir = document.createElement('div');
                 mir.textContent = noXSS(`Мирные: ${playersStat[PacketDataKeys.CIVILIAN_ALL]} | ${playersStat[PacketDataKeys.CIVILIAN_ALIVE]}`);
-                mir.style.color = '#22640A';
+                mir.style.color = '#186400';
                 timer = document.createElement('div');
                 timer.textContent = noXSS(this.timer+'');
-                timer.style.color = 'black';
+                timer.className = 'black';
                 timer.style.float = 'right';
                 timer.style.fontSize = '35px';
                 timer.style.fontWeight = 'bold';
@@ -755,19 +758,19 @@ export default class Room extends Screen {
 
             const username = this.playersData[uo].username ?? '?';
             const div = document.createElement('div');
-            const roleImg = document.createElement('img');
-            const nick = document.createElement('div');
-            nick.textContent = noXSS(username);
-            nick.style.color = 'black';
-            nick.style.wordBreak = 'break-all';
-            nick.style.textAlign = 'center';
-            nick.style.fontSize = '12px';
-            nick.style.marginTop = '-2px';
             div.style.margin = '2px';
             div.style.width = '50px';
             div.style.textAlign = 'center';
             div.style.position = 'relative';
             div.style.height = '100px';
+            const nick = document.createElement('div');
+            nick.textContent = noXSS(username);
+            nick.className = 'black';
+            nick.style.wordBreak = 'break-all';
+            nick.style.textAlign = 'center';
+            nick.style.fontSize = '12px';
+            nick.style.marginTop = '-2px';
+            const roleImg = document.createElement('img');
             getRoleImg(pl.role ?? 0).then(e => roleImg.src = e);
             roleImg.width = 50;
             roleImg.height = 70;
@@ -820,7 +823,7 @@ export default class Room extends Screen {
                 })())
                 .case(Role.BODYGUARD, () => this.gameDayTime == 2 && (() => {
                     action = '_8';
-                    if(!isActionUsed) isActionUsed = true;
+                    if(!isActionUsed) action = '';
                 })())
                 .case(Role.BARMAN, () => this.gameDayTime == 1 && (() => { action = '_9' })())
                 .case(Role.INFORMER, () => this.gameDayTime == 1 && (() => {
@@ -873,12 +876,12 @@ export default class Room extends Screen {
         if(user || type == 10 || type == 25 || type == 26){
             const username = user ? user[PacketDataKeys.USERNAME] : type == 25 || type == 26 ? 'Информатор' : type == 10 ? 'Мафия' : '???';
             let msgText = text, color = 'black';
-            if(type == 9 || type == 13 || type == 26) { msgText = `Голосует за [${text}]`; color = '#22640A' }
-            else if(type == 11) { color = `#ABABAB` }
-            else if(type == 17) { color = '#1D3E67' }
-            else if(type == 18) { msgText = `ВЗОРВАЛ игрока [${text}]`; color = '#7D080E' }
-            else if(type == 21) { msgText = `ВЗОРВАЛ игрока [${text}], но игрок был под защитой телохранителя и остался жив!`; color = '#7D080E' }
-            else if(type == 27) { msgText = `Сдался`; color = '#7D080E' };
+            if(type == 9 || type == 13 || type == 26) { msgText = `Голосует за [${text}]`; color = '#186400' }
+            else if(type == 11) { color = `#8d8d8d` }
+            else if(type == 17) { color = '#113B81' }
+            else if(type == 18) { msgText = `ВЗОРВАЛ игрока [${text}]`; color = '#940000' }
+            else if(type == 21) { msgText = `ВЗОРВАЛ игрока [${text}], но игрок был под защитой телохранителя и остался жив!`; color = '#940000' }
+            else if(type == 27) { msgText = `Сдался`; color = '#940000' };
             if(this.lastMessage && this.lastMessage.divM && this.lastMessage.username == username){
                 const msg = document.createElement('span');
                 msg.textContent = noXSS(msgText);
@@ -887,10 +890,9 @@ export default class Room extends Screen {
                 this.lastMessage.divM.appendChild(msg);
             } else {
                 const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.textAlign = 'left';
                 const avatar = document.createElement('img');
-                const divM = document.createElement('div');
-                const nick = document.createElement('span');
-                const msg = document.createElement('span');
                 getAvatarImg(user).then(e => avatar.src = e);
                 avatar.onerror = () => console.error(`Игрок ${username} не имеет аватарку - ${user[PacketDataKeys.PHOTO]}`);
                 avatar.style.borderRadius = '100%';
@@ -899,18 +901,19 @@ export default class Room extends Screen {
                 avatar.style.margin = '5px';
                 avatar.onmousedown = e => e.preventDefault();
                 avatar.onclick = () => ProfileInfo(user[PacketDataKeys.OBJECT_ID]);
-                nick.textContent = noXSS(username)
-                nick.style.color = type == 17 ? '#1D3E67' : type == 11 ? '#ABABAB' : 'black'
-                nick.onclick = () => this.addNickToInput(username)
-                msg.textContent = noXSS(msgText);
-                msg.style.color = color
-                msg.style.userSelect = 'text';
+                const divM = document.createElement('div');
                 divM.style.display = 'flex';
                 divM.style.flexDirection = 'column';
                 divM.style.justifyContent = 'center';
                 divM.style.wordBreak = 'auto-phrase';
-                div.style.display = 'flex';
-                div.style.textAlign = 'left';
+                const nick = document.createElement('span');
+                nick.textContent = noXSS(username);
+                nick.style.color = type == 17 ? '#4B4483' : type == 11 ? '#545454' : 'black'
+                nick.onclick = () => this.addNickToInput(username)
+                const msg = document.createElement('span');
+                msg.textContent = noXSS(msgText);
+                msg.style.color = color
+                msg.style.userSelect = 'text';
                 div.appendChild(avatar);
                 div.appendChild(divM);
                 divM.appendChild(nick);
@@ -921,26 +924,26 @@ export default class Room extends Screen {
         } else {
             const div = document.createElement('div');
             let msg = text, color = 'black', xssAllowed = false;
-            if(type == 2) { msg = `Игрок ${text} вошёл`; color = '#22640A' }
-            else if(type == 3) { msg = `Игрок ${text} вышел`; color = '#7D080E' }
+            if(type == 2) { msg = `Игрок ${text} вошёл`; color = '#186400' }
+            else if(type == 3) { msg = `Игрок ${text} вышел`; color = '#940000' }
             else if(type == 4) { msg = `Игра началась` }
-            else if(type == 5) { msg = `Наступила ночь [МАФИЯ в чате]`; color = '#1D3E67' }
-            else if(type == 6) { msg = `[МАФИЯ выбирает жертву]`; color = '#1D3E67' }
-            else if(type == 7) { msg = `Наступил день [Все общаются в чате]`; color = '#BA843E' }
-            else if(type == 8) { msg = `[Все голосуют] Выберите игрока, которого хотите казнить`; color = '#BA843E' }
-            else if(type == 12) { msg = `Игрок [${text}] УБИТ!`; color = '#7D080E' }
-            else if(type == 14) { msg = `ВСЕ остались живы. Никого не удалось убить!`; color = '#22640A' }
-            else if(type == 15) { msg = `Игра окончена! МИРНЫЕ ЖИТЕЛИ победили!`; color = '#22640A' }
-            else if(type == 16) { msg = `Игра окончена! МАФИЯ победила!`; color = '#22640A' }
-            else if(type == 19) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в одной команде`; color = '#7D080E' }
-            else if(type == 20) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в разных командах`; color = '#7D080E' }
+            else if(type == 5) { msg = `Наступила ночь [МАФИЯ в чате]`; color = '#113B81' }
+            else if(type == 6) { msg = `[МАФИЯ выбирает жертву]`; color = '#113B81' }
+            else if(type == 7) { msg = `Наступил день [Все общаются в чате]`; color = '#C46509' }
+            else if(type == 8) { msg = `[Все голосуют] Выберите игрока, которого хотите казнить`; color = '#C46509' }
+            else if(type == 12) { msg = `Игрок [${text}] УБИТ!`; color = '#940000' }
+            else if(type == 14) { msg = `ВСЕ остались живы. Никого не удалось убить!`; color = '#C46509' }
+            else if(type == 15) { msg = `Игра окончена! МИРНЫЕ ЖИТЕЛИ победили!`; color = '#186400' }
+            else if(type == 16) { msg = `Игра окончена! МАФИЯ победила!`; color = '#186400' }
+            else if(type == 19) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в одной команде`; color = '#940000' }
+            else if(type == 20) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в разных командах`; color = '#940000' }
             else if(type == 22) { msg = `ничья` }
             else if(type == 23) {
                 msg = `[${text.split('#')[0]}] начал голосование, чтобы выгнать игрока [${text.split('#')[2]}] из комнаты\n`;
                 xssAllowed = true;
-                color = '#1D3E67';
+                color = '#113B81';
             }
-            else if(type == 24) { msg = `Завершилось голосование. Выгнать игрока?\nРезультат голосования:\nДа: ${text.split('|')[0]} | Нет: ${text.split('|')[1]}`; color = '#1D3E67' }
+            else if(type == 24) { msg = `Завершилось голосование. Выгнать игрока?\nРезультат голосования:\nДа: ${text.split('|')[0]} | Нет: ${text.split('|')[1]}`; color = '#113B81' }
             div.innerHTML = (xssAllowed ? msg : noXSS(msg)).replaceAll(`\n`,'<br/>');
             div.style.color = color;
             div.style.userSelect = 'text';
@@ -1061,7 +1064,7 @@ export default class Room extends Screen {
             avatar.onmousedown = e => e.preventDefault();
             avatar.onclick = () => ProfileInfo(user[PacketDataKeys.OBJECT_ID]);
             nick.textContent = noXSS(user[PacketDataKeys.USERNAME]);
-            nick.style.color = 'black';
+            nick.className = 'black';
             nick.onclick = () => this.addNickToInput(user[PacketDataKeys.USERNAME]);
             div.style.display = 'flex';
             div.style.textAlign = 'left';

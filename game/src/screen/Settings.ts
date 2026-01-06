@@ -1,6 +1,6 @@
 import Screen from './Screen';
 import App from '../App';
-import { getBackgroundImg } from '../utils/Resources';
+import { getBackgroundImg, getTexture } from '../utils/Resources';
 import Dashboard from './Dashboard';
 import MessageBox from '../dialog/MessageBox';
 import { isMobile } from '../../../core/src/utils/mobile';
@@ -20,9 +20,12 @@ export default class Settings extends Screen{
         this.element.appendChild(header);
         const back = document.createElement('button');
         back.className = 'back';
-        back.textContent = '<';
         back.onclick = () => this.emit('back');
         header.appendChild(back);
+        const backImg = document.createElement('img');
+        backImg.width = 24;
+        getTexture(`ui/Jb.png`).then(e => backImg.src = e);
+        back.appendChild(backImg);
         const title = document.createElement('label');
         title.textContent = 'Настройки';
         header.appendChild(title);
@@ -53,8 +56,8 @@ export default class Settings extends Screen{
             d.style.justifyContent = 'space-between';
             e.appendChild(d);
             const t = document.createElement('span');
+            t.className = 'black';
             t.style.marginLeft = '10px';
-            t.style.color = 'black';
             t.textContent = text;
             d.appendChild(t);
             const cb = document.createElement('input');
@@ -74,8 +77,8 @@ export default class Settings extends Screen{
             d.style.justifyContent = 'space-between';
             e.appendChild(d);
             const t = document.createElement('span');
+            t.className = 'black';
             t.style.marginLeft = '10px';
-            t.style.color = 'black';
             t.textContent = text;
             d.appendChild(t);
             const cb = document.createElement('input');
@@ -102,8 +105,8 @@ export default class Settings extends Screen{
             d.style.justifyContent = 'space-between';
             e.appendChild(d);
             const t = document.createElement('span');
+            t.className = 'black';
             t.style.marginLeft = '10px';
-            t.style.color = 'black';
             t.textContent = text;
             d.appendChild(t);
             const btn = document.createElement('button');

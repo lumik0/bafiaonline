@@ -2,15 +2,18 @@
     "&":{
         "background-color": "black",
         "font-family": "Arial, Helvetica, sans-serif",
-        "color": "white",
+        "color": "@main-text-color",
         "user-select": "none",
         "height": "100%",
+        "& .black": {
+            "color": "@black-text-color"
+        },
         "& button": {
-            "color": "white",
+            "color": "@main-text-color",
             "outline": "none",
             "padding": "6px 20px",
             "font-size": "18px",
-            "background": "#D1343C",
+            "background": "@main-color",
             "border": "1px solid black",
             "border-radius": "7px"
         },
@@ -24,16 +27,16 @@
             "background-color": "#620d10"
         },
         "& .gray": {
-            "color": "black",
-            "background": "#908985",
+            "color": "@black-text-color",
+            "background": "rgba(200, 200, 200, 0.4)",
             "border": "1px solid #918782"
         },
         "& .gray:enabled:hover": {
-            "background-color": "#8d8581",
+            "background-color": "rgba(200, 200, 200, 0.3)",
             "border": "1px solid #918782"
         },
         "& .gray:enabled:active": {
-            "background-color": "#817a76",
+            "background-color": "rgba(200, 200, 200, 0.2)",
             "border": "1px solid #897f7a"
         },
         "& .dark-gray": {
@@ -61,10 +64,10 @@
             "padding": "0 3px",
             "font-size": "20px",
             "background": "transparent",
-            "border-bottom": "2px solid #D1343C"
+            "border-bottom": "2px solid #d03a41"
         },
         "& .header": {
-            "background": "#D1343C",
+            "background": "#d03a41",
             "width": "100%",
             "height": "40px",
             "display": "flex",
@@ -82,7 +85,7 @@
             "border-radius": "5px",
             "margin": "5px",
             "padding": "3px 10px",
-            "color": "black",
+            "color": "@black-text-color",
             "text-align": "left"
         },
         "& .room-lvl": {
@@ -110,8 +113,12 @@
         },
         "& .back": {
             "border": "none",
-            "padding": "8px 15px",
-            "margin-left": "5px"
+            "display": "flex",
+            "padding": "8px 10px",
+            "margin-left": "10px"
+        },
+        "& .back > img": {
+            "pointer-events": "none"
         },
         "& .range-wrapper": {
             "position": "relative",

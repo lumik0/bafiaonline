@@ -280,6 +280,9 @@ export default async function ProfileInfo(userObjectId: string){
 
     const dataStats = calculateStatsWithRoles(profile);
 
+    add(stat, 'Серебро', profile.sliver);
+    if(typeof profile.gold == 'number') add(stat, 'Золото', profile.gold);
+
     add(stat, 'Сыграно игр', profile.playedGames);
     add(stat, 'Сыграно игр за Мафию', dataStats.gamesAsMafia);
     add(stat, 'Сыграно игр за Мирных', dataStats.gamesAsPeaceful);

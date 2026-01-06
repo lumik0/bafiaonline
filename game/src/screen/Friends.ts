@@ -3,8 +3,9 @@ import { formatDate } from '../../../core/src/utils/format';
 import App from '../App';
 import ConfirmBox from '../dialog/ConfirmBox';
 import ProfileInfo from '../dialog/ProfileInfo';
-import { getAvatarImg, getBackgroundImg } from '../utils/Resources';
+import { getAvatarImg, getBackgroundImg, getTexture } from '../utils/Resources';
 import Dashboard from './Dashboard';
+import PrivateChat from './PrivateChat';
 import Room from './Room';
 import Screen from './Screen';
 
@@ -26,9 +27,12 @@ export default class Friends extends Screen {
         this.element.appendChild(header);
         const back = document.createElement('button');
         back.className = 'back';
-        back.textContent = '<';
         back.onclick = () => this.emit('back');
         header.appendChild(back);
+        const backImg = document.createElement('img');
+        backImg.width = 24;
+        getTexture(`ui/Jb.png`).then(e => backImg.src = e);
+        back.appendChild(backImg);
         const title = document.createElement('label');
         title.textContent = 'Друзья';
         header.appendChild(title);
@@ -106,6 +110,7 @@ export default class Friends extends Screen {
         for(const f of data){
             const isFriend = !!f[PacketDataKeys.FRIEND];
             const user = isFriend ? f[PacketDataKeys.FRIEND] : f[PacketDataKeys.USER];
+            const objectId = f[PacketDataKeys.OBJECT_ID];
             const userObjectId = user[PacketDataKeys.OBJECT_ID];
             const username = user[PacketDataKeys.USERNAME];
 
@@ -115,6 +120,9 @@ export default class Friends extends Screen {
             e.style.margin = '5px';
             e.style.borderRadius = '10px';
             e.style.display = 'flex';
+            e.onclick = () => {
+                App.screen = new PrivateChat(objectId, userObjectId, user);
+            }
             
             const avatar = document.createElement('img');
             avatar.width = avatar.height = 40;
