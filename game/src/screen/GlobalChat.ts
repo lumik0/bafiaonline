@@ -7,7 +7,8 @@ import { insertAtCaret } from '../utils/DOM'
 import ProfileInfo from "../dialog/ProfileInfo";
 import fs from "../../../core/src/fs/fs";
 import { getAvatarImg, getBackgroundImg } from "../utils/Resources";
-import { noXSS } from "../../../core/src/utils/utils";
+import { noXSS, wait } from "../../../core/src/utils/utils";
+import { isMobile } from "../../../core/src/utils/mobile";
 
 export default class GlobalChat extends Screen {
     playersListElem!: HTMLDivElement
@@ -89,6 +90,7 @@ export default class GlobalChat extends Screen {
                 this.sendMessage(msg);
             }
         });
+
         this.on('keydown', e => e.key == 'Enter' && this.input.focus());
         footer.appendChild(this.input);
 
@@ -179,6 +181,8 @@ export default class GlobalChat extends Screen {
     }
 
     addNickToInput(username: string){
+        const isFocused = document.activeElement == this.input;
+
         if(this.input.value.includes(`[${username}]`)) {
             const posStart = this.input.value.indexOf(`[${username}]`);
             const posEnd = this.input.value.lastIndexOf(`[${username}]`);
@@ -196,6 +200,8 @@ export default class GlobalChat extends Screen {
             else
                 insertAtCaret(this.input, ` [${username}] `);
         }
+
+        if(isMobile() && !isFocused) this.input.focus();
     }
     
     sendMessage(message: string, options: { messageStyle?: MessageStyle, messageSticker?: boolean } = {}){

@@ -460,6 +460,8 @@ export default class Room extends Screen {
         });
         if(isMobile()){
             this.input.addEventListener('focus', () => {
+                App.width = innerWidth;
+                App.height = innerHeight-1;
                 this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
             });
             this.input.addEventListener('blur', () => {
@@ -999,6 +1001,7 @@ export default class Room extends Screen {
 
     addNickToInput(username: string){
         const isFocused = document.activeElement == this.input;
+
         if(this.input.value.includes(`[${username}]`)) {
             const posStart = this.input.value.indexOf(`[${username}]`);
             const posEnd = this.input.value.lastIndexOf(`[${username}]`);
@@ -1016,7 +1019,8 @@ export default class Room extends Screen {
             else
                 insertAtCaret(this.input, ` [${username}] `);
         }
-        if(isMobile() && !isFocused) this.input.blur();
+
+        if(isMobile() && !isFocused) this.input.focus();
     }
     
     sendMessage(message: string, options: { messageStyle?: MessageStyle, messageSticker?: boolean } = {}){

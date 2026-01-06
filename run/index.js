@@ -1929,6 +1929,7 @@
         this.width = window.innerWidth / zoom;
         this.height = window.innerHeight / zoom;
         this.hasTitleBar = false;
+        this.titleBarHeight = 0;
       }
       wrap(this, "width", (v) => {
         this.el.style.width = v + "px";
@@ -1979,11 +1980,12 @@
     zoom = 0;
     oldPos = { x: 0, y: 0, width: 0, height: 0 };
     #init() {
+      const isM = isMobile() && !this.options.noMobile;
       this.el = document.createElement("div");
       this.el.classList.add("win");
       this.el.style.position = "absolute";
       this.el.style.width = this.width + "px";
-      this.el.style.height = this.height + "px";
+      this.el.style.height = isM ? "100%" : this.height + "px";
       this.el.style.left = this.x + "px";
       this.el.style.top = this.y + "px";
       this.el.id = `win_${this.id}`;

@@ -152,7 +152,10 @@ class App extends Events<AppEvents> {
         });
 
         this.win.on('close', () => this.destroy());
-        this.on('popstate', () => this.screen.emit('preBack'));
+        this.on('popstate', () => {
+            this.screen.emit('preBack');
+            history.pushState({ back: true }, 'back', "");
+        });
     }
 
     private tick(dt: number){

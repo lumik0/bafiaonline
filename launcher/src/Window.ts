@@ -273,6 +273,7 @@ export default class Window extends Events<WindowEvents> implements IWindow {
             this.width = window.innerWidth / zoom;
             this.height = window.innerHeight / zoom;
             this.hasTitleBar = false;
+            this.titleBarHeight = 0;
         }
 
         wrap(this, 'width', (v: number) => { this.el.style.width = v+'px'; this.emit('resize', { oldWidth: this.width, oldHeight: this.height }); });
@@ -290,11 +291,13 @@ export default class Window extends Events<WindowEvents> implements IWindow {
     }
 
     #init(){
+        const isM = isMobile() && !this.options.noMobile;
+
         this.el = document.createElement('div');
         this.el.classList.add('win')
         this.el.style.position = 'absolute';
         this.el.style.width = this.width + 'px';
-        this.el.style.height = this.height + 'px';
+        this.el.style.height = isM ? '100%' : this.height + 'px';
         this.el.style.left = this.x + 'px';
         this.el.style.top = this.y + 'px';
         this.el.id = `win_${this.id}`;

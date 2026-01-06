@@ -30,7 +30,7 @@ export default class Box extends Events<BoxEvents> {
         App.boxs.push(this);
         
         App.screen.element.style.pointerEvents = 'none';
-
+        
         this.element.style.transition = '.2s';
         this.element.style.width = options.width ?? '300px';
         this.element.style.height = options.height ?? '150px';
