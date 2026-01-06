@@ -90,6 +90,17 @@ export default class GlobalChat extends Screen {
                 this.sendMessage(msg);
             }
         });
+        if(isMobile()){
+            this.input.addEventListener('focus', () => {
+                App.width = innerWidth;
+                App.height = innerHeight-1;
+                // this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
+            });
+            this.input.addEventListener('blur', () => {
+                App.width = innerWidth;
+                App.height = innerHeight-2;
+            });
+        }
 
         this.on('keydown', e => e.key == 'Enter' && this.input.focus());
         footer.appendChild(this.input);
