@@ -1686,15 +1686,6 @@
       window.addEventListener("keyup", (e) => this.emit("keyup", e), true);
       window.addEventListener("wheel", (e) => this.emit("wheel", e), true);
       window.addEventListener("resize", (e) => this.emit("resize"), true);
-      window.addEventListener("focusout", () => {
-        setTimeout(() => {
-          window.scrollTo(0, 0);
-          document.body.style.transform = "translateZ(0)";
-          setTimeout(() => {
-            document.body.style.transform = "";
-          }, 50);
-        }, 100);
-      });
     }
   };
   var App_default = new App();

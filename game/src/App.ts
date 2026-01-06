@@ -53,7 +53,24 @@ class App extends Events<AppEvents> {
     components: Component[] = [];
 
     #isInitialized = false
-    #popStateFunction = (e: PopStateEvent) => this.emit('popstate', e);
+    #windowEvents = {
+        popState: (e: PopStateEvent) => this.emit('popstate', e),
+        focusOut: (e: FocusEvent) => {
+            setTimeout(() => {
+                window.scrollTo(0, 0);
+                document.body.style.transform = "translateZ(0)";
+                setTimeout(() => {
+                    document.body.style.transform = "";
+                }, 50);
+            }, 100);
+            // window.requestAnimationFrame(() => {
+            //     window.scrollTo({ top: window.scrollY - 1 });
+            //     window.requestAnimationFrame(() => {
+            //         window.scrollTo({ top: window.scrollY + 1 });
+            //     });
+            // });
+        }
+    }
 
     constructor(){
         super()
@@ -110,7 +127,8 @@ class App extends Events<AppEvents> {
         this.element.addEventListener('keydown', (e) => this.emit('keydown', e), true);
         this.element.addEventListener('keyup', (e) => this.emit('keyup', e), true);
         this.element.addEventListener('wheel', (e) => this.emit('wheel', e), true);
-        window.addEventListener('popstate', this.#popStateFunction, true);
+        window.addEventListener('popstate', this.#windowEvents.popState, true);
+        window.addEventListener('focusout', this.#windowEvents.focusOut, true);
 
         this.on('wheel', e => {
             if(e.ctrlKey){
@@ -178,7 +196,8 @@ class App extends Events<AppEvents> {
 
     #destroyEvents(){
         this.removeAllEvents();
-        window.removeEventListener('popstate', this.#popStateFunction);
+        window.removeEventListener('popstate', this.#windowEvents.popState);
+        window.removeEventListener('focusout', this.#windowEvents.focusOut);
     }
 
     destroy(){
