@@ -1661,8 +1661,8 @@
 
   // core/version.json
   var version_default = {
-    launcher: "Alpha 1.2",
-    vanilla: "Alpha 1.2"
+    launcher: "Alpha 1.2.1",
+    vanilla: "Alpha 1.2.1"
   };
 
   // launcher/src/App.ts
