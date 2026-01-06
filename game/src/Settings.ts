@@ -1,4 +1,5 @@
 import fs from "../../core/src/fs/fs";
+import { isMobile } from "../../core/src/utils/mobile";
 import { wrap } from "../../core/src/utils/TypeScript";
 import App from "./App";
 
@@ -45,6 +46,11 @@ export default class Settings {
     async init(){
         if(this.#isInitialized) return;
         this.#isInitialized = true;
+
+        // default settings FOR mobile:
+        if(isMobile()){
+            this.data.window.zoom = .6;
+        }
         
         await this.read();
     }

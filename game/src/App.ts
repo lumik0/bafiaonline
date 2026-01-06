@@ -24,12 +24,15 @@ interface AppEvents {
     keydown: (e: KeyboardEvent) => void
     keyup: (e: KeyboardEvent) => void
     wheel: (e: WheelEvent) => void
+    popstate: (e: PopStateEvent) => void
     screenChange: (screen: Screen) => void
 }
 
 // @ts-ignore
 class App extends Events<AppEvents> {
     version = versions.vanilla
+
+    isAlive = true;
 
     element!: HTMLElement
     config!: Config
@@ -49,6 +52,7 @@ class App extends Events<AppEvents> {
     components: Component[] = [];
 
     #isInitialized = false
+    #popStateFunction = (e: PopStateEvent) => this.emit('popstate', e);
 
     constructor(){
         super()
@@ -58,6 +62,7 @@ class App extends Events<AppEvents> {
             this.call('screenChange', v);
             this.screen?.destroy();
             this.element.appendChild(v.element);
+            history.pushState({ screen: v.name }, v.name, "");
             // console.log(this.screen?.name, v.name);
             // console.log(this.customListeners);
         });
@@ -74,8 +79,6 @@ class App extends Events<AppEvents> {
         this.#isInitialized = true;
 
         await this.settings.init();
-
-        if(isMobile()) this.settings.data.window.zoom = .6;
 
         this.element.tabIndex = 0;
         this.element.style.zoom = this.settings.data.window.zoom + '';
@@ -104,6 +107,7 @@ class App extends Events<AppEvents> {
         this.element.addEventListener('keydown', (e) => this.emit('keydown', e), true);
         this.element.addEventListener('keyup', (e) => this.emit('keyup', e), true);
         this.element.addEventListener('wheel', (e) => this.emit('wheel', e), true);
+        window.addEventListener('popstate', this.#popStateFunction, true);
 
         this.on('wheel', e => {
             if(e.ctrlKey){
@@ -145,6 +149,7 @@ class App extends Events<AppEvents> {
         });
 
         this.win.on('close', () => this.destroy());
+        this.on('popstate', () => this.screen.emit('preBack'));
     }
 
     private tick(dt: number){
@@ -165,12 +170,20 @@ class App extends Events<AppEvents> {
         return this.settings.data.window.zoom
     }
 
+    #destroyEvents(){
+        this.removeAllEvents();
+        window.removeEventListener('popstate', this.#popStateFunction);
+    }
+
     destroy(){
+        if(!this.isAlive) return;
+        this.isAlive = false;
+        this.win.close();
         this.resources = {};
         this.components.forEach(e => e.destroy());
         this.boxs.forEach(e => e.destroy());
         this.element.remove();
-        this.removeAllEvents();
+        this.#destroyEvents();
         this.server.destroy();
     }
 }

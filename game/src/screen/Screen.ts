@@ -4,6 +4,7 @@ import { wait } from "../../../core/src/utils/utils";
 
 interface ScreenEvents {
     tick: (dt: number) => void
+    preBack: () => void
     back: () => void
     resize: (e: { oldWidth: number, oldHeight: number }) => void
     keydown: (e: KeyboardEvent) => void
@@ -32,12 +33,15 @@ export default class Screen extends Events<ScreenEvents> {
             this.element.focus();
         });
         
+        this.on('preBack', () => {
+            if(App.boxs.length > 0)
+                App.boxs[0].close();
+            else
+                this.emit('back');
+        });
         this.on('keydown', e => {
-            if(e.key == 'Escape'){
-                if(App.boxs.length > 0)
-                    App.boxs[0].close();
-                else
-                    this.emit('back');
+            if(e.key == 'Escape') {
+                this.emit('preBack');
             }
         });
     }

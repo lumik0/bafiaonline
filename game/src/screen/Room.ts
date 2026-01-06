@@ -13,6 +13,7 @@ import { getZoom, noXSS, wait } from "../../../core/src/utils/utils";
 import LoadingBox from "../dialog/LoadingBox";
 import { isMobile } from "../../../core/src/utils/mobile";
 import md5salt from "../../../core/src/utils/md5";
+import ContextMenu from "../component/ContextMenu";
 
 export function isMafia(role: Role): boolean {
     return [Role.MAFIA, Role.BARMAN, Role.TERRORIST, Role.INFORMER].includes(role);
@@ -71,6 +72,8 @@ export default class Room extends Screen {
         isDayActionUsed?: boolean
         isNightActionAlternative?: boolean
         isNightActionUsed?: boolean
+        autoClick?: boolean
+        didAutoClick?: boolean
         vote?: number
     }> = {}
     players: any[] = [];
@@ -683,11 +686,17 @@ export default class Room extends Screen {
             this.messagesElem.style.outline = '2px solid #c0c0c0';
             this.messagesElem.style.background = 'rgba(255,255,255,.5)';
         }
+
+        for(const uo in this.playersData){
+            this.playersData[uo].didAutoClick = false;
+        }
     }
 
     updatePlayersGame(){
-        this.gamePlayersListElem.innerHTML = '';
+        const self = this;
         const entries = Object.entries(this.playersData).sort(([, a], [, b]) => (a.index ?? 0) - (b.index ?? 0));
+        
+        this.gamePlayersListElem.innerHTML = '';
 
         for(const [uo, pl] of entries) {
             if(App.user.objectId == pl.userObjectId) {
@@ -726,6 +735,20 @@ export default class Room extends Screen {
                 }
                 continue;
             }
+            async function contextMenuCallback(event: PointerEvent){
+                const cx = new ContextMenu(self.playersData[uo].alive ?
+                    ['Пользователь', `${self.playersData[uo].autoClick ? '✅ ' : ''}Авто-клик`] :
+                    ['Пользователь']
+                , event);
+                const result = await cx.waitForResult();
+                if(result == `${self.playersData[uo].autoClick ? '✅ ' : ''}Авто-клик`){
+                    self.playersData[uo].autoClick = !self.playersData[uo].autoClick;
+                    self.playersData[uo].didAutoClick = false;
+                } else if(result == 'Пользователь'){
+                    ProfileInfo(uo);
+                }
+            }
+
             const username = this.playersData[uo].username ?? '?';
             const div = document.createElement('div');
             const roleImg = document.createElement('img');
@@ -744,6 +767,7 @@ export default class Room extends Screen {
             getRoleImg(pl.role ?? 0).then(e => roleImg.src = e);
             roleImg.width = 50;
             roleImg.height = 70;
+            roleImg.oncontextmenu = contextMenuCallback
             roleImg.onmousedown = e => e.preventDefault();
             div.appendChild(roleImg);
             if(!pl.alive){
@@ -755,6 +779,7 @@ export default class Room extends Screen {
                 deadImg.style.left = '0';
                 deadImg.onmousedown = e => e.preventDefault();
                 deadImg.onclick = () => this.addNickToInput(username);
+                deadImg.oncontextmenu = contextMenuCallback
                 div.appendChild(deadImg);
             }
 
@@ -811,6 +836,7 @@ export default class Room extends Screen {
                 actionImg.style.animation = '.7s zoom-in-zoom-out alternate infinite';
                 actionImg.style.animationDelay = '.3s';
                 actionImg.onmousedown = e => e.preventDefault();
+                actionImg.oncontextmenu = contextMenuCallback
                 actionImg.onclick = roleImg.onclick = () => {
                     App.server.send(PacketDataKeys.ROLE_ACTION, {
                         [PacketDataKeys.USER_OBJECT_ID]: uo,
@@ -820,6 +846,11 @@ export default class Room extends Screen {
                     this.updatePlayersGame();
                 }
                 div.appendChild(actionImg);
+
+                if(this.playersData[uo].autoClick && !this.playersData[uo].didAutoClick) {
+                    this.playersData[uo].didAutoClick = true;
+                    actionImg.click();
+                }
             } else {
                 roleImg.onclick = () => this.addNickToInput(username);
             }

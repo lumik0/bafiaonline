@@ -492,10 +492,11 @@ export default class Window extends Events<WindowEvents> implements IWindow {
     }
 
     async close(force = false){
+        if(!this.isAlive) return;
         const e = await this.call('close', { isCancelled: false });
         if(e.isCancelled && !force) return;
-        this.el.remove();
         this.isAlive = false;
+        this.el.remove();
         this.removeAllEvents();
         WindowManager.remove(this);
     }

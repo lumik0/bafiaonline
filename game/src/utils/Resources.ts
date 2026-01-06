@@ -9,47 +9,52 @@ export async function getAvatarImg(user?: any): Promise<string> {
     const ph = user[PacketDataKeys.PHOTO];
     const uo = user[PacketDataKeys.OBJECT_ID];
 
-    if(App.resources[`avatars_${uo}`]) {
-        return App.resources[`avatars_${uo}`];
+    const cacheKey = `avatars_${uo}`;
+    if(App.resources[cacheKey]) {
+        return App.resources[cacheKey];
     }
 
     const defaultImage = async () => {
         const avatar = await getDefaultAvatar(ph);
-        App.resources[`avatars_${uo}`] = avatar;
+        App.resources[cacheKey] = avatar;
         return avatar;
     };
 
-    const avatarUrl = `https://dottap.com/mafia/profile_photo/${uo}.jpg`;
-
-    const loadImage = () =>
+    const loadImage = (url: string) =>
         new Promise<string>((resolve) => {
             const img = new Image();
             let finished = false;
 
             img.onload = () => {
+                if(finished) return;
                 finished = true;
-                App.resources[`avatars_${uo}`] = avatarUrl;
-                resolve(avatarUrl);
+                App.resources[cacheKey] = url;
+                resolve(url);
             };
 
             img.onerror = async () => {
-                if(!finished) {
-                    finished = true;
-                    resolve(await defaultImage());
-                }
+                if(finished) return;
+                finished = true;
+                resolve(null as any);
             };
 
-            img.src = avatarUrl;
+            img.src = url;
 
-            setTimeout(async () => {
+            setTimeout(() => {
                 if(!finished) {
                     finished = true;
-                    resolve(await defaultImage());
+                    resolve(null as any);
                 }
             }, 10000);
         });
 
-    return loadImage();
+    const byPhoto = await loadImage(`https://dottap.com/mafia/profile_photo/default/${ph}.jpg`);
+    if(byPhoto) return byPhoto;
+
+    const byObjectId = await loadImage(`https://dottap.com/mafia/profile_photo/${uo}.jpg?v=${Math.random()}`);
+
+    if(byObjectId) return byObjectId;
+    return defaultImage();
 }
 export async function getDefaultAvatar(ph = ""){
     if(App.resources[`defaultAvatars_${ph}`]) return App.resources[`defaultAvatars_${ph}`];

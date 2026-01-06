@@ -235,7 +235,7 @@ export default async function ProfileInfo(userObjectId: string){
     if(room){
         if(room[PacketDataKeys.SAME_ROOM] && !isMe)
             addButton('Выгнать', async() => {
-                const c = await ConfirmBox(`Если все проголосуют за исключение игрока из комнаты, это будет стоить вам 200 серебряных монет`, { title: `ВЫГНАТЬ ИГРОКА`, height: '175px' });
+                const c = await ConfirmBox(`Если все проголосуют за исключение игрока из комнаты, это будет стоить вам 200 серебряных монет`, { title: `ВЫГНАТЬ ИГРОКА`, height: '180px' });
                 if(c){
                     App.server.send(PacketDataKeys.KICK_USER, {
                         [PacketDataKeys.ROOM_OBJECT_ID]: room[PacketDataKeys.OBJECT_ID],

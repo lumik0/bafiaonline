@@ -8,6 +8,8 @@ export default class ContextMenu extends Component {
     constructor(public menu: string[] = [], public event: PointerEvent){
         super();
 
+        event.preventDefault();
+
         const zoom = getZoom();
         const winZoom = App.zoom
 
