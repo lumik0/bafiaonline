@@ -112,6 +112,10 @@ export default class GlobalChat extends Screen {
                 this.updateUsers(data[PacketDataKeys.USERS]);
             }
         });
+                
+        this.on('resize', () => {
+            this.messagesElem.style.height = (App.height - 265) + 'px';
+        });
 
         this.on('back', () => {
             App.screen = new Dashboard();
