@@ -823,7 +823,7 @@ export default class Room extends Screen {
                 })())
                 .case(Role.BODYGUARD, () => this.gameDayTime == 2 && (() => {
                     action = '_8';
-                    if(!isActionUsed) action = '';
+                    if(isActionUsed) action = '';
                 })())
                 .case(Role.BARMAN, () => this.gameDayTime == 1 && (() => { action = '_9' })())
                 .case(Role.INFORMER, () => this.gameDayTime == 1 && (() => {

@@ -66,8 +66,6 @@ export default class PrivateChat extends Screen {
         this.messagesElem.style.justifyContent = 'flex-start';
         this.element.appendChild(this.messagesElem);
 
-        this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
-
         const footer = document.createElement('div');
         footer.style.position = 'absolute';
         footer.style.width = '100%';
@@ -111,6 +109,7 @@ export default class PrivateChat extends Screen {
         });
 
         for(const m of data[PacketDataKeys.MESSAGES]) this.addMessage(m, false);
+        this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
 
         App.server.send(PacketDataKeys.ACCEPT_MESSAGES, {
             [PacketDataKeys.FRIENDSHIP]: this.friendObjectId
