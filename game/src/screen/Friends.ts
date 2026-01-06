@@ -114,6 +114,7 @@ export default class Friends extends Screen {
             const objectId = f[PacketDataKeys.OBJECT_ID];
             const userObjectId = user[PacketDataKeys.OBJECT_ID];
             const username = user[PacketDataKeys.USERNAME];
+            const newMessages = Number(f[PacketDataKeys.NEW_MESSAGES]);
             let isClicked = false;
 
             const e = document.createElement('div');
@@ -184,6 +185,23 @@ export default class Friends extends Screen {
                     App.screen = new Room(f[PacketDataKeys.ROOM][PacketDataKeys.OBJECT_ID]);
                 }
                 btns.appendChild(btnRoom);
+            }
+
+            if(newMessages > 0){
+                const div1 = document.createElement('div');
+                div1.style.display = 'flex';
+                div1.style.alignItems = 'center';
+                div1.style.padding = '5px';
+                div1.textContent = newMessages > 0 ? newMessages + '' : '';
+                if(newMessages > 0) {
+                    const img = document.createElement('img');
+                    img.width = 18;
+                    img.height = 14;
+                    img.style.marginLeft = '5px';
+                    getTexture('ui/0Y.png').then(e => img.src = e);
+                    div1.appendChild(img);
+                }
+                btns.appendChild(div1);
             }
 
             const btnRemoveFriend = document.createElement('button');

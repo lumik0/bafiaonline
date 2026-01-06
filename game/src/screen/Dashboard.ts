@@ -4,7 +4,7 @@ import ConfirmBox from "../dialog/ConfirmBox";
 import ProfileInfo from "../dialog/ProfileInfo";
 import PromptBox from "../dialog/PromptBox";
 import PacketDataKeys from "../../../core/src/PacketDataKeys";
-import { getAvatarImg, getBackgroundImg, getDefaultAvatar } from "../utils/Resources";
+import { getAvatarImg, getBackgroundImg, getDefaultAvatar, getTexture } from "../utils/Resources";
 import GlobalChat from "./GlobalChat";
 import Rooms from "./Rooms";
 import Screen from "./Screen";
@@ -327,12 +327,54 @@ export default class Dashboard extends Screen {
             [PacketDataKeys.TOKEN]: App.user.token
         });
         const data = await App.server.awaitPacket(PacketDataKeys.DASHBOARD);
-        const du = data[PacketDataKeys.DASHBOARD][PacketDataKeys.DASHBOARD_USER];
+        const db = data[PacketDataKeys.DASHBOARD];
+        const du = db[PacketDataKeys.DASHBOARD_USER];
         App.user.update(du);
-        App.user.goldCoins = data[PacketDataKeys.DASHBOARD][PacketDataKeys.USER_ACCOUNT_COINS][PacketDataKeys.GOLD_COINS];
-        App.user.sliverCoins = data[PacketDataKeys.DASHBOARD][PacketDataKeys.USER_ACCOUNT_COINS][PacketDataKeys.SILVER_COINS];
-
+        App.user.goldCoins = db[PacketDataKeys.USER_ACCOUNT_COINS][PacketDataKeys.GOLD_COINS];
+        App.user.sliverCoins = db[PacketDataKeys.USER_ACCOUNT_COINS][PacketDataKeys.SILVER_COINS];
+        
         nick.textContent = du[PacketDataKeys.USERNAME];
-        // avatar.src = await getAvatarImg(du);
+
+        const requests = Number(db[PacketDataKeys.FRIENDSHIP_REQUESTS]);
+        const newMessages = Number(db[PacketDataKeys.NEW_MESSAGES]);
+        
+        // пиздец говнокод, похуй
+        if(newMessages > 0 || requests > 0){
+            btnFriends.innerHTML = '';
+            const div = document.createElement('div');
+            div.textContent = `Друзья`;
+            btnFriends.appendChild(div);
+            {
+                const div1 = document.createElement('div');
+                div1.style.display = 'flex';
+                div1.style.alignItems = 'center';
+                div1.textContent = newMessages > 0 ? newMessages + '' : '';
+                if(newMessages > 0) {
+                    const img = document.createElement('img');
+                    img.width = 18;
+                    img.height = 14;
+                    img.style.marginLeft = '5px';
+                    getTexture('ui/0Y.png').then(e => img.src = e);
+                    div1.appendChild(img);
+                }
+                btnFriends.appendChild(div1);
+                {
+                    const e = document.createElement('div');
+                    e.style.display = 'flex';
+                    e.style.alignItems = 'center';
+                    e.style.justifyContent = 'flex-end';
+                    e.textContent = requests > 0 ? requests + '' : '';
+                    if(requests > 0) {
+                        const img = document.createElement('img');
+                        img.width = 18;
+                        img.height = 18;
+                        img.style.marginLeft = '5px';
+                        getTexture('ui/-8.png').then(e => img.src = e);
+                        e.appendChild(img);
+                    }
+                    div1.appendChild(e);
+                }
+            }
+        }
     }
 }
