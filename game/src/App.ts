@@ -13,6 +13,7 @@ import fs from "../../core/src/fs/fs";
 import Component from "./component/Component";
 import IWindow from "../../core/src/IWindow";
 import versions from '../../core/version.json';
+import MessageBox from "./dialog/MessageBox";
 
 interface AppEvents {
     tick: (dt: number) => void

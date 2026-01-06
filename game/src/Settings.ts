@@ -2,6 +2,7 @@ import fs from "../../core/src/fs/fs";
 import { isMobile } from "../../core/src/utils/mobile";
 import { wrap } from "../../core/src/utils/TypeScript";
 import App from "./App";
+import MessageBox from "./dialog/MessageBox";
 
 export default class Settings {
     data = {
@@ -27,14 +28,10 @@ export default class Settings {
 
     #isInitialized = false;
 
-    constructor() {
-        this.#wrapObject(this.data);
-    }
-
     #wrapObject(obj: any) {
         for(const key in obj) {
             if(obj.hasOwnProperty(key)) {
-                if(typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+                if(typeof obj[key] == 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
                     this.#wrapObject(obj[key]);
                 }
                 
