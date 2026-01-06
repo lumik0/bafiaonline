@@ -3572,7 +3572,7 @@
       const self2 = this;
       const dirName = version.name.replaceAll(`/`, `_`);
       if (!version.path) version.path = `/versions/${dirName}`;
-      let size = 0, total = 0;
+      let size = 0, total = 0, updated = false;
       this.playBtn.disabled = true;
       this.updateBtn.disabled = true;
       await readImage("image", `${version.path}/`, false, {
@@ -3586,13 +3586,14 @@
           if (write) {
             self2.statusText.textContent = `\u0421\u043A\u0430\u0447\u0430\u043D \u0444\u0430\u0439\u043B (${total}/${size})`;
             console.log(`downloading..`, path);
+            updated = true;
           } else
             self2.statusText.textContent = `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 (${total}/${size})`;
         }
       });
       this.playBtn.disabled = false;
       this.updateBtn.disabled = false;
-      self2.statusText.textContent = ``;
+      self2.statusText.textContent = updated ? `\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u043E` : "";
       self2.addVersion(version);
     }
     readDownloadVersion() {
