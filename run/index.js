@@ -2994,7 +2994,8 @@
     profiles = [];
     statusText;
     progressBar;
-    btnPlay;
+    playBtn;
+    updateBtn;
     constructor() {
       this.win = new Window({
         title: `\u041B\u0430\u0443\u043D\u0447\u0435\u0440 (${App_default.version})`,
@@ -3028,7 +3029,8 @@
       await this.readData();
       this.#initContent();
       if (this.versions.length == 0) {
-        this.btnPlay.disabled = true;
+        this.playBtn.disabled = true;
+        this.updateBtn.disabled = true;
         this.statusText.textContent = `\u0421\u043A\u0430\u0447\u0438\u0432\u0430\u043D\u0438\u0435 \u0432\u0435\u0440\u0441\u0438\u0438..`;
         console.log(`Downloading default version [vanilla]..`);
         try {
@@ -3037,7 +3039,8 @@
           if (version) await this.downloadVersion({ ...version, scriptPath: src });
         } catch (e) {
           console.error(e);
-          this.btnPlay.disabled = false;
+          this.playBtn.disabled = false;
+          this.updateBtn.disabled = false;
         }
       }
     }
@@ -3091,24 +3094,24 @@
         listVersions.appendChild(el);
       }
       versions.appendChild(listVersions);
-      const btnAddVersion = document.createElement("button");
-      btnAddVersion.innerHTML = `+`;
-      btnAddVersion.onclick = () => this.addVersion();
-      versions.appendChild(btnAddVersion);
-      const btnRemoveVersion = document.createElement("button");
-      btnRemoveVersion.innerHTML = `-`;
-      btnRemoveVersion.onclick = async () => {
+      const addVersionBtn = document.createElement("button");
+      addVersionBtn.innerHTML = `+`;
+      addVersionBtn.onclick = () => this.addVersion();
+      versions.appendChild(addVersionBtn);
+      const removeVersionBtn = document.createElement("button");
+      removeVersionBtn.innerHTML = `-`;
+      removeVersionBtn.onclick = async () => {
         const p = this.versions.findIndex((e) => e.name == listVersions.value);
         if (p != -1) {
           const version = this.versions[p];
-          btnRemoveVersion.disabled = true;
+          removeVersionBtn.disabled = true;
           this.versions.splice(p, 1);
           await fs_default.deleteDirectory(version.path, true);
           await this.writeData();
           this.#initContent();
         }
       };
-      versions.appendChild(btnRemoveVersion);
+      versions.appendChild(removeVersionBtn);
       div.appendChild(versions);
       const profiles = document.createElement("div");
       profiles.style.display = "flex";
@@ -3132,32 +3135,32 @@
         listProfiles.appendChild(el);
       }
       profiles.appendChild(listProfiles);
-      const btnAddProfile = document.createElement("button");
-      btnAddProfile.innerHTML = `+`;
-      btnAddProfile.onclick = () => this.addProfile();
-      profiles.appendChild(btnAddProfile);
-      const btnRemoveProfile = document.createElement("button");
-      btnRemoveProfile.innerHTML = `-`;
-      btnRemoveProfile.onclick = async () => {
+      const addProfileBtn = document.createElement("button");
+      addProfileBtn.innerHTML = `+`;
+      addProfileBtn.onclick = () => this.addProfile();
+      profiles.appendChild(addProfileBtn);
+      const removeProfileBtn = document.createElement("button");
+      removeProfileBtn.innerHTML = `-`;
+      removeProfileBtn.onclick = async () => {
         const p = this.profiles.findIndex((e) => e.name == listProfiles.value);
         if (p != -1) {
-          btnRemoveProfile.disabled = true;
+          removeProfileBtn.disabled = true;
           this.profiles.splice(p, 1);
           await this.writeData();
           this.#initContent();
         }
       };
-      profiles.appendChild(btnRemoveProfile);
+      profiles.appendChild(removeProfileBtn);
       div.appendChild(profiles);
       const btns = document.createElement("div");
       btns.style.display = "flex";
       btns.style.margin = "5px";
       btns.style.justifyContent = "center";
       div.appendChild(btns);
-      this.btnPlay = document.createElement("button");
-      this.btnPlay.innerHTML = `\u0418\u0433\u0440\u0430\u0442\u044C`;
-      this.btnPlay.style.margin = "1px";
-      this.btnPlay.onclick = async () => {
+      this.playBtn = document.createElement("button");
+      this.playBtn.innerHTML = `\u0418\u0433\u0440\u0430\u0442\u044C`;
+      this.playBtn.style.margin = "1px";
+      this.playBtn.onclick = async () => {
         const v = this.versions.find((e) => e.name == listVersions.value);
         const p = this.profiles.find((e) => e.name == listProfiles.value);
         if (v) {
@@ -3166,40 +3169,40 @@
 
 \u0421 \u043F\u0440\u043E\u0444\u0438\u043B\u0435\u043C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0432\u0445\u043E\u0434 \u0431\u0443\u0434\u0435\u0442`);
             if (!e) {
-              btnAddProfile.style.transition = "1s";
-              btnAddProfile.style.transform = "scale(5)";
+              addProfileBtn.style.transition = "1s";
+              addProfileBtn.style.transform = "scale(5)";
               await wait(1e3);
-              btnAddProfile.style.transform = "none";
+              addProfileBtn.style.transform = "none";
               return;
             }
           }
           this.runGame(v, p);
         } else {
           alert(`\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430 \u0432\u0435\u0440\u0441\u0438\u044F`);
-          btnAddVersion.style.transition = "1s";
-          btnAddVersion.style.transform = "scale(5)";
+          addVersionBtn.style.transition = "1s";
+          addVersionBtn.style.transform = "scale(5)";
           await wait(1e3);
-          btnAddVersion.style.transform = "none";
+          addVersionBtn.style.transform = "none";
         }
       };
-      btns.appendChild(this.btnPlay);
-      const updateBtn = document.createElement("button");
-      updateBtn.innerHTML = `\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C`;
-      updateBtn.style.margin = "1px";
-      updateBtn.onclick = async () => {
+      btns.appendChild(this.playBtn);
+      this.updateBtn = document.createElement("button");
+      this.updateBtn.innerHTML = `\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C`;
+      this.updateBtn.style.margin = "1px";
+      this.updateBtn.onclick = async () => {
         for await (const ver of updateVersions) {
           this.statusText.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430..";
           const version = await this.readVersion(ver.scriptPath);
           if (version) await this.downloadVersion({ ...version, ...ver });
         }
       };
-      btns.appendChild(updateBtn);
+      btns.appendChild(this.updateBtn);
       const githubBtn = document.createElement("button");
       githubBtn.innerHTML = `Github`;
       githubBtn.style.margin = "1px";
       githubBtn.onclick = () => window.open("https://github.com/lumik0/bafiaonline", "_blank");
       btns.appendChild(githubBtn);
-      updateBtn.click();
+      this.updateBtn.click();
     }
     addProfile() {
       const self2 = this;
@@ -3367,10 +3370,10 @@
         }
       };
       div.appendChild(btn);
-      const btnReg = document.createElement("button");
-      btnReg.style.width = "100%";
-      btnReg.innerHTML = "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F";
-      btnReg.onclick = async () => {
+      const regBtn = document.createElement("button");
+      regBtn.style.width = "100%";
+      regBtn.innerHTML = "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F";
+      regBtn.onclick = async () => {
         if (this.profiles.find((e) => e.name == "")) {
           const uu = prompt(`\u041D\u0430\u0439\u0434\u0435\u043D \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0431\u0435\u0437 \u043D\u0438\u043A\u043D\u0435\u0439\u043C\u0430.
 \u0414\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0434\u0440\u0443\u0433\u0438\u043C\u0438 \u0438\u0433\u0440\u043E\u043A\u0430\u043C\u0438 \u0443 \u0432\u0430\u0441 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u041D\u0438\u043A\u043D\u044D\u0439\u043C`);
@@ -3426,7 +3429,7 @@
           }
         }
       };
-      div.appendChild(btnReg);
+      div.appendChild(regBtn);
       div.appendChild(status);
       const links = document.createElement("div");
       links.style.display = "flex";
@@ -3505,20 +3508,20 @@
       win.on("close", () => {
         this.win.unlock();
       });
-      const btnLoadFile = document.createElement("button");
-      btnLoadFile.style.width = "100%";
-      btnLoadFile.innerHTML = "\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B";
-      btnLoadFile.onclick = () => this.readDownloadVersion();
-      win.content.appendChild(btnLoadFile);
+      const loadFileBtn = document.createElement("button");
+      loadFileBtn.style.width = "100%";
+      loadFileBtn.innerHTML = "\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B";
+      loadFileBtn.onclick = () => this.readDownloadVersion();
+      win.content.appendChild(loadFileBtn);
       const div = document.createElement("div");
       div.style.display = "flex";
       const inputPathScript = document.createElement("input");
       inputPathScript.placeholder = `\u041F\u0443\u0442\u044C \u043A \u0441\u043A\u0440\u0438\u043F\u0442\u0443`;
       div.appendChild(inputPathScript);
-      const btnLoadScript = document.createElement("button");
-      btnLoadScript.style.width = "100%";
-      btnLoadScript.innerHTML = "\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u043A\u0440\u0438\u043F\u0442";
-      btnLoadScript.onclick = async () => {
+      const loadScriptBtn = document.createElement("button");
+      loadScriptBtn.style.width = "100%";
+      loadScriptBtn.innerHTML = "\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u043A\u0440\u0438\u043F\u0442";
+      loadScriptBtn.onclick = async () => {
         const src = inputPathScript.value;
         try {
           const version2 = await this.readVersion(src);
@@ -3533,7 +3536,7 @@
           alert(`\u041E\u0448\u0438\u0431\u043A\u0430: ${e2}`);
         }
       };
-      div.appendChild(btnLoadScript);
+      div.appendChild(loadScriptBtn);
       win.content.appendChild(div);
       const foundScripts = document.createElement("div");
       foundScripts.style.display = "flex";
@@ -3568,7 +3571,8 @@
       const dirName = version.name.replaceAll(`/`, `_`);
       if (!version.path) version.path = `/versions/${dirName}`;
       let size = 0, total = 0;
-      this.btnPlay.disabled = true;
+      this.playBtn.disabled = true;
+      this.updateBtn.disabled = true;
       await readImage("image", `${version.path}/`, false, {
         startProcessFS(s) {
           size = s;
@@ -3584,7 +3588,8 @@
             self2.statusText.textContent = `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 (${total}/${size})`;
         }
       });
-      this.btnPlay.disabled = false;
+      this.playBtn.disabled = false;
+      this.updateBtn.disabled = false;
       self2.statusText.textContent = ``;
       self2.addVersion(version);
     }

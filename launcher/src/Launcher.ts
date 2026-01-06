@@ -34,7 +34,8 @@ export default class Launcher {
     
     statusText!: HTMLDivElement
     progressBar!: HTMLProgressElement
-    btnPlay!: HTMLButtonElement
+    playBtn!: HTMLButtonElement
+    updateBtn!: HTMLButtonElement
     
     constructor(){
         this.win = new Window({
@@ -78,7 +79,8 @@ export default class Launcher {
         this.#initContent();
 
         if(this.versions.length == 0){
-            this.btnPlay.disabled = true;
+            this.playBtn.disabled = true;
+            this.updateBtn.disabled = true;
             this.statusText.textContent = `Скачивание версии..`;
             console.log(`Downloading default version [vanilla]..`);
             try{
@@ -87,7 +89,8 @@ export default class Launcher {
                 if(version) await this.downloadVersion({...version, scriptPath: src});
             }catch(e){
                 console.error(e);
-                this.btnPlay.disabled = false;
+                this.playBtn.disabled = false;
+                this.updateBtn.disabled = false;
             }
         }
     }
@@ -147,24 +150,24 @@ export default class Launcher {
             listVersions.appendChild(el);
         }
         versions.appendChild(listVersions);
-        const btnAddVersion = document.createElement('button');
-        btnAddVersion.innerHTML = `+`;
-        btnAddVersion.onclick = () => this.addVersion();
-        versions.appendChild(btnAddVersion);
-        const btnRemoveVersion = document.createElement('button');
-        btnRemoveVersion.innerHTML = `-`;
-        btnRemoveVersion.onclick = async() => {
+        const addVersionBtn = document.createElement('button');
+        addVersionBtn.innerHTML = `+`;
+        addVersionBtn.onclick = () => this.addVersion();
+        versions.appendChild(addVersionBtn);
+        const removeVersionBtn = document.createElement('button');
+        removeVersionBtn.innerHTML = `-`;
+        removeVersionBtn.onclick = async() => {
             const p = this.versions.findIndex(e => e.name == listVersions.value);
             if(p != -1){
                 const version = this.versions[p];
-                btnRemoveVersion.disabled = true;
+                removeVersionBtn.disabled = true;
                 this.versions.splice(p, 1);
                 await fs.deleteDirectory(version.path, true);
                 await this.writeData();
                 this.#initContent();
             }
         }
-        versions.appendChild(btnRemoveVersion);
+        versions.appendChild(removeVersionBtn);
         div.appendChild(versions);
 
         const profiles = document.createElement('div');
@@ -189,22 +192,22 @@ export default class Launcher {
             listProfiles.appendChild(el);
         }
         profiles.appendChild(listProfiles);
-        const btnAddProfile = document.createElement('button');
-        btnAddProfile.innerHTML = `+`;
-        btnAddProfile.onclick = () => this.addProfile();
-        profiles.appendChild(btnAddProfile);
-        const btnRemoveProfile = document.createElement('button');
-        btnRemoveProfile.innerHTML = `-`;
-        btnRemoveProfile.onclick = async() => {
+        const addProfileBtn = document.createElement('button');
+        addProfileBtn.innerHTML = `+`;
+        addProfileBtn.onclick = () => this.addProfile();
+        profiles.appendChild(addProfileBtn);
+        const removeProfileBtn = document.createElement('button');
+        removeProfileBtn.innerHTML = `-`;
+        removeProfileBtn.onclick = async() => {
             const p = this.profiles.findIndex(e => e.name == listProfiles.value);
             if(p != -1){
-                btnRemoveProfile.disabled = true;
+                removeProfileBtn.disabled = true;
                 this.profiles.splice(p, 1);
                 await this.writeData();
                 this.#initContent();
             }
         }
-        profiles.appendChild(btnRemoveProfile);
+        profiles.appendChild(removeProfileBtn);
         div.appendChild(profiles);
 
         const btns = document.createElement('div');
@@ -212,38 +215,38 @@ export default class Launcher {
         btns.style.margin = '5px';
         btns.style.justifyContent = 'center';
         div.appendChild(btns);
-        this.btnPlay = document.createElement('button');
-        this.btnPlay.innerHTML = `Играть`;
-        this.btnPlay.style.margin = '1px';
-        this.btnPlay.onclick = async() => {
+        this.playBtn = document.createElement('button');
+        this.playBtn.innerHTML = `Играть`;
+        this.playBtn.style.margin = '1px';
+        this.playBtn.onclick = async() => {
             const v = this.versions.find(e => e.name == listVersions.value);
             const p = this.profiles.find(e => e.name == listProfiles.value);
             if(v) {
                 if(!p){
                     const e = confirm(`у вас нет профиля. Вы можете создать его в лаунчере, вы уверены что будете входить в игре?\n\nС профилем автоматический вход будет`);
                     if(!e) {
-                        btnAddProfile.style.transition = '1s'
-                        btnAddProfile.style.transform = 'scale(5)';
+                        addProfileBtn.style.transition = '1s'
+                        addProfileBtn.style.transform = 'scale(5)';
                         await wait(1000);
-                        btnAddProfile.style.transform = 'none';
+                        addProfileBtn.style.transform = 'none';
                         return;
                     }
                 }
                 this.runGame(v, p);
             } else {
                 alert(`Не найдена версия`);
-                btnAddVersion.style.transition = '1s'
-                btnAddVersion.style.transform = 'scale(5)';
+                addVersionBtn.style.transition = '1s'
+                addVersionBtn.style.transform = 'scale(5)';
                 await wait(1000);
-                btnAddVersion.style.transform = 'none';
+                addVersionBtn.style.transform = 'none';
             }
         };
-        btns.appendChild(this.btnPlay);
+        btns.appendChild(this.playBtn);
 
-        const updateBtn = document.createElement('button');
-        updateBtn.innerHTML = `Обновить`;
-        updateBtn.style.margin = '1px';
-        updateBtn.onclick = async() => {
+        this.updateBtn = document.createElement('button');
+        this.updateBtn.innerHTML = `Обновить`;
+        this.updateBtn.style.margin = '1px';
+        this.updateBtn.onclick = async() => {
             for await(const ver of updateVersions){
                 this.statusText.textContent = 'Проверка..';
                 
@@ -251,7 +254,7 @@ export default class Launcher {
                 if(version) await this.downloadVersion({...version, ...ver});
             }
         }
-        btns.appendChild(updateBtn);
+        btns.appendChild(this.updateBtn);
 
         const githubBtn = document.createElement('button');
         githubBtn.innerHTML = `Github`;
@@ -259,7 +262,7 @@ export default class Launcher {
         githubBtn.onclick = () => window.open('https://github.com/lumik0/bafiaonline', '_blank');
         btns.appendChild(githubBtn);
 
-        updateBtn.click();
+        this.updateBtn.click();
     }
 
     addProfile(){
@@ -434,10 +437,10 @@ export default class Launcher {
         }
         div.appendChild(btn);
 
-        const btnReg = document.createElement('button');
-        btnReg.style.width = '100%'
-        btnReg.innerHTML = 'Регистрация';
-        btnReg.onclick = async() => {
+        const regBtn = document.createElement('button');
+        regBtn.style.width = '100%'
+        regBtn.innerHTML = 'Регистрация';
+        regBtn.onclick = async() => {
             if(this.profiles.find(e => e.name == '')){
                 const uu = prompt(`Найден аккаунт без никнейма.\nДля игры и общения с другими игроками у вас должен быть установлен Никнэйм`);
                 webSocket.send(JSON.stringify({
@@ -495,7 +498,7 @@ export default class Launcher {
                 }
             }
         }
-        div.appendChild(btnReg);
+        div.appendChild(regBtn);
 
         div.appendChild(status);
 
@@ -576,21 +579,21 @@ export default class Launcher {
             this.win.unlock();
         });
 
-        const btnLoadFile = document.createElement('button');
-        btnLoadFile.style.width = '100%'
-        btnLoadFile.innerHTML = 'Загрузить файл';
-        btnLoadFile.onclick = () => this.readDownloadVersion();
-        win.content.appendChild(btnLoadFile);
+        const loadFileBtn = document.createElement('button');
+        loadFileBtn.style.width = '100%'
+        loadFileBtn.innerHTML = 'Загрузить файл';
+        loadFileBtn.onclick = () => this.readDownloadVersion();
+        win.content.appendChild(loadFileBtn);
 
         const div = document.createElement('div');
         div.style.display = 'flex';
         const inputPathScript = document.createElement('input');
         inputPathScript.placeholder = `Путь к скрипту`;
         div.appendChild(inputPathScript);
-        const btnLoadScript = document.createElement('button');
-        btnLoadScript.style.width = '100%'
-        btnLoadScript.innerHTML = 'Загрузить скрипт';
-        btnLoadScript.onclick = async() => {
+        const loadScriptBtn = document.createElement('button');
+        loadScriptBtn.style.width = '100%'
+        loadScriptBtn.innerHTML = 'Загрузить скрипт';
+        loadScriptBtn.onclick = async() => {
             const src = inputPathScript.value;
             try{
                 const version = await this.readVersion(src);
@@ -605,7 +608,7 @@ export default class Launcher {
                 alert(`Ошибка: ${e}`);
             }
         }
-        div.appendChild(btnLoadScript);
+        div.appendChild(loadScriptBtn);
         win.content.appendChild(div);
 
         const foundScripts = document.createElement('div');
@@ -640,7 +643,8 @@ export default class Launcher {
         const dirName = version.name.replaceAll(`/`,`_`);
         if(!version.path) version.path = `/versions/${dirName}`;
         let size = 0, total = 0;
-        this.btnPlay.disabled = true;
+        this.playBtn.disabled = true;
+        this.updateBtn.disabled = true;
         await readImage('image', `${version.path}/`, false, {
             startProcessFS(s) {
                 size = s;
@@ -656,7 +660,8 @@ export default class Launcher {
                     self.statusText.textContent = `Проверка (${total}/${size})`;
             },
         });
-        this.btnPlay.disabled = false;
+        this.playBtn.disabled = false;
+        this.updateBtn.disabled = false;
         self.statusText.textContent = ``;
         self.addVersion(version);
     }
