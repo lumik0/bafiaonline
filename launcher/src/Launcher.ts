@@ -642,7 +642,7 @@ export default class Launcher {
         const self = this;
         const dirName = version.name.replaceAll(`/`,`_`);
         if(!version.path) version.path = `/versions/${dirName}`;
-        let size = 0, total = 0;
+        let size = 0, total = 0, updated = false;
         this.playBtn.disabled = true;
         this.updateBtn.disabled = true;
         await readImage('image', `${version.path}/`, false, {
@@ -656,13 +656,14 @@ export default class Launcher {
                 if(write) {
                     self.statusText.textContent = `Скачан файл (${total}/${size})`;
                     console.log(`downloading..`, path);
+                    updated = true;
                 } else
                     self.statusText.textContent = `Проверка (${total}/${size})`;
             },
         });
         this.playBtn.disabled = false;
         this.updateBtn.disabled = false;
-        self.statusText.textContent = ``;
+        self.statusText.textContent = updated ? `Обновлено` : '';
         self.addVersion(version);
     }
 

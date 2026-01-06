@@ -462,9 +462,11 @@ export default class Room extends Screen {
             this.input.addEventListener('focus', () => {
                 App.width = innerWidth;
                 App.height = innerHeight-1;
-                this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
+                // this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
             });
             this.input.addEventListener('blur', () => {
+                App.width = innerWidth;
+                App.height = innerHeight-2;
             });
         }
         this.on('keydown', e => e.key == 'Enter' && this.input.focus());
