@@ -3100,8 +3100,10 @@
       btnRemoveVersion.onclick = async () => {
         const p = this.versions.findIndex((e) => e.name == listVersions.value);
         if (p != -1) {
+          const version = this.versions[p];
           btnRemoveVersion.disabled = true;
           this.versions.splice(p, 1);
+          await fs_default.deleteDirectory(version.path, true);
           await this.writeData();
           this.#initContent();
         }
@@ -3181,16 +3183,23 @@
         }
       };
       btns.appendChild(this.btnPlay);
+      const updateBtn = document.createElement("button");
+      updateBtn.innerHTML = `\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C`;
+      updateBtn.style.margin = "1px";
+      updateBtn.onclick = async () => {
+        for await (const ver of updateVersions) {
+          this.statusText.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430..";
+          const version = await this.readVersion(ver.scriptPath);
+          if (version) await this.downloadVersion({ ...version, ...ver });
+        }
+      };
+      btns.appendChild(updateBtn);
       const githubBtn = document.createElement("button");
       githubBtn.innerHTML = `Github`;
       githubBtn.style.margin = "1px";
       githubBtn.onclick = () => window.open("https://github.com/lumik0/bafiaonline", "_blank");
       btns.appendChild(githubBtn);
-      for await (const ver of updateVersions) {
-        this.statusText.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430..";
-        const version = await this.readVersion(ver.scriptPath);
-        if (version) await this.downloadVersion({ ...version, ...ver });
-      }
+      updateBtn.click();
     }
     addProfile() {
       const self2 = this;

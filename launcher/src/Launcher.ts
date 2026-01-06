@@ -112,7 +112,7 @@ export default class Launcher {
     }
 
     async #initContent(checkVersions = true){
-        const updateVersions = [];
+        const updateVersions: Version[] = [];
         this.win.content.innerHTML = '';
 
         const div = document.createElement('div');
@@ -156,8 +156,10 @@ export default class Launcher {
         btnRemoveVersion.onclick = async() => {
             const p = this.versions.findIndex(e => e.name == listVersions.value);
             if(p != -1){
+                const version = this.versions[p];
                 btnRemoveVersion.disabled = true;
                 this.versions.splice(p, 1);
+                await fs.deleteDirectory(version.path, true);
                 await this.writeData();
                 this.#initContent();
             }
@@ -238,18 +240,26 @@ export default class Launcher {
         };
         btns.appendChild(this.btnPlay);
 
+        const updateBtn = document.createElement('button');
+        updateBtn.innerHTML = `Обновить`;
+        updateBtn.style.margin = '1px';
+        updateBtn.onclick = async() => {
+            for await(const ver of updateVersions){
+                this.statusText.textContent = 'Проверка..';
+                
+                const version = await this.readVersion(ver.scriptPath!);
+                if(version) await this.downloadVersion({...version, ...ver});
+            }
+        }
+        btns.appendChild(updateBtn);
+
         const githubBtn = document.createElement('button');
         githubBtn.innerHTML = `Github`;
         githubBtn.style.margin = '1px';
         githubBtn.onclick = () => window.open('https://github.com/lumik0/bafiaonline', '_blank');
         btns.appendChild(githubBtn);
 
-        for await(const ver of updateVersions){
-            this.statusText.textContent = 'Проверка..';
-            
-            const version = await this.readVersion(ver.scriptPath!);
-            if(version) await this.downloadVersion({...version, ...ver});
-        }
+        updateBtn.click();
     }
 
     addProfile(){
