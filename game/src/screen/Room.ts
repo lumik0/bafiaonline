@@ -1034,6 +1034,8 @@ export default class Room extends Screen {
             [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId,
             [PacketDataKeys.ROOM_MODEL_TYPE]: this.modelType
         });
+        
+        this.messagesElem.scroll({ top: this.messagesElem.scrollHeight, behavior: 'smooth' });
     }
 
     updatePlayersWaiting(players: any[]){

@@ -301,7 +301,7 @@ export default class Dashboard extends Screen {
                 const fsElem = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
                 
                 try{
-                    if(!fsElem) await App.screen.element.requestFullscreen()
+                    if(!fsElem) await document.body.requestFullscreen()
                     else await document.exitFullscreen();
                     if(fsElem){
                         btnFullScreen.textContent = 'Включить полноэкранный режим';
