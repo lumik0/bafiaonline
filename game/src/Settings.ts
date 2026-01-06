@@ -8,7 +8,7 @@ export default class Settings {
     data = {
         version: 2,
         window: {
-            zoom: 1
+            zoom: isMobile() ? .6 : 1
         },
         game: {
             widthPL: 130,
@@ -43,11 +43,6 @@ export default class Settings {
     async init(){
         if(this.#isInitialized) return;
         this.#isInitialized = true;
-
-        // default settings FOR mobile:
-        if(isMobile()){
-            this.data.window.zoom = .6;
-        }
         
         await this.read();
     }
