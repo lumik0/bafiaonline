@@ -1022,7 +1022,7 @@ export default class Room extends Screen {
                 insertAtCaret(this.input, ` [${username}] `);
         }
 
-        if(isMobile() && !isFocused) this.input.focus();
+        if(isMobile()) this.input.focus();
     }
     
     sendMessage(message: string, options: { messageStyle?: MessageStyle, messageSticker?: boolean } = {}){
