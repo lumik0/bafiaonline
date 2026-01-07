@@ -3204,6 +3204,9 @@
       githubBtn.style.margin = "1px";
       githubBtn.onclick = () => window.open("https://github.com/lumik0/bafiaonline", "_blank");
       btns.appendChild(githubBtn);
+      const info = document.createElement("div");
+      info.innerHTML = `\u0415\u0441\u0442\u044C \u0438\u0434\u0435\u0438 \u0447\u0442\u043E-\u0442\u043E \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C? \u041D\u0430\u0448\u043B\u0438 \u0431\u0430\u0433? \u041F\u0440\u043E\u0431\u043B\u0435\u043C\u044B? <a href="https://t.me/bafiaonlinebot">@bafiaonlinebot</a>`;
+      div.appendChild(info);
       this.updateBtn.click();
     }
     addProfile() {

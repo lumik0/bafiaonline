@@ -262,6 +262,10 @@ export default class Launcher {
         githubBtn.onclick = () => window.open('https://github.com/lumik0/bafiaonline', '_blank');
         btns.appendChild(githubBtn);
 
+        const info = document.createElement('div');
+        info.innerHTML = `Есть идеи что-то добавить? Нашли баг? Проблемы? <a href="https://t.me/bafiaonlinebot">@bafiaonlinebot</a>`;
+        div.appendChild(info);
+
         this.updateBtn.click();
     }
 
