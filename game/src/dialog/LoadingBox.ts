@@ -3,7 +3,7 @@ import App from "../App";
 import Box from "./Box";
 
 export default function(options: { title?: string, text?: string, canCloseAnywhere?: boolean } = {}){
-    const box = new Box({ title: options.title ?? "ЗАГРУЗКА", canCloseAnywhere: options.canCloseAnywhere||false, height: '175px' });
+    const box = new Box({ title: options.title ?? "ЗАГРУЗКА", canCloseAnywhere: options.canCloseAnywhere||false, height: 175 });
 
     const elem = document.createElement('div');
     elem.style.width = '100%';

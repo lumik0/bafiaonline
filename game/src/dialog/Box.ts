@@ -1,6 +1,6 @@
 import App from "../App";
 import Events, { EventHandle } from "../../../core/src/Events";
-import { wait } from "../../../core/src/utils/utils";
+import { getZoom, wait } from "../../../core/src/utils/utils";
 
 interface BoxEvents {
     tick: (dt: number) => void
@@ -12,6 +12,7 @@ interface BoxEvents {
 
 // @ts-ignore
 export default class Box extends Events<BoxEvents> {
+    mainElem: HTMLElement
     content: HTMLElement
     background: HTMLElement
     loop: EventHandle<(dt: number) => void>
@@ -19,8 +20,8 @@ export default class Box extends Events<BoxEvents> {
 
     constructor(options: {
         title?: string
-        width?: string
-        height?: string
+        width?: number
+        height?: number
         canCloseAnywhere?: boolean
     } = {}, public element: HTMLElement = document.createElement('div')){
         super();
@@ -30,26 +31,41 @@ export default class Box extends Events<BoxEvents> {
         App.boxs.push(this);
         
         App.screen.element.style.pointerEvents = 'none';
+
+        const width = options.width ?? 300
+        const height = options.height ?? 150;
+        const zoom = getZoom();
         
-        this.element.style.transition = '.2s';
-        this.element.style.width = options.width ?? '300px';
-        this.element.style.height = options.height ?? '150px';
+        // this.element.style.transition = '.2s';
+        this.element.style.width = width+'px';
+        this.element.style.height = height+'px';
         this.element.style.position = 'absolute';
-        this.element.style.top = '50%';
-        this.element.style.left = '50%';
-        this.element.style.opacity = '0';
-        this.element.style.transform = 'translate(-50%, -45%)';
+        this.element.style.animation = '0.3s cubic-bezier(0.11, 0.05, 0.22, 0.81) open';
+
+        this.mainElem = document.createElement('div');
+        this.mainElem.style.position = 'absolute';
+        this.mainElem.style.display = 'flex';
+        this.mainElem.style.justifyContent = 'center';
+        this.mainElem.style.alignItems = 'center';
+        this.mainElem.style.width = '100%';
+        this.mainElem.style.height = '100%';
+        this.mainElem.style.left = '0';
+        this.mainElem.style.top = '0';
+        App.element.appendChild(this.mainElem);
 
         this.background = document.createElement('div');
         this.background.style.background = 'black'
-        this.background.style.position = 'fixed';
+        this.background.style.position = 'absolute';
         this.background.style.transition = 'opacity .5s';
+        this.background.style.display = 'flex';
+        this.background.style.justifyContent = 'center';
+        this.background.style.alignItems = 'center';
         this.background.style.opacity = '0';
         this.background.style.width = '100%';
         this.background.style.height = '100%';
         this.background.style.left = '0';
         this.background.style.top = '0';
-        App.element.appendChild(this.background);
+        this.mainElem.appendChild(this.background);
 
         const div = document.createElement('div');
         div.style.background = '#d03a41';
@@ -78,11 +94,11 @@ export default class Box extends Events<BoxEvents> {
         this.content.style.background = '#B4AEAC';
         this.content.style.margin = '0 5px 5px 5px';
         this.content.style.width = '100%';
-        this.content.style.height = options.height ? (parseInt(options.height.replace('px', '')) - 40) + 'px' : 'calc(150px - 40px)'
+        this.content.style.height = (height - 40) + 'px';
         this.content.style.borderRadius = '10px';
         contentBackground.appendChild(this.content);
 
-        App.element.appendChild(this.element);
+        this.mainElem.appendChild(this.element);
         if(options.canCloseAnywhere) {
             this.background.addEventListener('click', e => {
                 self.close();
@@ -91,8 +107,8 @@ export default class Box extends Events<BoxEvents> {
         
         wait(50).then(() => {
             this.background.style.opacity = '.6';
-            this.element.style.transform = 'translate(-50%, -50%)';
-            this.element.style.opacity = '1';
+            // this.element.style.opacity = '1';
+            // this.element.style.transform = 'translate(-50%, -50%)';
         });
 
         this.loop = App.on('tick', dt => this.emit('tick', dt));
@@ -104,18 +120,18 @@ export default class Box extends Events<BoxEvents> {
         this.background.style.opacity = '0';
         // App.screen.element.style.pointerEvents = 'all';
         // App.screen.element.style.opacity = '1';
-        this.element.style.transform = 'translate(-50%, -55%)';
+        // this.element.style.transform = 'translate(-50%, -55%)';
         this.element.style.opacity = '0';
-        wait(200).then(() => this.destroy());
+        this.element.style.animation = '0.2s cubic-bezier(0.11, 0.05, 0.22, 0.81) close';
+        wait(300).then(() => this.destroy());
     }
 
     destroy(){
         this.emit('destroy');
         App.boxs.splice(this.id, 1);
         if(App.boxs.length == 0) App.screen.element.style.pointerEvents = 'all';
-        try{App.element.removeChild(this.element);}catch{}
-        try{App.element.removeChild(this.background);}catch{}
         this.element.remove();
         this.background.remove();
+        this.mainElem.remove();
     }
 }

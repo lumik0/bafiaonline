@@ -1,6 +1,6 @@
 import Box from "./Box";
 
-export default async function(message: string, options: { btnText?: string, title?: string, height?: string } = {}){
+export default async function(message: string, options: { btnText?: string, title?: string, height?: number } = {}){
     const box = new Box({ title: options.title, height: options.height });
 
     const messageElem = document.createElement('div');

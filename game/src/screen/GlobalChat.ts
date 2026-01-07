@@ -3,7 +3,7 @@ import { MessageStyle } from "../enums";
 import PacketDataKeys from "../../../core/src/PacketDataKeys";
 import Dashboard from "./Dashboard";
 import Screen from "./Screen";
-import { insertAtCaret } from '../utils/DOM'
+import { insertAtCaret } from '../../../core/src/utils/DOM'
 import ProfileInfo from "../dialog/ProfileInfo";
 import fs from "../../../core/src/fs/fs";
 import { getAvatarImg, getBackgroundImg, getTexture } from "../utils/Resources";

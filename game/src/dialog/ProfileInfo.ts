@@ -51,8 +51,8 @@ function calculateStatsWithRoles(profile: any) {
 
 export default async function ProfileInfo(userObjectId: string){
     const zoom = getZoom();
-    const box = new Box({ title: 'ПРОФИЛЬ', width: `${(App.width/zoom)/.75}px`, height: `${(App.height/zoom)/.75}px`, canCloseAnywhere: true });
-    box.element.style.zoom = (zoom / 1.75) + '';
+    const box = new Box({ title: 'ПРОФИЛЬ', width: (App.width/zoom)/.75, height: (App.height/zoom)/.75, canCloseAnywhere: true });
+    // box.element.style.zoom = (zoom / 1.75) + '';
 
     box.content.style.overflowY = 'overlay';
 
@@ -218,7 +218,7 @@ export default async function ProfileInfo(userObjectId: string){
             });
         } if(profile.friendFlag == 3) {
             addButton('Отменить дружбу', async() => {
-                const e = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ`, height: '175px' });
+                const e = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ`, height: 175 });
                 if(e) {
                     App.server.send(PacketDataKeys.REMOVE_FRIEND, {
                         [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
@@ -240,7 +240,7 @@ export default async function ProfileInfo(userObjectId: string){
     if(room){
         if(room[PacketDataKeys.SAME_ROOM] && !isMe)
             addButton('Выгнать', async() => {
-                const c = await ConfirmBox(`Если все проголосуют за исключение игрока из комнаты, это будет стоить вам 200 серебряных монет`, { title: `ВЫГНАТЬ ИГРОКА`, height: '180px' });
+                const c = await ConfirmBox(`Если все проголосуют за исключение игрока из комнаты, это будет стоить вам 200 серебряных монет`, { title: `ВЫГНАТЬ ИГРОКА`, height: 180 });
                 if(c){
                     App.server.send(PacketDataKeys.KICK_USER, {
                         [PacketDataKeys.ROOM_OBJECT_ID]: room[PacketDataKeys.OBJECT_ID],

@@ -1,6 +1,6 @@
 import Box from "./Box";
 
-export default async function(message: string, options: { btnYes?: string, btnNo?: string, title?: string, height?: string } = {}){
+export default async function(message: string, options: { btnYes?: string, btnNo?: string, title?: string, height?: number } = {}){
     let result: boolean|null = null;
 
     const box = new Box({ title: options.title ?? 'ПОДТВЕРЖДЕНИЕ', height: options.height, canCloseAnywhere: false });

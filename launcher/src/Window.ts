@@ -4,6 +4,7 @@ import { wrap } from '../../core/src/utils/TypeScript';
 import { getZoom, noXSS, wait } from '../../core/src/utils/utils';
 import IWindow from '../../core/src/IWindow'
 import App from './App';
+import { createElement } from '../../core/src/utils/DOM';
 
 export interface WindowEvents {
     focus: () => void
@@ -243,7 +244,14 @@ export default class Window extends Events<WindowEvents> implements IWindow {
         closeButton?: boolean
         minButton?: boolean
         maxButton?: boolean
+        roundRadius?: number
+        show?: boolean
         zoom?: number
+        css?: CSSStyleDeclaration|object
+        animations?: {
+            open?: string
+            close?: string
+        }
     }){
         super();
 
@@ -293,14 +301,21 @@ export default class Window extends Events<WindowEvents> implements IWindow {
     #init(){
         const isM = isMobile() && !this.options.noMobile;
 
-        this.el = document.createElement('div');
-        this.el.classList.add('win')
-        this.el.style.position = 'absolute';
-        this.el.style.width = this.width + 'px';
-        this.el.style.height = isM ? '100%' : this.height + 'px';
-        this.el.style.left = this.x + 'px';
-        this.el.style.top = this.y + 'px';
-        this.el.id = `win_${this.id}`;
+        this.el = createElement('div', {
+            id: `win_${this.id}`,
+            className: 'win',
+            css: {
+                position: 'absolute',
+                animation: this.options.animations?.open ?? '0.3s cubic-bezier(0.11, 0.05, 0.22, 0.81) open',
+                borderRadius: (this.options.roundRadius ?? .25) + 'em',
+                display: this.options.show == false ? 'none' : 'block',
+                width: this.width + 'px',
+                height: isM ? '100%' : this.height + 'px',
+                left: this.x + 'px',
+                top: this.y + 'px',
+                ...(this.options.css ?? {})
+            }
+        });
         this.el.onmousedown = e => { if(!this.hasTitleBar) this.drag(e); return true }
         this.titleBar = document.createElement('div');
         this.titleBar.classList.add('titleBar');
@@ -499,6 +514,12 @@ export default class Window extends Events<WindowEvents> implements IWindow {
         const e = await this.call('close', { isCancelled: false });
         if(e.isCancelled && !force) return;
         this.isAlive = false;
+        
+        this.el.style.animation = this.options.animations?.close ?? '0.2s cubic-bezier(0.11, 0.05, 0.22, 0.81) close';
+        setTimeout(() => this.destroy(), 150);
+    }
+
+    destroy(){
         this.el.remove();
         this.removeAllEvents();
         WindowManager.remove(this);

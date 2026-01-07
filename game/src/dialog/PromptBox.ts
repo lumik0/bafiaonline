@@ -1,7 +1,7 @@
 import Box from "./Box";
 
-export default async function(message: string, options: { btnText?: string, placeholder?: string, title?: string, height?: string } = {}){
-    const box = new Box({ title: options.title, height: options.height ?? '175px' });
+export default async function(message: string, options: { btnText?: string, placeholder?: string, title?: string, height?: number } = {}){
+    const box = new Box({ title: options.title, height: options.height ?? 175 });
 
     const messageElem = document.createElement('div');
     messageElem.innerHTML = message.replaceAll(`\n`,'<br/>');

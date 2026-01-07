@@ -9,6 +9,7 @@ import PacketDataKeys from '../../core/src/PacketDataKeys'
 import MD5 from '../../core/src/utils/md5'
 import { isMobile } from '../../core/src/utils/mobile';
 import App from './App';
+import { Alert } from './dialog/Alert';
 
 function uuidv4() {
     return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16));
@@ -520,7 +521,11 @@ export default class Launcher {
         why.style.cursor = 'pointer';
         why.style.userSelect = 'none';
         why.innerHTML = 'Почему?';
-        why.onclick = () => {
+        why.onclick = async() => {
+            // const alert = Alert(win);
+            // alert.message = `Мы не собираем данные аккаунтов\n\nНаш исходный код открыт https://github.com/lumik0/bafiaonline\n\nВы в любом случае можете войти с второго аккаунта`;
+            // alert.addButton('Ладно');
+            // await alert.runModal();
             alert(`Мы не собираем данные аккаунтов\n\nНаш исходный код открыт https://github.com/lumik0/bafiaonline\n\nВы в любом случае можете войти с второго аккаунта`);
         }
         links.appendChild(why);

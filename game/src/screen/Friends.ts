@@ -209,7 +209,7 @@ export default class Friends extends Screen {
             btnRemoveFriend.textContent = 'X';
             btnRemoveFriend.onclick = async() => {
                 isClicked = true;
-                const c = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ`, height: '175px' });
+                const c = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ`, height: 175 });
                 if(c) {
                     App.server.send(PacketDataKeys.REMOVE_FRIEND, {
                         [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId

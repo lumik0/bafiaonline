@@ -90,14 +90,14 @@ export default class Rooms extends Screen {
             const filterBtn = document.createElement('button');
             filterBtn.textContent = `Фильтр`;
             filterBtn.onclick = () => {
-                const box = new Box({ title: 'ФИЛЬТР', width: '70%', height: '70%', canCloseAnywhere: true });
+                const box = new Box({ title: 'ФИЛЬТР', width: 150, height: 150, canCloseAnywhere: true });
             }
             filterElem.appendChild(filterBtn);
 
             const sortBtn = document.createElement('button');
             sortBtn.textContent = `Сортировка`;
             sortBtn.onclick = () => {
-                const box = new Box({ title: 'СОРТИРОВКА', width: '70%', height: '70%', canCloseAnywhere: true });
+                const box = new Box({ title: 'СОРТИРОВКА', width: 150, height: 150, canCloseAnywhere: true });
             }
             filterElem.appendChild(sortBtn);
 
@@ -236,7 +236,7 @@ export default class Rooms extends Screen {
 
         async function join(){
             if(hasPassword){
-                let password = await PromptBox(`Эта комната под замком\n\nПожалуйста введите пароль`, { btnText: `Применить`, placeholder: `Пароль`, title: 'ВВЕСТИ ПАРОЛЬ', height: '200px' });
+                let password = await PromptBox(`Эта комната под замком\n\nПожалуйста введите пароль`, { btnText: `Применить`, placeholder: `Пароль`, title: 'ВВЕСТИ ПАРОЛЬ', height: 200 });
                 if(password == '') return;
                 
                 App.server.send(PacketDataKeys.ROOM_ENTER, {

@@ -2,7 +2,7 @@ import App from "../App";
 import { MessageStyle, Role, RuRoles } from "../enums";
 import PacketDataKeys from "../../../core/src/PacketDataKeys";
 import Screen from "./Screen";
-import { insertAtCaret } from '../utils/DOM'
+import { insertAtCaret } from '../../../core/src/utils/DOM'
 import Rooms from "./Rooms";
 import MessageBox from "../dialog/MessageBox";
 import { when } from "../../../core/src/utils/TypeScript";
@@ -163,7 +163,7 @@ export default class Room extends Screen {
 
 Вероятно вы и этот игрок используете общую точку доступа к сети интернет
 
-Если вы хотите играть с данным игроком в одной комнате - создайте комнату с паролем или убедитесь, что вы подключены каждый к своей точке доступа или мобильным данным`, { height: '360px' });
+Если вы хотите играть с данным игроком в одной комнате - создайте комнату с паролем или убедитесь, что вы подключены каждый к своей точке доступа или мобильным данным`, { height: 360 });
             return;
         } else if(rData[PacketDataKeys.TYPE] == PacketDataKeys.USER_LEVEL_NOT_ENOUGH){
             App.screen = new Rooms();
@@ -352,7 +352,6 @@ export default class Room extends Screen {
             }
 
             function upHandler(e: MouseEvent) {
-                console.log('updated');
                 App.settings.data.game.widthPL = parseInt(el.style.width.replace('px', ''));
                 document.removeEventListener("mousemove", moveHandler, true);
                 document.removeEventListener("mouseup", upHandler, true);
@@ -408,14 +407,14 @@ export default class Room extends Screen {
                 for(const pl of rs[PacketDataKeys.PLAYERS_DATA]){
                     this.playersData[pl[PacketDataKeys.USER_OBJECT_ID]] = {
                         index: i,
-                        alive: pl[PacketDataKeys.ALIVE],
-                        affectedByRoles: pl[PacketDataKeys.AFFECTED_BY_ROLES],
+                        alive: pl[PacketDataKeys.ALIVE] ?? true,
+                        affectedByRoles: pl[PacketDataKeys.AFFECTED_BY_ROLES] ?? [],
                         isDayActionUsed: pl[PacketDataKeys.IS_DAY_ACTION_USED],
                         isNightActionAlternative: pl[PacketDataKeys.IS_NIGHT_ACTION_ALTERNATIVE],
                         isNightActionUsed: pl[PacketDataKeys.IS_NIGHT_ACTION_USED],
                         userObjectId: pl[PacketDataKeys.USER_OBJECT_ID],
                         role: pl[PacketDataKeys.ROLE],
-                        vote: pl[PacketDataKeys.VOTE]
+                        vote: pl[PacketDataKeys.VOTE] ?? 0
                     }
                     i++;
                 }
@@ -811,7 +810,7 @@ export default class Room extends Screen {
                 })())
                 .case(Role.BODYGUARD, () => this.gameDayTime == 2 && (() => {
                     action = '_8';
-                    if(isActionUsed) action = '';
+                    if(this.playersData[App.user.objectId].isNightActionUsed) action = '';
                 })())
                 .case(Role.BARMAN, () => this.gameDayTime == 1 && (() => { action = '_9' })())
                 .case(Role.INFORMER, () => this.gameDayTime == 1 && (() => {
@@ -819,7 +818,7 @@ export default class Room extends Screen {
                     if(this.playersData[uo].affectedByRoles?.includes(11)) action = '';
                 })());
             if(action == '' && this.gameDayTime == 3) action = 'kill';
-            if(this.gameDayTime == 1 && this.playersData[App.user.objectId].affectedByRoles?.includes(9) && isActionUsed) isActionUsed = true;
+            if(this.gameDayTime == 1 && this.playersData[App.user.objectId].affectedByRoles?.includes(9) && !isActionUsed) isActionUsed = true;
             if(action != '' && this.status != 3 && !isActionUsed && this.playersData[App.user.objectId].alive && this.playersData[uo].alive){
                 const actionImg = document.createElement('img');
                 getTexture(`roles/${action}.png`).then(e => actionImg.src = e);
@@ -922,7 +921,7 @@ export default class Room extends Screen {
             else if(type == 7) { msg = `Наступил день [Все общаются в чате]`; color = '#C46509' }
             else if(type == 8) { msg = `[Все голосуют] Выберите игрока, которого хотите казнить`; color = '#C46509' }
             else if(type == 12) { msg = `Игрок [${text}] УБИТ!`; color = '#940000' }
-            else if(type == 14) { msg = `ВСЕ остались живы. Никого не удалось убить!`; color = '#C46509' }
+            else if(type == 14) { msg = `ВСЕ остались живы. Никого не удалось убить!`; color = '#186400' }
             else if(type == 15) { msg = `Игра окончена! МИРНЫЕ ЖИТЕЛИ победили!`; color = '#186400' }
             else if(type == 16) { msg = `Игра окончена! МАФИЯ победила!`; color = '#186400' }
             else if(type == 19) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в одной команде`; color = '#940000' }
@@ -982,7 +981,7 @@ export default class Room extends Screen {
 
             if(type == 2 || type == 3){
                 if(this.joinLeaveMessages[text])
-                    this.messagesElem.removeChild(this.joinLeaveMessages[text]);
+                    this.joinLeaveMessages[text].remove();
                 this.joinLeaveMessages[text] = div;
             }
         }

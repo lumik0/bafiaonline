@@ -141,7 +141,7 @@ export default class Settings extends Screen{
             App.settings.data.window.zoom = v;
             App.element.style.zoom = v + '';
         }, isMobile() ? .4 : .3, isMobile() ? .9 : 1.5, App.settings.data.window.zoom, .1);
-        addInput('Начинать опьянение с', v => {
+        addInput('Опьянение с', v => {
             App.settings.data.game.barmanEffect = v;
         }, App.settings.data.game.barmanEffect);
         

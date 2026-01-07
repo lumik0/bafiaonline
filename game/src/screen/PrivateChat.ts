@@ -5,7 +5,7 @@ import { noXSS } from "../../../core/src/utils/utils";
 import App from "../App";
 import ProfileInfo from "../dialog/ProfileInfo";
 import { MessageStyle } from "../enums";
-import { insertAtCaret } from "../utils/DOM";
+import { insertAtCaret } from '../../../core/src/utils/DOM'
 import { getAvatarImg, getBackgroundImg, getTexture } from "../utils/Resources";
 import Friends from "./Friends";
 import Screen from "./Screen";

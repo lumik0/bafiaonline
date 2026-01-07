@@ -107,11 +107,11 @@ export default class Server extends Events<ServerEvents> {
                 const reason = data[PacketDataKeys.REASON];
                 const tsr = data[PacketDataKeys.TIME_SEC_REMAINING];
                 App.screen = new Dashboard();
-                MessageBox(`Вы были заблокированы по причине [${reason}]\n\nОставшееся время блокировки:\n${format(tsr, 'genitive')}`, { height: '200px' });
+                MessageBox(`Вы были заблокированы по причине [${reason}]\n\nОставшееся время блокировки:\n${format(tsr, 'genitive')}`, { height: 200 });
             } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.USER_INACTIVE_BLOCKED){
                 App.screen = new Dashboard();
                 const tsr = data[PacketDataKeys.TIME_SEC_REMAINING];
-                MessageBox(`Вы были неактивны\n\nОставшееся время блокировки:\n${format(tsr, 'genitive')}`, { height: '200px' });
+                MessageBox(`Вы были неактивны\n\nОставшееся время блокировки:\n${format(tsr, 'genitive')}`, { height: 200 });
             } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.SIGN_IN_ERROR){
                 if(data[PacketDataKeys.ERROR] == -4){
                     App.screen = new Authorization();
@@ -119,7 +119,7 @@ export default class Server extends Events<ServerEvents> {
                 }
             } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.EMAIL_NOT_VERIFIED){
                 App.screen = new Dashboard();
-                const e = await ConfirmBox(`Вы не подтвердили ваш email.\nПожалуйста проверьте вашу элоктронную почту и следуйте инструкции в письме.\n\nТак же проверьте папку СПАМ. Возможно письмо попало туда\n\nЕсли вам на email не пришло письмо подтверждения вы можете отправить его снова\n\nЕсли вы неправильно указали email при регистрации вы можете указать новый`, { title: 'ПОДТВЕРЖДЕНИЕ', btnYes: 'Отправить', btnNo: 'Изменить email', height: '410px' });
+                const e = await ConfirmBox(`Вы не подтвердили ваш email.\nПожалуйста проверьте вашу элоктронную почту и следуйте инструкции в письме.\n\nТак же проверьте папку СПАМ. Возможно письмо попало туда\n\nЕсли вам на email не пришло письмо подтверждения вы можете отправить его снова\n\nЕсли вы неправильно указали email при регистрации вы можете указать новый`, { title: 'ПОДТВЕРЖДЕНИЕ', btnYes: 'Отправить', btnNo: 'Изменить email', height: 410 });
                 if(e == true){
                     try{
                         const json = await(await fetch(`https://api.mafia.dottap.com/user/email/verify`, {

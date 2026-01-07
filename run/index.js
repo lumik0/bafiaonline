@@ -1764,6 +1764,21 @@
     return String(input).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x2F;/gi, "/");
   }
 
+  // core/src/utils/DOM.ts
+  function createElement(tagName, options) {
+    const elem = document.createElement(tagName);
+    if (options.className) elem.className = options.className;
+    if (options.id) elem.id = options.id;
+    if (options.text) elem.textContent = options.text;
+    if (options.html) elem.innerHTML = options.html;
+    if (options.css) {
+      for (const key in options.css) {
+        elem.style[key] = options.css[key];
+      }
+    }
+    return elem;
+  }
+
   // launcher/src/Window.ts
   function drag(win, event) {
     const el = win.el;
@@ -1981,14 +1996,21 @@
     oldPos = { x: 0, y: 0, width: 0, height: 0 };
     #init() {
       const isM = isMobile() && !this.options.noMobile;
-      this.el = document.createElement("div");
-      this.el.classList.add("win");
-      this.el.style.position = "absolute";
-      this.el.style.width = this.width + "px";
-      this.el.style.height = isM ? "100%" : this.height + "px";
-      this.el.style.left = this.x + "px";
-      this.el.style.top = this.y + "px";
-      this.el.id = `win_${this.id}`;
+      this.el = createElement("div", {
+        id: `win_${this.id}`,
+        className: "win",
+        css: {
+          position: "absolute",
+          animation: this.options.animations?.open ?? "0.3s cubic-bezier(0.11, 0.05, 0.22, 0.81) open",
+          borderRadius: (this.options.roundRadius ?? 0.25) + "em",
+          display: this.options.show == false ? "none" : "block",
+          width: this.width + "px",
+          height: isM ? "100%" : this.height + "px",
+          left: this.x + "px",
+          top: this.y + "px",
+          ...this.options.css ?? {}
+        }
+      });
       this.el.onmousedown = (e) => {
         if (!this.hasTitleBar) this.drag(e);
         return true;
@@ -2171,6 +2193,10 @@
       const e = await this.call("close", { isCancelled: false });
       if (e.isCancelled && !force) return;
       this.isAlive = false;
+      this.el.style.animation = this.options.animations?.close ?? "0.2s cubic-bezier(0.11, 0.05, 0.22, 0.81) close";
+      setTimeout(() => this.destroy(), 150);
+    }
+    destroy() {
       this.el.remove();
       this.removeAllEvents();
       WindowManager.remove(this);
@@ -3449,7 +3475,7 @@
       why.style.cursor = "pointer";
       why.style.userSelect = "none";
       why.innerHTML = "\u041F\u043E\u0447\u0435\u043C\u0443?";
-      why.onclick = () => {
+      why.onclick = async () => {
         alert(`\u041C\u044B \u043D\u0435 \u0441\u043E\u0431\u0438\u0440\u0430\u0435\u043C \u0434\u0430\u043D\u043D\u044B\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u043E\u0432
 
 \u041D\u0430\u0448 \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u043A\u043E\u0434 \u043E\u0442\u043A\u0440\u044B\u0442 https://github.com/lumik0/bafiaonline

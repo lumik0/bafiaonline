@@ -96,7 +96,7 @@ export default class Dashboard extends Screen {
                 return na - nb;
             });
             
-            const box = new Box({ title: 'ФОТО ПРОФИЛЯ', width: '325px', height: '240px', canCloseAnywhere: true });
+            const box = new Box({ title: 'ФОТО ПРОФИЛЯ', width: 325, height: 240, canCloseAnywhere: true });
             const e = document.createElement('div');
             e.style.display = 'flex';
             e.style.padding = '5px'
