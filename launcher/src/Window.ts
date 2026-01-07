@@ -445,7 +445,7 @@ export default class Window extends Events<WindowEvents> implements IWindow {
         this.y = 1;
         this.width = innerWidth / zoom;
         this.height = innerHeight / zoom;
-        App.on('resize', () => {
+        if(!isMobile()) App.on('resize', () => {
             const zoom = getZoom();
             this.width = innerWidth / zoom;
             this.height = innerHeight / zoom;

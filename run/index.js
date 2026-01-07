@@ -2123,7 +2123,7 @@
       this.y = 1;
       this.width = innerWidth / zoom;
       this.height = innerHeight / zoom;
-      App_default.on("resize", () => {
+      if (!isMobile()) App_default.on("resize", () => {
         const zoom2 = getZoom();
         this.width = innerWidth / zoom2;
         this.height = innerHeight / zoom2;
