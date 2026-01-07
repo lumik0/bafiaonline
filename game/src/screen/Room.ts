@@ -480,7 +480,7 @@ export default class Room extends Screen {
         this.playersListElem.style.overflowX = 'hidden';
         this.playersListElem.style.overflowY = 'overlay';
         this.playersListElem.style.width = (isMobile() ? 115 : this.oldAppSettingsData.game.widthPL) + 'px';
-        this.playersListElem.style.height = (App.height - 80) + 'px';
+        this.playersListElem.style.height = (App.height - (isMobile() ? 100 : 80)) + 'px';
 
         this.gamePlayersListElem.style.flexDirection = 'row'
         this.gamePlayersListElem.style.alignContent = 'flex-start'
@@ -490,14 +490,14 @@ export default class Room extends Screen {
 
         if(!isMobile()) this.rangeZoomElem.style.display = 'block';
         this.resizablePLElem.style.display = 'block';
-        this.resizablePLElem.style.height = (App.height - 80) + 'px';
+        this.resizablePLElem.style.height = (App.height - (isMobile() ? 100 : 80)) + 'px';
         this.messagesElem.style.height = (App.height - (isMobile() ? 235 : 215)) + 'px';
         
         this.changeDayTime();
 
         this.on('resize', () => {
-            this.playersListElem.style.height = (App.height - 80) + 'px';
-            this.resizablePLElem.style.height = (App.height - 80) + 'px';
+            this.playersListElem.style.height = (App.height - (isMobile() ? 100 : 80)) + 'px';
+            this.resizablePLElem.style.height = (App.height - (isMobile() ? 100 : 80)) + 'px';
             this.messagesElem.style.height = (App.height - (isMobile() ? 235 : 215)) + 'px';
         });
 
