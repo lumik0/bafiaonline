@@ -62,7 +62,7 @@ export default class GlobalChat extends Screen {
         this.messagesElem.style.textAlign = 'center';
         this.messagesElem.style.overflowX = 'hidden';
         this.messagesElem.style.overflowY = 'overlay';
-        this.messagesElem.style.margin = '10px';
+        this.messagesElem.style.margin = '10px 10px 5px 10px';
         this.messagesElem.style.outline = '2px solid #c0c0c0';
         this.messagesElem.style.borderRadius = '3px';
         this.messagesElem.style.background = 'rgba(255,255,255,.5)';
@@ -77,9 +77,7 @@ export default class GlobalChat extends Screen {
         this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
 
         const footer = document.createElement('div');
-        footer.style.position = 'absolute';
         footer.style.width = '100%';
-        footer.style.bottom = '2px';
         this.element.appendChild(footer);
 
         this.input = document.createElement('input');
