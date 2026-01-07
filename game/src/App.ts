@@ -8,7 +8,7 @@ import Server from "./server/Server";
 import style from "./style";
 import Settings from './Settings';
 import { wrap } from '../../core/src/utils/TypeScript';
-import { isMobile } from '../../core/src/utils/mobile';
+import { isIOS, isMobile } from '../../core/src/utils/mobile';
 import fs from "../../core/src/fs/fs";
 import Component from "./component/Component";
 import IWindow from "../../core/src/IWindow";
@@ -56,7 +56,7 @@ class App extends Events<AppEvents> {
     #windowEvents = {
         popState: (e: PopStateEvent) => this.emit('popstate', e),
         focusOut: (e: FocusEvent) => {
-            if(isMobile()){
+            if(isMobile() && isIOS()){
                 setTimeout(() => {
                     window.scrollTo(0, 0);
                     document.body.style.transform = "translateZ(0)";
