@@ -58,6 +58,7 @@ export default class GlobalChat extends Screen {
         this.element.appendChild(this.playersListElem);
 
         this.messagesElem = document.createElement('div');
+        this.messagesElem.style.width = App.width + 'px';
         this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 265)) + 'px';
         this.messagesElem.style.textAlign = 'center';
         this.messagesElem.style.overflowX = 'hidden';
@@ -115,6 +116,7 @@ export default class GlobalChat extends Screen {
         });
                 
         this.on('resize', () => {
+            this.messagesElem.style.width = App.width + 'px';
             this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 265)) + 'px';
         });
 
