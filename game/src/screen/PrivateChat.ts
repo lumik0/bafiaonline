@@ -223,7 +223,7 @@ export default class PrivateChat extends Screen {
     }
     
     sendMessage(message: string, options: { messageStyle?: MessageStyle, messageSticker?: boolean } = {}){
-        if(message.startsWith('!')){
+        if(message.startsWith(App.settings.data.game.barmanEffect)){
             const symbols = "?!&@#%^~<>*";
             message = Array.from({ length: [...message].length-1 }, () => symbols[Math.random() * symbols.length | 0]).join("");
         }

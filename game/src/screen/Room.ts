@@ -378,7 +378,7 @@ export default class Room extends Screen {
         this.element.appendChild(this.gameInfoElem);
 
         this.messagesElem = document.createElement('div');
-        this.messagesElem.style.height = (App.height - 265) + 'px';
+        this.messagesElem.style.height = (App.height - (isMobile() ? 285 : 265)) + 'px';
         this.messagesElem.style.textAlign = 'center';
         this.messagesElem.style.overflowX = 'hidden';
         this.messagesElem.style.overflowY = 'overlay';
@@ -476,7 +476,7 @@ export default class Room extends Screen {
         footer.appendChild(this.input);
         
         this.on('resize', () => {
-            this.messagesElem.style.height = (App.height - 265) + 'px';
+            this.messagesElem.style.height = (App.height - (isMobile() ? 285 : 265)) + 'px';
         }).key('waiting');
         
         if(this.isGame) this.initGame();
@@ -504,14 +504,14 @@ export default class Room extends Screen {
         if(!isMobile()) this.rangeZoomElem.style.display = 'block';
         this.resizablePLElem.style.display = 'block';
         this.resizablePLElem.style.height = (App.height - 80) + 'px';
-        this.messagesElem.style.height = (App.height - 215) + 'px';
+        this.messagesElem.style.height = (App.height - (isMobile() ? 235 : 215)) + 'px';
         
         this.changeDayTime();
 
         this.on('resize', () => {
             this.playersListElem.style.height = (App.height - 80) + 'px';
             this.resizablePLElem.style.height = (App.height - 80) + 'px';
-            this.messagesElem.style.height = (App.height - 215) + 'px';
+            this.messagesElem.style.height = (App.height - (isMobile() ? 235 : 215)) + 'px';
         });
 
         const yourRoleMsg = `Вы<br/>${RuRoles[this.playersData[App.user.objectId].role??0]}`;
@@ -877,7 +877,7 @@ export default class Room extends Screen {
             const username = user ? user[PacketDataKeys.USERNAME] : type == 25 || type == 26 ? 'Информатор' : type == 10 ? 'Мафия' : '???';
             let msgText = text, color = 'black';
             if(type == 9 || type == 13 || type == 26) { msgText = `Голосует за [${text}]`; color = '#186400' }
-            else if(type == 11) { color = `#8d8d8d` }
+            else if(type == 11) { color = `#545454` }
             else if(type == 17) { color = '#113B81' }
             else if(type == 18) { msgText = `ВЗОРВАЛ игрока [${text}]`; color = '#940000' }
             else if(type == 21) { msgText = `ВЗОРВАЛ игрока [${text}], но игрок был под защитой телохранителя и остался жив!`; color = '#940000' }
@@ -894,7 +894,6 @@ export default class Room extends Screen {
                 div.style.textAlign = 'left';
                 const avatar = document.createElement('img');
                 getAvatarImg(user).then(e => avatar.src = e);
-                avatar.onerror = () => console.error(`Игрок ${username} не имеет аватарку - ${user[PacketDataKeys.PHOTO]}`);
                 avatar.style.borderRadius = '100%';
                 avatar.width = 35;
                 avatar.height = 35;
@@ -1029,7 +1028,7 @@ export default class Room extends Screen {
     }
     
     sendMessage(message: string, options: { messageStyle?: MessageStyle, messageSticker?: boolean } = {}){
-        if(message.startsWith('!')){
+        if(message.startsWith(App.settings.data.game.barmanEffect)){
             const symbols = "?!&@#%^~<>*";
             message = Array.from({ length: [...message].length-1 }, () => symbols[Math.random() * symbols.length | 0]).join("");
         }

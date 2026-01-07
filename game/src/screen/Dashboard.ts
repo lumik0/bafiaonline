@@ -297,11 +297,18 @@ export default class Dashboard extends Screen {
             btnFullScreen.style.width = '60%'
             btnFullScreen.style.margin = '3px';
             btnFullScreen.onclick = async() => {
+                const elem = document.body;
                 // @ts-ignore
-                const fsElem = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+                const fsElem = document.fullscreenElement ?? document.webkitFullscreenElement ?? document.mozFullScreenElement ?? document.msFullscreenElement;
+
+                if(!elem.requestFullscreen){
+                    MessageBox(`Полноэкранный режим в этом браузере не работает, увы..`);
+                    btnFullScreen.disabled = true;
+                    return;
+                }
                 
                 try{
-                    if(!fsElem) await document.body.requestFullscreen()
+                    if(!fsElem) await elem.requestFullscreen();
                     else await document.exitFullscreen();
                     if(fsElem){
                         btnFullScreen.textContent = 'Включить полноэкранный режим';

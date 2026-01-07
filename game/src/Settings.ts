@@ -1,18 +1,19 @@
 import fs from "../../core/src/fs/fs";
 import { isMobile } from "../../core/src/utils/mobile";
-import { wrap } from "../../core/src/utils/TypeScript";
+import { when, wrap } from "../../core/src/utils/TypeScript";
 import App from "./App";
 import MessageBox from "./dialog/MessageBox";
 
 export default class Settings {
     data = {
-        version: 2,
+        version: 3,
         window: {
             zoom: isMobile() ? .6 : 1
         },
         game: {
             widthPL: 130,
             zoomPL: 1,
+            barmanEffect: '!'
         },
         roomCreate: {
             title: "",
@@ -77,23 +78,27 @@ export default class Settings {
         }
         
         let data = { ...savedData };
-        
-        // Миграция с v1 на v2
-        if(savedVersion == 1 && currentVersion >= 2) {
-            if(typeof data.settings == 'undefined') {
-                data.settings = {
-                    title: "",
-                    dayTime: 0,
-                    minPlayers: 5,
-                    maxPlayers: 8,
-                    minLevel: 1,
-                    selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10],
-                    password: '',
-                    vip: false
-                };
-            }
-            data.version = 2;
-        }
+
+        when(savedVersion)
+            .case(1, () => currentVersion >= 2 && (() => {
+                if(typeof data.settings == 'undefined') {
+                    data.settings = {
+                        title: "",
+                        dayTime: 0,
+                        minPlayers: 5,
+                        maxPlayers: 8,
+                        minLevel: 1,
+                        selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10],
+                        password: '',
+                        vip: false
+                    };
+                }
+                data.version = 2;
+            })())
+            .case(2, () => currentVersion >= 3 && (() => {
+                data.game.barmanEffect = '!';
+                data.version = 3;
+            })());
         
         return data;
     }

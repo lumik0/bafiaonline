@@ -94,7 +94,11 @@ class App extends Events<AppEvents> {
 
         await this.settings.init();
 
-        if(isMobile() && this.settings.data.window.zoom > .9) this.settings.data.window.zoom = .6;
+        if(isMobile()){
+            if(this.settings.data.window.zoom > .9) this.settings.data.window.zoom = .6;
+            if(this.settings.data.game.widthPL != 130) this.settings.data.game.widthPL = 130;
+            if(this.settings.data.game.zoomPL != 1) this.settings.data.game.zoomPL = 1;
+        }
 
         this.element.tabIndex = 0;
         this.element.style.zoom = this.settings.data.window.zoom + '';

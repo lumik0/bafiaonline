@@ -65,6 +65,28 @@ export default class Settings extends Screen{
             cb.onchange = () => onChange(cb.checked);
             d.appendChild(cb);
         }
+        function addInput(text: string, onChange: (v: string) => void, value = "", placeholder = ""){
+            const d = document.createElement('div');
+            d.style.borderRadius = '10px';
+            d.style.background = 'gray';
+            d.style.height = '30px';
+            d.style.padding = '5px';
+            d.style.margin = '2px';
+            d.style.display = 'flex';
+            d.style.alignItems = 'center';
+            d.style.justifyContent = 'space-between';
+            e.appendChild(d);
+            const t = document.createElement('span');
+            t.className = 'black';
+            t.style.marginLeft = '10px';
+            t.textContent = text;
+            d.appendChild(t);
+            const inp = document.createElement('input');
+            inp.value = value;
+            inp.placeholder = placeholder
+            inp.onchange = () => onChange(inp.value);
+            d.appendChild(inp);
+        }
         function addSlider(text: string, onChange: (v: number) => void, min = 1, max = 10, value = 1, step = 1){
             const d = document.createElement('div');
             d.style.borderRadius = '10px';
@@ -119,6 +141,9 @@ export default class Settings extends Screen{
             App.settings.data.window.zoom = v;
             App.element.style.zoom = v + '';
         }, isMobile() ? .4 : .3, isMobile() ? .9 : 1.5, App.settings.data.window.zoom, .1);
+        addInput('Начинать опьянение с', v => {
+            App.settings.data.game.barmanEffect = v;
+        }, App.settings.data.game.barmanEffect);
         
         // addSelect('Сервер', ['русский', 'английский'], v => {});
 

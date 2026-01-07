@@ -58,7 +58,7 @@ export default class GlobalChat extends Screen {
         this.element.appendChild(this.playersListElem);
 
         this.messagesElem = document.createElement('div');
-        this.messagesElem.style.height = (App.height - 250) + 'px';
+        this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 265)) + 'px';
         this.messagesElem.style.textAlign = 'center';
         this.messagesElem.style.overflowX = 'hidden';
         this.messagesElem.style.overflowY = 'overlay';
@@ -117,7 +117,7 @@ export default class GlobalChat extends Screen {
         });
                 
         this.on('resize', () => {
-            this.messagesElem.style.height = (App.height - 265) + 'px';
+            this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 265)) + 'px';
         });
 
         this.on('back', () => {
@@ -223,7 +223,7 @@ export default class GlobalChat extends Screen {
     }
     
     sendMessage(message: string, options: { messageStyle?: MessageStyle, messageSticker?: boolean } = {}){
-        if(message.startsWith('!')){
+        if(message.startsWith(App.settings.data.game.barmanEffect)){
             const symbols = "?!&@#%^~<>*";
             message = Array.from({ length: [...message].length-1 }, () => symbols[Math.random() * symbols.length | 0]).join("");
         }
