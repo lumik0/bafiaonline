@@ -9,6 +9,7 @@ import fs from "../../../core/src/fs/fs";
 import { getAvatarImg, getBackgroundImg, getTexture } from "../utils/Resources";
 import { noXSS, wait } from "../../../core/src/utils/utils";
 import { isMobile } from "../../../core/src/utils/mobile";
+import users from '../../../core/users.json'
 
 export default class GlobalChat extends Screen {
     playersListElem!: HTMLDivElement
@@ -58,7 +59,7 @@ export default class GlobalChat extends Screen {
         this.element.appendChild(this.playersListElem);
 
         this.messagesElem = document.createElement('div');
-        this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 265)) + 'px';
+        this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 250)) + 'px';
         this.messagesElem.style.textAlign = 'center';
         this.messagesElem.style.overflowX = 'hidden';
         this.messagesElem.style.overflowY = 'overlay';
@@ -115,7 +116,7 @@ export default class GlobalChat extends Screen {
         });
                 
         this.on('resize', () => {
-            this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 265)) + 'px';
+            this.messagesElem.style.height = (App.height - (isMobile() ? 270 : 250)) + 'px';
         });
 
         this.on('back', () => {
@@ -133,11 +134,13 @@ export default class GlobalChat extends Screen {
         const type = m[PacketDataKeys.MESSAGE_TYPE];
         const sticker = m[PacketDataKeys.MESSAGE_STICKER];
         const user = m[PacketDataKeys.USER];
+        const objectId = user ? user[PacketDataKeys.OBJECT_ID] : '';
 
         if(user){
             if(this.lastMessage && this.lastMessage.divM && this.lastMessage.user[PacketDataKeys.USERNAME] == user[PacketDataKeys.USERNAME]){
                 const msg = document.createElement('span');
-                msg.textContent = noXSS(text);
+                // @ts-ignore
+                msg.innerHTML = users[objectId] == 'dev' ? text : noXSS(text);
                 msg.className = 'black';
                 msg.style.userSelect = 'text';
                 this.lastMessage.divM.appendChild(msg);
@@ -163,7 +166,8 @@ export default class GlobalChat extends Screen {
                 nick.className = 'black';
                 nick.onclick = () => this.addNickToInput(user[PacketDataKeys.USERNAME]);
                 const msg = document.createElement('span');
-                msg.textContent = noXSS(text);
+                // @ts-ignore
+                msg.innerHTML = users[objectId] == 'dev' ? text : noXSS(text);
                 msg.style.color = type == 9 ? '#186400' : type == 11 ? 'gray' : type == 17 ? '#113B81' : type == 27 ? '#940000' : 'black';
                 msg.style.userSelect = 'text';
                 div.appendChild(avatar);

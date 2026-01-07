@@ -9,6 +9,7 @@ import Rooms from '../screen/Rooms';
 import { formatDate } from '../../../core/src/utils/format';
 import MessageBox from './MessageBox';
 import ConfirmBox from './ConfirmBox';
+import PrivateChat from '../screen/PrivateChat';
 
 function calculateStatsWithRoles(profile: any) {
     const mafiaRoles = [Role.MAFIA, Role.TERRORIST, Role.BARMAN, Role.INFORMER];
@@ -228,6 +229,10 @@ export default async function ProfileInfo(userObjectId: string){
                         ProfileInfo(userObjectId);
                     }
                 }
+            });
+            addButton('Личные сообщения', async()=>{
+                box.destroy();
+                App.screen = new PrivateChat(profile.friend, userObjectId, pud);
             });
         }
     }

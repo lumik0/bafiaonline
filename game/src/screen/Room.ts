@@ -14,6 +14,7 @@ import LoadingBox from "../dialog/LoadingBox";
 import { isMobile } from "../../../core/src/utils/mobile";
 import md5salt from "../../../core/src/utils/md5";
 import ContextMenu from "../component/ContextMenu";
+import users from '../../../core/users.json';
 
 export function isMafia(role: Role): boolean {
     return [Role.MAFIA, Role.BARMAN, Role.TERRORIST, Role.INFORMER].includes(role);
@@ -859,6 +860,7 @@ export default class Room extends Screen {
         const type = m[PacketDataKeys.MESSAGE_TYPE] as number;
         const sticker = m[PacketDataKeys.MESSAGE_STICKER];
         const user = m[PacketDataKeys.USER];
+        const objectId = user ? user[PacketDataKeys.OBJECT_ID] : '';
 
         if(user || type == 10 || type == 25 || type == 26){
             const username = user ? user[PacketDataKeys.USERNAME] : type == 25 || type == 26 ? 'Информатор' : type == 10 ? 'Мафия' : '???';
@@ -871,7 +873,8 @@ export default class Room extends Screen {
             else if(type == 27) { msgText = `Сдался`; color = '#940000' };
             if(this.lastMessage && this.lastMessage.divM && this.lastMessage.username == username){
                 const msg = document.createElement('span');
-                msg.textContent = noXSS(msgText);
+                // @ts-ignore
+                msg.innerHTML = users[objectId] == 'dev' ? msgText : noXSS(msgText);
                 msg.style.color = color;
                 msg.style.userSelect = 'text';
                 this.lastMessage.divM.appendChild(msg);
@@ -886,7 +889,7 @@ export default class Room extends Screen {
                 avatar.height = 35;
                 avatar.style.margin = '5px';
                 avatar.onmousedown = e => e.preventDefault();
-                avatar.onclick = () => ProfileInfo(user[PacketDataKeys.OBJECT_ID]);
+                avatar.onclick = () => ProfileInfo(objectId);
                 const divM = document.createElement('div');
                 divM.style.display = 'flex';
                 divM.style.flexDirection = 'column';
@@ -897,7 +900,8 @@ export default class Room extends Screen {
                 nick.style.color = type == 17 ? '#4B4483' : type == 11 ? '#545454' : 'black'
                 nick.onclick = () => this.addNickToInput(username)
                 const msg = document.createElement('span');
-                msg.textContent = noXSS(msgText);
+                // @ts-ignore
+                msg.innerHTML = users[objectId] == 'dev' ? msgText : noXSS(msgText);
                 msg.style.color = color
                 msg.style.userSelect = 'text';
                 div.appendChild(avatar);
