@@ -146,6 +146,9 @@ export default class Settings extends Screen{
     addInput('Опьянение с', v => {
       App.settings.data.game.barmanEffect = v;
     }, App.settings.data.game.barmanEffect);
+    addCheckbox('Показывать сообщение "Вы умерли"?', v => {
+      App.settings.data.game.showYouDiedMessage = v;
+    }, App.settings.data.game.showYouDiedMessage);
     addCheckbox('Для разработчиков\n\nЭто удобно для создания мода и т.д.', v => {
       App.settings.data.developer = v;
     }, App.settings.data.developer);

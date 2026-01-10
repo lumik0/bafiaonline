@@ -26,6 +26,11 @@ function tokenHex(nBytes: number): string {
 }
 
 export default class Auth {
+  lastAuth?: {
+    token: string
+    userId: string
+  }
+
   constructor(private server: Server) { }
 
   async addProfile({ name, email, password, token, userId }: { name?: string, email?: string, password?: string, token?: string, userId?: string }): Promise<boolean> {
@@ -66,17 +71,31 @@ export default class Auth {
         }
         App.screen = new Authorization();
       } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.USER_SIGN_IN) {
+        const token = auth.token ?? data[PacketDataKeys.USER][PacketDataKeys.TOKEN];
+        const userId = auth.userId ?? data[PacketDataKeys.USER][PacketDataKeys.OBJECT_ID];
+
+        const isReconnect = this.lastAuth && this.lastAuth.userId == userId;
+
+        this.lastAuth = {
+          token,
+          userId
+        }
+
         this.addProfile({
           email: auth.email,
           password: auth.password,
-          token: auth.token ?? data[PacketDataKeys.USER][PacketDataKeys.TOKEN],
-          userId: auth.userId ?? data[PacketDataKeys.USER][PacketDataKeys.OBJECT_ID]
+          token,
+          userId
         });
 
         App.user.update(data[PacketDataKeys.USER]);
 
         App.user.bToken = generateRandomToken();
-        App.screen = new Dashboard();
+        if(isReconnect) {
+          App.screen.reconnect()
+        } else {
+          App.screen = new Dashboard();
+        }
         return true;
       }
     } else {

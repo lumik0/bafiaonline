@@ -205,8 +205,8 @@ export default class Window extends Events<WindowEvents> implements IWindow {
   el!: HTMLElement
 
   zIndex: number = WindowManager.id+1
-  readonly id: number = WindowManager.id++
-  readonly pid: number = -1
+  readonly id = WindowManager.id++
+  readonly pid = -1
 
   title = "Window"
   x = 0

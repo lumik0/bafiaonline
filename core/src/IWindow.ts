@@ -2,6 +2,9 @@ import { WindowEvents } from '../../launcher/src/Window'
 import { EventHandle, EventPriority } from './Events'
 
 export default interface IWindow {
+  readonly id: number
+  readonly pid: number
+
   isAlive: boolean
   isActivated: boolean
   isMaximum: boolean

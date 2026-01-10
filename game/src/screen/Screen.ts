@@ -46,6 +46,10 @@ export default class Screen extends Events<ScreenEvents> {
     });
   }
 
+  reconnect() {
+
+  }
+
   tick(dt: number){
     this.emit('tick', dt);
   }

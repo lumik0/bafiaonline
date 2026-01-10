@@ -6,7 +6,7 @@ import MessageBox from "./dialog/MessageBox";
 
 export default class Settings {
   data = {
-    version: 3,
+    version: 4,
     debug: false,
     developer: false,
     window: {
@@ -15,6 +15,7 @@ export default class Settings {
     game: {
       widthPL: 130,
       zoomPL: 1,
+      showYouDiedMessage: true,
       barmanEffect: '!'
     },
     roomCreate: {
@@ -97,9 +98,9 @@ export default class Settings {
         }
         data.version = 2;
       })())
-      .case(2, () => currentVersion >= 3 && (() => {
-        data.game.barmanEffect = '!';
-        data.version = 3;
+      .case(3, () => currentVersion >= 4 && (() => {
+        data.game.showYouDiedMessage = true
+        data.version = 4;
       })());
 
     return data;
