@@ -34,6 +34,7 @@ class App extends Events<AppEvents> {
   version = versions.vanilla;
 
   isAlive = true;
+  appId = 0
 
   element!: HTMLElement;
   config!: Config;
@@ -112,6 +113,15 @@ class App extends Events<AppEvents> {
     this.height = this.element.clientHeight;
     this.server = new Server();
     this.screen = new Loading("Подключение к серверу..");
+
+    if(this.settings.data.developer) {
+      // @ts-ignore
+      if(!window['apps']) window['apps'] = [];
+      // @ts-ignore
+      this.appId = window['apps'].length;
+      // @ts-ignore
+      window['apps'].push(App);
+    }
 
     this.#loadImgs();
     this.#initEvents();
@@ -225,6 +235,10 @@ class App extends Events<AppEvents> {
     this.element.remove();
     this.#destroyEvents();
     this.server.destroy();
+    if(this.settings.data.developer) {
+      // @ts-ignore
+      window['apps'].splice(this.appId, 1);
+    }
   }
 }
 
