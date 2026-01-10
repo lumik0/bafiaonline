@@ -8,26 +8,18 @@ async function pre() {
 
 // @ts-ignore
 window.main = async function(conf: Config, win: IWindow, element: HTMLElement){
-    // @ts-ignore
-    delete window.main;
-    App.config = config(conf);
-    App.win = win;
-    App.element = element;
-    await fs.init('Indexeddb');
-    await App.init();
+  // @ts-ignore
+  delete window.main;
+  App.config = config(conf);
+  App.win = win;
+  App.element = element;
+  await fs.init('Indexeddb');
+  await App.init();
 }
 
 // @ts-ignore
 window['App'] = App;
 
 (async function(){
-    await pre();
-    // let element = document.createElement('div');
-    // element.style.width = '500px'//'300px'
-    // element.style.height = '700px'//'500px'
-    // element.style.border = '1px solid white'
-    // element.style.position = 'absolute';
-    // document.body.appendChild(element);
-    // main(element); // delete this!
-    // main(document.body); // delete this!
+  await pre();
 })();
