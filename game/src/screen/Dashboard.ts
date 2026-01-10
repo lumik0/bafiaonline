@@ -71,7 +71,7 @@ export default class Dashboard extends Screen {
     logo.textContent = 'Бафия онлайн';
     header.appendChild(logo);
 
-    this.on('back', () => App.win.close())
+    this.on('back', () => App.destroy())
 
     this.init();
   }

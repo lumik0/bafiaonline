@@ -719,7 +719,8 @@ export default class Launcher {
     });
   }
 
-  async runGame(version: Version, profile?: Profile){
+  async runGame(version: Version, profile?: Profile) {
+    this.win.lock();
     const config = JSON.parse(await fs.readFile(`${version.path}/config.json`)) as Config;
     const mainScript = await fs.readFile(`${version.path}/main.js`);
 
@@ -759,5 +760,7 @@ export default class Launcher {
     window['main'](config, win, win.content);
 
     this.openedWindows.push(win);
+
+    this.win.unlock();
   }
 }

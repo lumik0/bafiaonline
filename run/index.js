@@ -1771,6 +1771,8 @@
     if (options.id) elem.id = options.id;
     if (options.text) elem.textContent = options.text;
     if (options.html) elem.innerHTML = options.html;
+    if (options.width) elem.width = options.width;
+    if (options.height) elem.height = options.height;
     if (options.css) {
       for (const key in options.css) {
         elem.style[key] = options.css[key];
@@ -3647,6 +3649,7 @@
       });
     }
     async runGame(version, profile) {
+      this.win.lock();
       const config2 = JSON.parse(await fs_default.readFile(`${version.path}/config.json`));
       const mainScript = await fs_default.readFile(`${version.path}/main.js`);
       window["eval"](mainScript);
@@ -3678,6 +3681,7 @@
       });
       window["main"](config2, win, win.content);
       this.openedWindows.push(win);
+      this.win.unlock();
     }
   };
 

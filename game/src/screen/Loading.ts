@@ -32,6 +32,8 @@ export default class Loading extends Screen {
 
     wrap(this, 'title', (v: string) => text.innerHTML = v);
 
+    this.on('back', () => App.destroy());
+
     (async()=>{
       this.loadingElem = document.createElement('img');
       this.loadingElem.src = await getTexture(`loading/2f.png`);

@@ -27,13 +27,17 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(tagName: K,
   id?: string
   text?: string
   html?: string
+  width?: number
+  height?: number
   css?: CSSStyleDeclaration|object
-}){
+}): HTMLElementTagNameMap[K] {
   const elem = document.createElement(tagName);
   if(options.className) elem.className = options.className;
   if(options.id) elem.id = options.id;
   if(options.text) elem.textContent = options.text;
   if(options.html) elem.innerHTML = options.html;
+  if(options.width) (elem as HTMLImageElement).width = options.width;
+  if(options.height) (elem as HTMLImageElement).height = options.height;
   if(options.css){
     for(const key in options.css){
       // @ts-ignore

@@ -2,7 +2,7 @@ import App from "../App";
 import { MessageStyle, Role, RuRoles } from "../enums";
 import PacketDataKeys from "../../../core/src/PacketDataKeys";
 import Screen from "./Screen";
-import { insertAtCaret } from '../../../core/src/utils/DOM'
+import { createElement, insertAtCaret } from '../../../core/src/utils/DOM'
 import Rooms from "./Rooms";
 import MessageBox from "../dialog/MessageBox";
 import { when } from "../../../core/src/utils/TypeScript";
@@ -205,6 +205,7 @@ export default class Room extends Screen {
     function preInit() {
       const rs = data[PacketDataKeys.ROOM_STATISTICS];
       if(self.messagesElem) {
+        self.messagesElem.innerHTML = '';
         for(const m of rs[PacketDataKeys.MESSAGES])
          wait(50).then(() => self.addMessage(m, false));
       } else {
@@ -212,7 +213,7 @@ export default class Room extends Screen {
       }
       self.players = rs[PacketDataKeys.PLAYERS];
       self.titleElem.textContent = `${self.title} (${self.players.length}/${self.maxPlayers})`;
-      if(rs[PacketDataKeys.GAME_STATUS]){
+      if(rs[PacketDataKeys.GAME_STATUS]) {
         self.infoElem.innerHTML = `Запуск игры..`
         self.status = rs[PacketDataKeys.GAME_STATUS][PacketDataKeys.STATUS];
         self.gameDayTime = rs[PacketDataKeys.GAME_STATUS][PacketDataKeys.DAYTIME];
@@ -301,8 +302,10 @@ export default class Room extends Screen {
           }
           this.updatePlayersGame();
         }
-        this.status = data[PacketDataKeys.ROOM_STATISTICS][PacketDataKeys.GAME_STATUS][PacketDataKeys.STATUS];
-        this.timer = data[PacketDataKeys.ROOM_STATISTICS][PacketDataKeys.GAME_STATUS][PacketDataKeys.TIMER];
+        if(data[PacketDataKeys.ROOM_STATISTICS][PacketDataKeys.GAME_STATUS]){
+          this.status = data[PacketDataKeys.ROOM_STATISTICS][PacketDataKeys.GAME_STATUS][PacketDataKeys.STATUS];
+          this.timer = data[PacketDataKeys.ROOM_STATISTICS][PacketDataKeys.GAME_STATUS][PacketDataKeys.TIMER];
+        }
         if(this.isGame) {
           if(this.clearMessages){
             this.lastMessage = {}
@@ -535,46 +538,60 @@ export default class Room extends Screen {
       { // me
         const nick = document.createElement('span');
         const myRoleImg = document.createElement('img');
-        this.deadImgElem = document.createElement('img');
-        this.deadImgElem.src = await getTexture(`roles/dead.png`);
-        this.deadImgElem.width = 50;
-        this.deadImgElem.height = 70;
-        this.deadImgElem.style.display = 'none';
-        this.deadImgElem.style.position = 'absolute';
-        // this.deadImg.style.left = '2px';
-        this.deadImgElem.style.top = '56px';
+        this.deadImgElem = createElement('img', {
+          width: 50,
+          height: 70,
+          css: {
+            display: 'none',
+            position: 'absolute',
+            top: '56px'
+          }
+        });
+        getTexture(`roles/dead.png`).then(e => this.deadImgElem!.src = e);
         this.deadImgElem.onmousedown = e => e.preventDefault();
-        this.myVoteElem = document.createElement('div');
-        this.myVoteElem.style.background = 'red';
-        this.myVoteElem.style.color = 'white';
-        this.myVoteElem.style.padding = '3px'
-        this.myVoteElem.style.position = 'absolute';
-        this.myVoteElem.style.right = '5px';
-        this.myVoteElem.style.bottom = '20px';
-        this.myVoteElem.style.borderRadius = '3px';
-        this.myVoteElem.style.display = 'none';
-        this.affectedByRolesElem = document.createElement('div');
-        this.affectedByRolesElem.style.width = '125px';
-        this.affectedByRolesElem.style.height = '100%';
-        this.affectedByRolesElem.style.marginLeft = '5px';
-        this.affectedByRolesElem.style.display = 'flex';
-        this.affectedByRolesElem.style.alignItems = 'center';
-        this.affectedByRolesElem.style.justifyContent = 'flex-start';
-        this.affectedByRolesElem.style.flexWrap = 'wrap';
-        this.affectedByRolesElem.style.alignContent = 'center';
-        this.meElem = document.createElement('div');
-        this.meElem.style.position = 'relative';
-        this.meElem.style.display = 'flex';
-        this.meElem.style.flexDirection = 'column';
-        this.meElem.style.justifyContent = 'center';
-        this.meElem.style.alignItems = 'center';
-        this.meElem.style.padding = '0 5px';
-        this.yourRoleElem = document.createElement('span');
-        this.yourRoleElem.innerHTML = yourRoleMsg;
-        this.yourRoleElem.className = 'black';
-        this.yourRoleElem.style.fontSize = 'smaller';
-        this.yourRoleElem.style.textAlign = 'center';
-        this.yourRoleElem.style.padding = '1px';
+        this.myVoteElem = createElement('div', {
+          css: {
+            background: 'red',
+            color: 'white',
+            padding: '3px',
+            position: 'absolute',
+            right: '5px',
+            bottom: '20px',
+            borderRadius: '3px',
+            display: 'none'
+          }
+        });
+        this.affectedByRolesElem = createElement('div', {
+          css: {
+            width: '125px',
+            height: '100%',
+            marginLeft: '5px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            flexWrap: 'wrap',
+            alignContent: 'center'
+          }
+        });
+        this.meElem = createElement('div', {
+          css: {
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '0 5px'
+          }
+        });
+        this.yourRoleElem = createElement('span', {
+          html: yourRoleMsg,
+          className: 'black',
+          css: {
+            fontSize: 'smaller',
+            textAlign: 'center',
+            padding: '1px'
+          }
+        });
         nick.textContent = noXSS(App.user.username);
         nick.className = 'black';
         nick.style.fontSize = 'smaller';
