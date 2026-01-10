@@ -637,7 +637,7 @@ export default class Room extends Screen {
         giveUpButton.style.display = 'none';
         {
           const role = this.playersData[App.user.objectId].role ?? 1;
-          if(this.playersData[App.user.objectId].alive && ((playersStat[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (playersStat[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
+          if(this.players.length > 7 && this.playersData[App.user.objectId].alive && ((playersStat[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (playersStat[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
             timer.style.marginTop = '0';
             giveUpButton.style.display = 'block';
           }
@@ -670,11 +670,13 @@ export default class Room extends Screen {
         mafia.textContent = noXSS(`Мафия: ${data[PacketDataKeys.MAFIA_ALL]} | ${data[PacketDataKeys.MAFIA_ALIVE]}`);
         mir.textContent = noXSS(`Мирные: ${data[PacketDataKeys.CIVILIAN_ALL]} | ${data[PacketDataKeys.CIVILIAN_ALIVE]}`);
 
-        const role = this.playersData[App.user.objectId].role ?? 1;
-        if(this.playersData[App.user.objectId].alive && ((data[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (data[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
-          giveUpButton.style.display = 'block';
-          timer.style.marginTop = '0';
-        }
+        wait(500).then(() => {
+          const role = this.playersData[App.user.objectId].role ?? 1;
+          if(this.players.length > 7 && this.playersData[App.user.objectId].alive && ((data[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (data[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
+            giveUpButton.style.display = 'block';
+            timer.style.marginTop = '0';
+          }
+        });
       } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.USER_DATA){
         for(const p in data[PacketDataKeys.PLAYERS_DATA]) {
           const pl = data[PacketDataKeys.PLAYERS_DATA][p];
@@ -862,7 +864,7 @@ export default class Room extends Screen {
           if(this.playersData[uo].affectedByRoles?.includes(11)) action = '';
         })());
       if(action == '' && this.gameDayTime == 3) action = 'kill';
-      if(this.gameDayTime == 1 && this.playersData[App.user.objectId].affectedByRoles?.includes(9) && !isActionUsed) isActionUsed = true;
+      if(this.gameDayTime == 1 && this.playersData[App.user.objectId].affectedByRoles?.includes(9) && !this.playersData[App.user.objectId].isNightActionUsed) isActionUsed = false;
       if(action != '' && this.status != 3 && !isActionUsed && this.playersData[App.user.objectId].alive && this.playersData[uo].alive){
         const actionImg = document.createElement('img');
         getTexture(`roles/${action}.png`).then(e => actionImg.src = e);
