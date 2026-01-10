@@ -82,6 +82,7 @@ export default class Auth {
         }
 
         this.addProfile({
+          name: data[PacketDataKeys.USER][PacketDataKeys.USERNAME],
           email: auth.email,
           password: auth.password,
           token,
