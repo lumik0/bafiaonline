@@ -3152,6 +3152,7 @@
           this.listProfiles.size = 3;
           this.listProfiles.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C..";
           this.listProfiles.style.width = "100%";
+          this.listProfiles.value = self2.options.profile;
           this.listProfiles.onchange = (e) => {
             const p = this.profiles.find((e2) => e2.name == this.listProfiles.value);
             if (p) {
@@ -3217,6 +3218,7 @@
           this.listVersions.size = 3;
           this.listVersions.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044E..";
           this.listVersions.style.width = "100%";
+          this.listVersions.value = self2.options.version;
           function update() {
             self2.listVersions.innerHTML = "";
             self2.listVersions.value = self2.options.version;
@@ -3229,7 +3231,7 @@
           }
           update();
           elem.appendChild(self2.listVersions);
-          const addVersionBtn2 = createElement("button", {
+          const addVersionBtn = createElement("button", {
             text: "+",
             css: {
               width: "20px",
@@ -3239,8 +3241,8 @@
               padding: "0"
             }
           });
-          addVersionBtn2.onclick = () => this.addVersion();
-          elem.appendChild(addVersionBtn2);
+          addVersionBtn.onclick = () => this.addVersion();
+          elem.appendChild(addVersionBtn);
           const removeVersionBtn = createElement("button", {
             text: "-",
             css: {
@@ -3282,10 +3284,6 @@
           this.runGame(v, p);
         } else {
           alert(`\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430 \u0432\u0435\u0440\u0441\u0438\u044F`);
-          addVersionBtn.style.transition = "1s";
-          addVersionBtn.style.transform = "scale(5)";
-          await wait(1e3);
-          addVersionBtn.style.transform = "none";
         }
       };
       btns.appendChild(this.playBtn);
@@ -3319,6 +3317,7 @@
 \u0415\u0441\u0442\u044C \u0438\u0434\u0435\u0438 \u0447\u0442\u043E-\u0442\u043E \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C? \u041D\u0430\u0448\u043B\u0438 \u0431\u0430\u0433? \u041F\u0440\u043E\u0431\u043B\u0435\u043C\u044B? <a href="https://t.me/bafiaonlinebot">@bafiaonlinebot</a>
 \u0418\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u043A\u043E\u0434: <a href="https://github.com/lumik0/bafiaonline">Github</a>`.replaceAll("\n", "<br/>");
       div.appendChild(extra);
+      this.updateBtn.click();
     }
     openSettings() {
       this.win.lock();

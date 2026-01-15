@@ -193,6 +193,7 @@ export default class Launcher {
         this.listProfiles.size = 3
         this.listProfiles.value = 'Выберите профиль..';
         this.listProfiles.style.width = '100%';
+        this.listProfiles.value = self.options.profile;
         this.listProfiles.onchange = e => {
           const p = this.profiles.find(e => e.name == this.listProfiles.value);
           if(p) {
@@ -259,6 +260,7 @@ export default class Launcher {
         this.listVersions.size = 3
         this.listVersions.value = 'Выберите версию..';
         this.listVersions.style.width = '100%';
+        this.listVersions.value = self.options.version;
         function update() {
           self.listVersions.innerHTML = '';
           self.listVersions.value = self.options.version;
@@ -311,46 +313,6 @@ export default class Launcher {
       }));
     }
 
-    // const profiles = document.createElement('div');
-    // profiles.style.display = 'flex';
-    // profiles.style.alignItems = 'center';
-    // profiles.style.fontSize = '13px'
-    // const txtProfiles = document.createElement('span');
-    // txtProfiles.style.minWidth = '70px'
-    // txtProfiles.textContent = `Профили:`;
-    // profiles.appendChild(txtProfiles);
-    // this.listProfiles = document.createElement(`select`);
-    // this.listProfiles.value = 'Выберите профиль..';
-    // this.listProfiles.style.width = '100%';
-    // this.listProfiles.value = this.options.profile;
-    // for(const pr of this.profiles){
-    //   const el = document.createElement('option');
-    //   el.innerHTML = pr.name;
-    //   if(pr.name == '') {
-    //     pr.name = 'Новый аккаунт';
-    //     el.style.background = '#57e057';
-    //   }
-    //   this.listProfiles.appendChild(el);
-    // }
-    // profiles.appendChild(this.listProfiles);
-    // const addProfileBtn = document.createElement('button');
-    // addProfileBtn.innerHTML = `+`;
-    // addProfileBtn.onclick = () => this.addProfile();
-    // profiles.appendChild(addProfileBtn);
-    // const removeProfileBtn = document.createElement('button');
-    // removeProfileBtn.innerHTML = `-`;
-    // removeProfileBtn.onclick = async() => {
-    //   const p = this.profiles.findIndex(e => e.name == this.listProfiles.value);
-    //   if(p != -1){
-    //     removeProfileBtn.disabled = true;
-    //     this.profiles.splice(p, 1);
-    //     await this.writeData();
-    //     this.#initContent();
-    //   }
-    // }
-    // profiles.appendChild(removeProfileBtn);
-    // div.appendChild(profiles);
-
     const btns = document.createElement('div');
     btns.style.display = 'flex';
     btns.style.margin = '5px';
@@ -363,23 +325,9 @@ export default class Launcher {
       const v = this.versions.find(e => e.name == this.listVersions.value);
       const p = this.profiles.find(e => e.name == this.listProfiles.value);
       if(v) {
-        // if(!p){
-        //   const e = confirm(`у вас нет профиля. Вы можете создать его в лаунчере, вы уверены что будете входить в игре?\n\nС профилем автоматический вход будет`);
-        //   if(!e) {
-        //     addProfileBtn.style.transition = '1s'
-        //     addProfileBtn.style.transform = 'scale(5)';
-        //     await wait(1000);
-        //     addProfileBtn.style.transform = 'none';
-        //     return;
-        //   }
-        // }
         this.runGame(v, p);
       } else {
         alert(`Не найдена версия`);
-        addVersionBtn.style.transition = '1s'
-        addVersionBtn.style.transform = 'scale(5)';
-        await wait(1000);
-        addVersionBtn.style.transform = 'none';
       }
     };
     btns.appendChild(this.playBtn);
@@ -418,7 +366,7 @@ export default class Launcher {
 Исходный код: <a href="https://github.com/lumik0/bafiaonline">Github</a>`.replaceAll('\n', '<br/>');
     div.appendChild(extra);
 
-    // this.updateBtn.click();
+    this.updateBtn.click();
   }
 
   openSettings() {
