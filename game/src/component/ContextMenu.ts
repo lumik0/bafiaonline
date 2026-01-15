@@ -22,9 +22,10 @@ export default class ContextMenu extends Component {
     for(let i = 0; i < menu.length; i++){
       const btn = menu[i];
       const e = document.createElement('button');
-      e.style.borderRadius = i == 0 ? '7px 7px 0 0' : i == menu.length-1 ? '0 0 7px 7px' : '0';
+      e.style.borderRadius = i == 0 && menu.length > 1 ? '7px 7px 0 0' : i > 0 && i == menu.length-1 ? '0 0 7px 7px' : menu.length == 1 ? '7px' : '0';
       e.textContent = btn;
       e.onclick = () => this.result = btn;
+      e.oncontextmenu = e => e.preventDefault();
       elem.appendChild(e);
     }
     this.elem.appendChild(elem);

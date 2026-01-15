@@ -14,6 +14,7 @@ import MessageBox from "../dialog/MessageBox";
 import Settings from "./Settings";
 import Box from "../dialog/Box";
 import { Profile } from "../../../launcher/src/enums";
+import { History } from "./History";
 
 function pngToJpgBase64(file: File, quality = 0.9): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -250,6 +251,14 @@ export default class Dashboard extends Screen {
     btnFriends.style.margin = '3px'
     btnFriends.onclick = () => App.screen = new Friends();
     div.appendChild(btnFriends);
+    div.appendChild(document.createElement('br'));
+
+    const btnHistory = document.createElement('button');
+    btnHistory.textContent = 'История игр';
+    btnHistory.style.width = '60%'
+    btnHistory.style.margin = '3px'
+    btnHistory.onclick = () => App.screen = new History();
+    div.appendChild(btnHistory);
     div.appendChild(document.createElement('br'));
 
     // const btnBackpack = document.createElement('button');

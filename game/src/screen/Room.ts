@@ -15,6 +15,7 @@ import { isMobile } from "../../../core/src/utils/mobile";
 import md5salt from "../../../core/src/utils/md5";
 import ContextMenu from "../component/ContextMenu";
 import users from '../../../core/users.json';
+import { History } from "./History";
 
 export function isMafia(role: Role): boolean {
   return [Role.MAFIA, Role.BARMAN, Role.TERRORIST, Role.INFORMER].includes(role);
@@ -63,6 +64,7 @@ export default class Room extends Screen {
   gameDayTime = 0;
   timer = 0;
   playersStat: any
+  isHistory = false
 
   oldAppSettingsData: any;
 
@@ -82,6 +84,8 @@ export default class Room extends Screen {
     vote?: number
   }> = {}
   players: any[] = [];
+
+  messages: any[] = [];
   joinLeaveMessages: Record<string, HTMLElement> = {};
   lastMessage!: {
     username?: any,
@@ -91,16 +95,28 @@ export default class Room extends Screen {
   constructor(public roomObjectId: string, public options: {
     password?: string
     sendRoomEnter?: boolean
+    isHistory?: boolean
+    data?: any
   } = {}){
     super('Room');
 
     if(typeof options.sendRoomEnter != 'boolean') options.sendRoomEnter = true;
-
+    if(options.isHistory) {
+      this.isHistory = true;
+      this.status = 2;
+      this.title = options.data.title;
+      this.playersData = options.data.playersData;
+      this.selectedRoles = options.data.selectedRoles;
+      this.localFirstMessages = options.data.messages;
+    }
     App.title = 'Комната';
 
     this.oldAppSettingsData = JSON.parse(JSON.stringify(App.settings.data));
 
-    (async()=> this.element.style.background = `url(${await getBackgroundImg('day3')}) 0% 0% / cover`)();
+    (async () => {
+      this.element.style.background = `url(${await getBackgroundImg('day3')}) 0% 0% / cover`
+      this.clearMessages = App.settings.data.game.clearMessages
+    })();
 
     this.headerElem = document.createElement('div');
     this.headerElem.className = 'header';
@@ -130,7 +146,7 @@ export default class Room extends Screen {
     this.loadingDivElem.appendChild(this.loadingElem);
 
     this.on('back', () => {
-      App.screen = new Rooms();
+      App.screen = this.isHistory ? new History() : new Rooms();
     });
 
     this.init();
@@ -146,12 +162,14 @@ export default class Room extends Screen {
   async reconnect() {
     super.reconnect();
 
+    if(this.isHistory) return;
+
     const self = this
     if(this.options.sendRoomEnter) App.server.send(PacketDataKeys.ROOM_ENTER, {
       [PacketDataKeys.ROOM_PASS]: this.options.password ? md5salt(this.options.password) : '',
       [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId
     });
-    const rData = await App.server.awaitPacket([PacketDataKeys.ROOM_ENTER, PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR, PacketDataKeys.GAME_STARTED, PacketDataKeys.USER_IN_ANOTHER_ROOM, PacketDataKeys.USER_USING_DOUBLE_ACCOUNT, PacketDataKeys.USER_LEVEL_NOT_ENOUGH, PacketDataKeys.USER_KICKED, PacketDataKeys.ROOM_CREATED], 2000);
+    const rData = await App.server.awaitPacket([PacketDataKeys.ROOM_ENTER, PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR, PacketDataKeys.GAME_STARTED, PacketDataKeys.USER_IN_ANOTHER_ROOM, PacketDataKeys.USER_USING_DOUBLE_ACCOUNT, PacketDataKeys.USER_LEVEL_NOT_ENOUGH, PacketDataKeys.USER_KICKED, PacketDataKeys.ROOM_CREATED, PacketDataKeys.MAXIMUM_PLAYERS], 2000);
     if(rData[PacketDataKeys.TYPE] == PacketDataKeys.ROOM_PASSWORD_IS_WRONG_ERROR){
       App.screen = new Rooms();
       MessageBox('Неправильный пароль!');
@@ -180,6 +198,14 @@ export default class Room extends Screen {
       App.screen = new Rooms();
       MessageBox('Вас выгнали');
       return;
+    } else if(rData[PacketDataKeys.TYPE] == PacketDataKeys.MAXIMUM_PLAYERS) {
+      App.screen = new Rooms();
+      MessageBox('Комната переполнена');
+      return;
+    } else if(rData[PacketDataKeys.TYPE] != PacketDataKeys.ROOM_ENTER) {
+      App.screen = new Rooms();
+      MessageBox('Ошибка.. ' + JSON.stringify(rData));
+      return;
     }
 
     const roomData = rData[PacketDataKeys.ROOM];
@@ -205,9 +231,10 @@ export default class Room extends Screen {
     function preInit() {
       const rs = data[PacketDataKeys.ROOM_STATISTICS];
       if(self.messagesElem) {
+        self.messages = [];
         self.messagesElem.innerHTML = '';
         for(const m of rs[PacketDataKeys.MESSAGES])
-         wait(50).then(() => self.addMessage(m, false));
+          wait(50).then(() => self.addMessage(m, false));
       } else {
         self.localFirstMessages = rs[PacketDataKeys.MESSAGES];
       }
@@ -259,7 +286,7 @@ export default class Room extends Screen {
 
     this.loadingDivElem.remove();
 
-    this.on('message', data => {
+    if(!this.isHistory) this.on('message', async data => {
       if(data[PacketDataKeys.TYPE] == PacketDataKeys.MESSAGE){
         this.addMessage(data[PacketDataKeys.MESSAGE]);
       } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.USERS && !this.isGame){
@@ -307,7 +334,8 @@ export default class Room extends Screen {
           this.timer = data[PacketDataKeys.ROOM_STATISTICS][PacketDataKeys.GAME_STATUS][PacketDataKeys.TIMER];
         }
         if(this.isGame) {
-          if(this.clearMessages){
+          if(this.clearMessages) {
+            this.messages = [];
             this.lastMessage = {}
             this.messagesElem.innerHTML = '';
           }
@@ -315,6 +343,33 @@ export default class Room extends Screen {
           this.initGame();
           if(this.status == 3)
             this.updatePlayersGame();
+        }
+
+        if(this.status == 3) {
+          if(App.settings.data.game.saveHistory) {
+            if(!(await fs.existsFile(`${App.config.path}/history.json`)))
+              await fs.writeFile(`${App.config.path}/history.json`, JSON.stringify({ rooms: [] }));
+            const history = JSON.parse(await fs.readFile(`${App.config.path}/history.json`));
+
+            history.rooms.unshift({
+              messages: this.messages,
+              playersStat: this.playersStat,
+              playersData: this.playersData,
+              modelType: this.modelType,
+              title: this.title,
+              maxPlayers: this.maxPlayers,
+              minPlayers: this.minPlayers,
+              minLevel: this.minLevel,
+              isVipEnabled: this.isVipEnabled,
+              selectedRoles: this.selectedRoles,
+              gameDayTime: this.gameDayTime,
+              createdAt: Date.now()
+            });
+
+            await fs.writeFile(`${App.config.path}/history.json`, JSON.stringify(history));
+
+            console.log(`Saved`);
+          }
         }
       } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.ROLES){
         for(const pl of data[PacketDataKeys.ROLES]){
@@ -326,6 +381,8 @@ export default class Room extends Screen {
             this.playersData[uo] = { role };
         }
         this.updatePlayersGame();
+      } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.GAME_FINISHED) {
+        this.status = 3;
       }
     });
 
@@ -337,7 +394,7 @@ export default class Room extends Screen {
     rolesElem.style.alignItems = 'center';
     for(const r of this.selectedRoles){
       const img = document.createElement('img');
-      img.src = await getRoleImg(r);
+      getRoleImg(r).then(e => img.src = e);
       img.width = 25;
       img.height = 35;
       img.onmousedown = e => e.preventDefault();
@@ -433,29 +490,33 @@ export default class Room extends Screen {
     }
     this.element.appendChild(this.resizablePLElem);
 
-    this.gameInfoElem = document.createElement('div');
-    this.gameInfoElem.style.height = '125px';
-    this.gameInfoElem.style.margin = '5px 10px';
-    this.gameInfoElem.style.outline = '2px solid #c0c0c0';
-    this.gameInfoElem.style.borderRadius = '3px';
-    this.gameInfoElem.style.background = 'rgba(255,255,255,.5)';
-    this.gameInfoElem.style.display = 'none';
-    // this.gameInfo.style.flexWrap = 'wrap';
-    // this.gameInfo.style.flexDirection = 'column';
+    this.gameInfoElem = createElement('div', {
+      css: {
+        height: '125px',
+        margin: '5px 10px',
+        outline: '2px solid #c0c0c0',
+        borderRadius: '3px',
+        background: 'rgba(255,255,255,.5)',
+        display: 'none',
+      }
+    });
     this.element.appendChild(this.gameInfoElem);
 
-    this.messagesElem = document.createElement('div');
-    this.messagesElem.style.height = (App.height - (isMobile() ? 285 : 265)) + 'px';
-    this.messagesElem.style.textAlign = 'center';
-    this.messagesElem.style.overflowX = 'hidden';
-    this.messagesElem.style.overflowY = 'overlay';
-    this.messagesElem.style.margin = '10px 10px 5px 10px';
-    this.messagesElem.style.outline = '2px solid #c0c0c0';
-    this.messagesElem.style.borderRadius = '3px';
-    this.messagesElem.style.background = 'rgba(255,255,255,.5)';
-    this.messagesElem.style.display = 'flex';
-    this.messagesElem.style.flexDirection = 'column';
-    this.messagesElem.style.justifyContent = 'flex-start';
+    this.messagesElem = createElement('div', {
+      css: {
+        height: (App.height - (isMobile() ? 285 : 265)) + 'px',
+        textAlign: 'center',
+        overflowX: 'hidden',
+        overflowY: 'overlay',
+        margin: '10px 10px 5px 10px',
+        outline: '2px solid #c0c0c0',
+        borderRadius: '3px',
+        background: 'rgba(255,255,255,.5)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+      }
+    });
     this.element.appendChild(this.messagesElem);
 
     for(const m of this.localFirstMessages) wait(50).then(() => this.addMessage(m, false));
@@ -531,13 +592,26 @@ export default class Room extends Screen {
       this.messagesElem.style.height = (App.height - (isMobile() ? 235 : 215)) + 'px';
     });
 
-    const yourRoleMsg = `Вы<br/>${RuRoles[this.playersData[App.user.objectId].role??0]}`;
+    const yourRoleMsg = `Вы<br/>${RuRoles[this.playersData[App.user.objectId].role! - 1]}`;
     let timer: HTMLDivElement, mafia: HTMLDivElement, mir: HTMLDivElement, giveUpButton: HTMLButtonElement;
     {
       this.gameInfoElem.style.display = 'flex';
       { // me
-        const nick = document.createElement('span');
-        const myRoleImg = document.createElement('img');
+        const nick = createElement('span', {
+          text: noXSS(App.user.username),
+          className: 'black',
+          css: {
+            fontSize: 'smaller',
+            textAlign: 'center',
+            padding: '1px'
+          }
+        });
+        const myRoleImg = createElement('img', {
+          width: 50,
+          height: 70
+        });
+        getRoleImg(this.playersData[App.user.objectId].role ?? 1).then(e => myRoleImg.src = e);
+        myRoleImg.onmousedown = e => e.preventDefault();
         this.deadImgElem = createElement('img', {
           width: 50,
           height: 70,
@@ -592,15 +666,6 @@ export default class Room extends Screen {
             padding: '1px'
           }
         });
-        nick.textContent = noXSS(App.user.username);
-        nick.className = 'black';
-        nick.style.fontSize = 'smaller';
-        nick.style.textAlign = 'center';
-        nick.style.padding = '1px';
-        myRoleImg.src = await getRoleImg(this.playersData[App.user.objectId].role ?? 1);
-        myRoleImg.width = 50;
-        myRoleImg.height = 70;
-        myRoleImg.onmousedown = e => e.preventDefault();
         this.meElem.appendChild(this.yourRoleElem);
         this.meElem.appendChild(myRoleImg);
         this.meElem.appendChild(this.deadImgElem);
@@ -611,30 +676,39 @@ export default class Room extends Screen {
       }
       { // PLAYERS_STAT, timer, giveUp
         const playersStat = this.playersStat ?? {}
-        const div = document.createElement('div');
-        div.style.display = 'flex';
-        div.style.alignItems = 'flex-end';
-        div.style.flexDirection = 'column';
-        div.style.padding = '8px';
-        div.style.width = '100%';
+        const div = createElement('div', {
+          css: {
+            display: 'flex',
+            alignItems: 'flex-end',
+            flexDirection: 'column',
+            padding: '8px',
+            width: '100%'
+          }
+        });
         mafia = document.createElement('div');
         mafia.textContent = noXSS(`Мафия: ${playersStat[PacketDataKeys.MAFIA_ALL]} | ${playersStat[PacketDataKeys.MAFIA_ALIVE]}`);
         mafia.style.color = '#940000';
         mir = document.createElement('div');
         mir.textContent = noXSS(`Мирные: ${playersStat[PacketDataKeys.CIVILIAN_ALL]} | ${playersStat[PacketDataKeys.CIVILIAN_ALIVE]}`);
         mir.style.color = '#186400';
-        timer = document.createElement('div');
-        timer.textContent = noXSS(this.timer+'');
-        timer.className = 'black';
-        timer.style.float = 'right';
-        timer.style.fontSize = '35px';
-        timer.style.fontWeight = 'bold';
-        timer.style.marginTop = '15px';
-        timer.style.padding = '5px';
-        giveUpButton = document.createElement('button');
-        giveUpButton.textContent = 'Сдаться';
-        giveUpButton.style.marginTop = '-5px';
-        giveUpButton.style.display = 'none';
+        timer = createElement('div', {
+          text: noXSS(this.timer + ''),
+          className: 'black',
+          css: {
+            float: 'right',
+            fontSize: '35px',
+            fontWeight: 'bold',
+            marginTop: '15px',
+            padding: '5px'
+          }
+        });
+        giveUpButton = createElement('button', {
+          text: 'Сдаться',
+          css: {
+            marginTop: '-5px',
+            display: 'none'
+          }
+        });
         {
           const role = this.playersData[App.user.objectId].role ?? 1;
           if(this.players.length > 7 && this.playersData[App.user.objectId].alive && ((playersStat[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (playersStat[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
@@ -666,7 +740,7 @@ export default class Room extends Screen {
       } else if(typeof data[PacketDataKeys.TIMER] == 'number'){
         this.timer = data[PacketDataKeys.TIMER];
         timer.textContent = noXSS(data[PacketDataKeys.TIMER]);
-      } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.PLAYERS_STAT){
+      } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.PLAYERS_STAT) {
         mafia.textContent = noXSS(`Мафия: ${data[PacketDataKeys.MAFIA_ALL]} | ${data[PacketDataKeys.MAFIA_ALIVE]}`);
         mir.textContent = noXSS(`Мирные: ${data[PacketDataKeys.CIVILIAN_ALL]} | ${data[PacketDataKeys.CIVILIAN_ALIVE]}`);
 
@@ -907,6 +981,8 @@ export default class Room extends Screen {
     const user = m[PacketDataKeys.USER];
     const objectId = user ? user[PacketDataKeys.OBJECT_ID] : '';
 
+    this.messages.push(m);
+
     if(user || type == 10 || type == 25 || type == 26){
       const username = user ? user[PacketDataKeys.USERNAME] : type == 25 || type == 26 ? 'Информатор' : type == 10 ? 'Мафия' : '???';
       let msgText = text, color = 'black';
@@ -976,9 +1052,9 @@ export default class Room extends Screen {
       else if(type == 20) { msg = `СРОЧНАЯ НОВОСТЬ!\nЖурналист провел расследование и как оказалось игроки [${text.split('#')[0]}] и [${text.split('#')[2]}] играют в разных командах`; color = '#940000' }
       else if(type == 22) { msg = `ничья` }
       else if(type == 23) {
-          msg = `[${text.split('#')[0]}] начал голосование, чтобы выгнать игрока [${text.split('#')[2]}] из комнаты\n`;
-          xssAllowed = true;
-          color = '#113B81';
+        msg = `[${text.split('#')[0]}] начал голосование, чтобы выгнать игрока [${text.split('#')[2]}] из комнаты\n`;
+        xssAllowed = true;
+        color = '#113B81';
       }
       else if(type == 24) { msg = `Завершилось голосование. Выгнать игрока?\nРезультат голосования:\nДа: ${text.split('|')[0]} | Нет: ${text.split('|')[1]}`; color = '#113B81' }
       div.innerHTML = (xssAllowed ? msg : noXSS(msg)).replaceAll(`\n`,'<br/>');

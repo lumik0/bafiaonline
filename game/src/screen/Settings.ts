@@ -58,7 +58,7 @@ export default class Settings extends Screen{
       const t = document.createElement('span');
       t.className = 'black';
       t.style.marginLeft = '10px';
-      t.textContent = text;
+      t.innerHTML = text.replaceAll('\n', '<br/>');
       d.appendChild(t);
       const cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -149,7 +149,13 @@ export default class Settings extends Screen{
     addCheckbox('Показывать сообщение "Вы умерли"?', v => {
       App.settings.data.game.showYouDiedMessage = v;
     }, App.settings.data.game.showYouDiedMessage);
-    addCheckbox('Для разработчиков\n\nЭто удобно для создания мода и т.д.', v => {
+    addCheckbox('Удалять все сообщения после начала игры?', v => {
+      App.settings.data.game.clearMessages = v;
+    }, App.settings.data.game.clearMessages);
+    addCheckbox('Сохранять историю комнаты после конца игры?', v => {
+      App.settings.data.game.saveHistory = v;
+    }, App.settings.data.game.saveHistory);
+    addCheckbox('Для разработчиков\nЭто удобно для создания мода и т.д.', v => {
       App.settings.data.developer = v;
     }, App.settings.data.developer);
 

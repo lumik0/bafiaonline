@@ -55,7 +55,7 @@ export default class Server extends Events<ServerEvents> {
     const ReversePacketDataKeys = Object.fromEntries(Object.entries(PacketDataKeys).map(([k, v]) => [v, k]));
 
     function decodePacket(value: any): any {
-      if(value === null || typeof value !== 'object') {
+      if(value === null || typeof value != 'object') {
         return value;
       }
 
@@ -77,7 +77,10 @@ export default class Server extends Events<ServerEvents> {
       const json = JSON.parse(e.data);
 
       this.call('message', json);
-      if(App.settings.data.debug) console.log(json, decodePacket(json));
+      if(App.settings.data.debug) {
+        if(json[PacketDataKeys.TIMER] && Object.keys(json).length == 1) return;
+        console.log(json, decodePacket(json));
+      }
     });
   }
 

@@ -119,7 +119,7 @@ class App extends Events<AppEvents> {
       // @ts-ignore
       this.appId = window['apps'].length;
       // @ts-ignore
-      window['apps'].push(App);
+      window['apps'].push(this);
     }
 
     this.#loadImgs();

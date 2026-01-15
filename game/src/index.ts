@@ -4,7 +4,7 @@ import IWindow from '../../core/src/IWindow'
 import fs from '../../core/src/fs/fs';
 
 // @ts-ignore
-window.main = async function (conf: Config, win: IWindow, element: HTMLElement) {
+window.main = async function(conf: Config, win: IWindow, element: HTMLElement) {
   // @ts-ignore
   delete window.main;
   App.config = config(conf);

@@ -6,7 +6,7 @@ import MessageBox from "./dialog/MessageBox";
 
 export default class Settings {
   data = {
-    version: 4,
+    version: 5,
     debug: false,
     developer: false,
     window: {
@@ -16,6 +16,8 @@ export default class Settings {
       widthPL: 130,
       zoomPL: 1,
       showYouDiedMessage: true,
+      saveHistory: true,
+      clearMessages: true,
       barmanEffect: '!'
     },
     roomCreate: {
@@ -35,11 +37,15 @@ export default class Settings {
   #wrapObject(obj: any) {
     for(const key in obj) {
       if(obj.hasOwnProperty(key)) {
+        let value = obj[key];
         if(typeof obj[key] == 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
           this.#wrapObject(obj[key]);
         }
 
-        wrap(obj, key, () => this.#isInitialized && this.write());
+        wrap(obj, key, v => {
+          value = v;
+          this.write()
+        }, () => value);
       }
     }
   }
@@ -52,6 +58,7 @@ export default class Settings {
   }
 
   async write() {
+    // console.log(JSON.stringify(this.data));
     await fs.writeFile(`${App.config.path}/settings.json`, JSON.stringify(this.data));
   }
 
@@ -83,24 +90,10 @@ export default class Settings {
     let data = { ...savedData };
 
     when(savedVersion)
-      .case(1, () => currentVersion >= 2 && (() => {
-        if(typeof data.settings == 'undefined') {
-          data.settings = {
-            title: "",
-            dayTime: 0,
-            minPlayers: 5,
-            maxPlayers: 8,
-            minLevel: 1,
-            selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10],
-            password: '',
-            vip: false
-          };
-        }
-        data.version = 2;
-      })())
-      .case(3, () => currentVersion >= 4 && (() => {
-        data.game.showYouDiedMessage = true
-        data.version = 4;
+      .case(4, () => currentVersion >= 5 && (() => {
+        data.game.saveHistory = true
+        data.game.clearMessages = true
+        data.version = 5;
       })());
 
     return data;

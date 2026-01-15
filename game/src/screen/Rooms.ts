@@ -15,6 +15,9 @@ import LoadingBox from "../dialog/LoadingBox";
 import { noXSS, wait } from "../../../core/src/utils/utils";
 import RoomCreation from "./RoomCreation";
 import md5salt from "../../../core/src/utils/md5";
+import format, { formatDate } from "../../../core/src/utils/format";
+import ConfirmBox from "../dialog/ConfirmBox";
+import { History } from "./History";
 
 export default class Rooms extends Screen {
   div!: HTMLDivElement
@@ -241,7 +244,8 @@ export default class Rooms extends Screen {
   }
 
   static orderRoles = [2, 7, 10, 11, 9, 5, 6, 8];
-  static getRoomElement(room: any){
+  static getRoomElement(room: any) {
+    const isHistory = typeof room.isHistory == 'boolean' && room.isHistory;
     const isProfileInfo = typeof room[PacketDataKeys.SAME_ROOM] == 'boolean';
     const objectId = room[PacketDataKeys.OBJECT_ID];
     const level = room[PacketDataKeys.MIN_LEVEL];
@@ -268,7 +272,11 @@ export default class Rooms extends Screen {
         App.screen = new Room(objectId, { password, sendRoomEnter: true });
         return;
       }
-      App.screen = new Room(objectId);
+      if(isHistory) {
+        App.screen = new Room(objectId, { isHistory, data: room.data });
+      } else {
+        App.screen = new Room(objectId);
+      }
     }
 
     const div = document.createElement('div');
@@ -304,7 +312,7 @@ export default class Rooms extends Screen {
     if(!isProfileInfo) div.oncontextmenu = async(e)=>{
       e.preventDefault();
       const joinPl = `Зайти когда ${room[PacketDataKeys.MAX_PLAYERS]-1} игроков будет`;
-      const cx = new ContextMenu(['Зайти',joinPl,'Скопировать object id'], e);
+      const cx = new ContextMenu(isHistory ? ['Посмотреть', 'Удалить'] : ['Зайти',joinPl,'Скопировать object id'], e);
       const result = await cx.waitForResult();
       when(result)
         .case(joinPl, async() => {
@@ -335,14 +343,28 @@ export default class Rooms extends Screen {
           }).key('waitingRils');
           loading.box.on('destroy', () => App.server.removeByKey('waitingRils'));
         })
+        .case('Посмотреть', () => join())
+        .case('Зайти', () => join())
+        .case('Удалить', async () => {
+          if(!isHistory) return;
+          if(!(await ConfirmBox(`Вы уверены что хотите удалить?`))) return;
+          if(!(await fs.existsFile(`${App.config.path}/history.json`)))
+            await fs.writeFile(`${App.config.path}/history.json`, JSON.stringify({ rooms: [] }));
+          const history = JSON.parse(await fs.readFile(`${App.config.path}/history.json`));
+
+          history.rooms.splice(Number(objectId), 1);
+
+          await fs.writeFile(`${App.config.path}/history.json`, JSON.stringify(history));
+          App.screen = new History();
+        })
         .case(`Скопировать object id`, () => {
 
         });
     };
     getTexture(`rank/rank${rank}_36.png`).then(e => levelImg.src = e);
     title.textContent = `${room[PacketDataKeys.PASSWORD] ? '🔒 ' : ''}` + room[PacketDataKeys.TITLE];// + ` (${room[PacketDataKeys.MIN_LEVEL]})`;
-    status.textContent = room[PacketDataKeys.STATUS] == 0 ? `Регистрация` : `Игра началась`
-    status.style.color = room[PacketDataKeys.STATUS] == 0 ? `green` : `red`
+    status.textContent = isHistory ? formatDate(room['created']) : room[PacketDataKeys.STATUS] == 0 ? `Регистрация` : `Игра началась`;
+    status.style.color = isHistory ? 'black' : room[PacketDataKeys.STATUS] == 0 ? `green` : `red`
     title.prepend(levelImg);
     title.appendChild(status);
     div.appendChild(title);
