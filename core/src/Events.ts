@@ -39,14 +39,34 @@ export class EventHandle<T extends (...args: any[]) => void> {
 
 export type EventCMap = Record<string, (...args: any[]) => any>;
 
-export default class Events<Cust extends EventCMap = {}> {
+export interface IEvents<Cust extends EventCMap = {}> {
+  on<K extends keyof Cust>(evt: K, callback: Cust[K], priority?: EventPriority): EventHandle<Cust[K]>
+  once<K extends keyof Cust>(evt: K, callback: Cust[K], priority?: EventPriority): EventHandle<Cust[K]>
+  off<K extends keyof Cust>(evt: K, callback: Cust[K]): boolean
+
+  /**
+    * Объект(событие) может измениться
+    */
+  call<K extends keyof Cust>(evt: K, event?: Parameters<Cust[K]>[0]): Promise<Parameters<Cust[K]>[0]>
+  /**
+    * Синхронный вызов слушателей (с приоритетом)
+    */
+  emit<K extends keyof Cust>(evt: K, ...args: Parameters<Cust[K]> | []): boolean
+  /**
+    * Асинхронный вызов слушателей (с приоритетом, собирает результаты)
+    */
+  emitR<K extends keyof Cust>(evt: K, ...args: Parameters<Cust[K]> | []): Promise<ReturnType<Cust[K]>[]>
+
+  wait<K extends keyof Cust>(type: K, timeout?: number): Promise<Parameters<Cust[K]> | []>
+
+  removeByKey(key: string): boolean
+  removeAllEvents(): void
+}
+
+export default class Events<Cust extends EventCMap = {}> implements IEvents {
   private customListeners: { [K in keyof Cust]?: EventHandle<Cust[K]>[] } = {};
 
-  public on<K extends keyof Cust>(
-    evt: K,
-    callback: Cust[K],
-    priority: EventPriority = EventPriority.NORMAL
-  ): EventHandle<Cust[K]> {
+  on<K extends keyof Cust>(evt: K, callback: Cust[K], priority: EventPriority = EventPriority.NORMAL): EventHandle<Cust[K]> {
     const handle = new EventHandle(evt as string, callback, this, priority);
 
     let arr = this.customListeners[evt];
@@ -64,20 +84,14 @@ export default class Events<Cust extends EventCMap = {}> {
 
     return handle;
   }
-
-  public once<K extends keyof Cust>(
-    evt: K,
-    callback: Cust[K],
-    priority: EventPriority = EventPriority.NORMAL
-  ): EventHandle<Cust[K]> {
+  once<K extends keyof Cust>(evt: K, callback: Cust[K], priority: EventPriority = EventPriority.NORMAL): EventHandle<Cust[K]> {
     const wrapper = ((...args: any[]) => {
       callback(...args);
       this.off(evt, wrapper as Cust[K]);
     }) as Cust[K];
     return this.on(evt, wrapper, priority);
   }
-
-  public off<K extends keyof Cust>(evt: K, callback: Cust[K]): boolean {
+  off<K extends keyof Cust>(evt: K, callback: Cust[K]): boolean {
     const arr = this.customListeners[evt];
     if(!arr) return false;
     const before = arr.length;
@@ -85,13 +99,7 @@ export default class Events<Cust extends EventCMap = {}> {
     return arr.length < before;
   }
 
-  /**
-    * Объект(событие) может измениться
-    */
-  public async call<K extends keyof Cust>(
-    evt: K,
-    event: Parameters<Cust[K]>[0] = undefined
-  ): Promise<Parameters<Cust[K]>[0]> {
+  async call<K extends keyof Cust>(evt: K, event: Parameters<Cust[K]>[0] = undefined): Promise<Parameters<Cust[K]>[0]> {
     const arr = this.customListeners[evt];
     if(!arr) return event;
 
@@ -102,14 +110,7 @@ export default class Events<Cust extends EventCMap = {}> {
 
     return event;
   }
-
-  /**
-    * Синхронный вызов слушателей (с приоритетом)
-    */
-  public emit<K extends keyof Cust>(
-    evt: K,
-    ...args: Parameters<Cust[K]> | []
-  ): boolean {
+  emit<K extends keyof Cust>(evt: K, ...args: Parameters<Cust[K]> | []): boolean {
     const arr = this.customListeners[evt];
     if(!arr) return false;
 
@@ -119,14 +120,7 @@ export default class Events<Cust extends EventCMap = {}> {
 
     return arr.length > 0;
   }
-
-  /**
-    * Асинхронный вызов слушателей (с приоритетом, собирает результаты)
-    */
-  public async emitR<K extends keyof Cust>(
-    evt: K,
-    ...args: Parameters<Cust[K]> | []
-  ): Promise<ReturnType<Cust[K]>[]> {
+  async emitR<K extends keyof Cust>(evt: K, ...args: Parameters<Cust[K]> | []): Promise<ReturnType<Cust[K]>[]> {
     const arr = this.customListeners[evt];
     if(!arr) return [];
 
@@ -157,7 +151,7 @@ export default class Events<Cust extends EventCMap = {}> {
     });
   }
 
-  public removeByKey(key: string): boolean {
+  removeByKey(key: string): boolean {
     let removed = false;
     for(const evt in this.customListeners) {
       const arr = this.customListeners[evt as keyof Cust];
@@ -176,7 +170,7 @@ export default class Events<Cust extends EventCMap = {}> {
     this.customListeners[handle.event as keyof Cust] = arr.filter(h => h !== handle);
   }
 
-  public removeAllEvents() {
+  removeAllEvents() {
     this.customListeners = {};
   }
 }

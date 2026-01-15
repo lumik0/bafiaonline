@@ -4,7 +4,7 @@ interface FileEntry { type: 'file'; content: Blob; }
 interface DirEntry { type: 'dir'; }
 type Entry = FileEntry | DirEntry;
 export class IndexedDB implements FSBackend {
-  private db: IDBDatabase;
+  private db!: IDBDatabase;
   private objectStore = "Storage";
   public logDebug = false;
 
@@ -48,6 +48,7 @@ export class IndexedDB implements FSBackend {
     path = this.getPath(path);
     const store = this.transaction();
     return new Promise<void>((res, rej) => {
+      // @ts-ignore
       const content = data instanceof Blob ? data : new Blob([data instanceof Uint8Array ? data : String(data)]);
       const entry: FileEntry = { type: 'file', content };
       const request = store.put(entry, path);
@@ -284,6 +285,7 @@ export class IndexedDB implements FSBackend {
   async loadImage(path: string): Promise<HTMLImageElement> {
     path = this.getPath(path);
     const data = await this.readFileBytes(path);
+    // @ts-ignore
     const blob = new Blob([data]);
     const url = URL.createObjectURL(blob);
     return new Promise((res, rej) => {
@@ -336,8 +338,7 @@ export class IndexedDB implements FSBackend {
 
           clearRequest.onsuccess = () => {};
           clearRequest.onerror = event => {
-            new Error(`Error deleting store "${storeName}":`, (event.target as IDBRequest).error);
-            res(false);
+            rej(new Error(`Error deleting store "${storeName}":`, (event.target as IDBRequest).error!));
             return;
           };
         }
@@ -349,8 +350,7 @@ export class IndexedDB implements FSBackend {
       };
 
       request.onerror = event => {
-        new Error('Error opening db', (event.target as IDBRequest).error);
-        res(false);
+        rej(new Error('Error opening db', (event.target as IDBRequest).error!));
       };
     });
   }
@@ -359,6 +359,7 @@ export class IndexedDB implements FSBackend {
     const bytes = await this.readFileBytes(path);
 
     if(typeof crypto.subtle == 'undefined') return Math.random().toString();
+    // @ts-ignore
     const hashBuffer = await crypto.subtle.digest("SHA-1", bytes);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");

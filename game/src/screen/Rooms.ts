@@ -104,14 +104,16 @@ export default class Rooms extends Screen {
       const filterBtn = document.createElement('button');
       filterBtn.textContent = `Фильтр`;
       filterBtn.onclick = () => {
-        const box = new Box({ title: 'ФИЛЬТР', width: 150, height: 150, canCloseAnywhere: true });
+        MessageBox('Скоро..');
+        // const box = new Box({ title: 'ФИЛЬТР', width: 150, height: 150, canCloseAnywhere: true });
       }
       filterElem.appendChild(filterBtn);
 
       const sortBtn = document.createElement('button');
       sortBtn.textContent = `Сортировка`;
       sortBtn.onclick = () => {
-        const box = new Box({ title: 'СОРТИРОВКА', width: 150, height: 150, canCloseAnywhere: true });
+        MessageBox('Скоро..');
+        // const box = new Box({ title: 'СОРТИРОВКА', width: 150, height: 150, canCloseAnywhere: true });
       }
       filterElem.appendChild(sortBtn);
 

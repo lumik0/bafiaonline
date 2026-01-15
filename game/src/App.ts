@@ -107,8 +107,7 @@ class App extends Events<AppEvents> {
     this.element.tabIndex = 0;
     this.element.style.zoom = this.settings.data.window.zoom + "";
     this.element.appendChild(await style(`${this.config.path}/assets/styles/main.json`),);
-    if(isMobile())
-      this.element.appendChild(await style(`${this.config.path}/assets/styles/mobile.json`),);
+    if(isMobile()) this.element.appendChild(await style(`${this.config.path}/assets/styles/mobile.json`),);
     this.width = this.element.clientWidth;
     this.height = this.element.clientHeight;
     this.server = new Server();

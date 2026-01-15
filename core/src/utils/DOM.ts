@@ -27,15 +27,21 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(tagName: K,
   id?: string
   text?: string
   html?: string
+  type?: string
+  checked?: boolean
+  value?: string
   width?: number
   height?: number
   css?: CSSStyleDeclaration|object
-}): HTMLElementTagNameMap[K] {
+}, callback: (elem: HTMLElementTagNameMap[K]) => void = () => {}): HTMLElementTagNameMap[K] {
   const elem = document.createElement(tagName);
   if(options.className) elem.className = options.className;
   if(options.id) elem.id = options.id;
   if(options.text) elem.textContent = options.text;
   if(options.html) elem.innerHTML = options.html;
+  if(options.type) (elem as HTMLInputElement).type = options.type;
+  if(options.checked) (elem as HTMLInputElement).checked = options.checked;
+  if(options.value) (elem as HTMLInputElement).value = options.value;
   if(options.width) (elem as HTMLImageElement).width = options.width;
   if(options.height) (elem as HTMLImageElement).height = options.height;
   if(options.css){
@@ -44,6 +50,8 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(tagName: K,
       elem.style[key] = options.css[key];
     }
   }
+
+  callback(elem);
 
   return elem;
 }

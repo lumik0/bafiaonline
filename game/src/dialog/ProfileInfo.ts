@@ -51,7 +51,7 @@ function calculateStatsWithRoles(profile: any) {
 
 export default async function ProfileInfo(userObjectId: string){
   const zoom = getZoom();
-  const box = new Box({ title: 'ПРОФИЛЬ', width: (App.width/zoom)/.75, height: (App.height/zoom)/.75, canCloseAnywhere: true });
+  const box = new Box({ title: 'ПРОФИЛЬ', width: (App.width/zoom)/.85, height: (App.height/zoom)/.75, canCloseAnywhere: true });
   // box.element.style.zoom = (zoom / 1.75) + '';
 
   box.content.style.overflowY = 'overlay';

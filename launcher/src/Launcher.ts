@@ -10,6 +10,7 @@ import MD5 from '../../core/src/utils/md5'
 import { isMobile } from '../../core/src/utils/mobile';
 import App from './App';
 import { Alert } from './dialog/Alert';
+import { createElement } from '../../core/src/utils/DOM';
 
 function uuidv4() {
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16));
@@ -39,6 +40,7 @@ export default class Launcher {
   listProfiles!: HTMLSelectElement
   playBtn!: HTMLButtonElement
   updateBtn!: HTMLButtonElement
+  settingsBtn!: HTMLButtonElement
 
   constructor(){
     this.win = new Window({
@@ -115,7 +117,8 @@ export default class Launcher {
     this.options = JSON.parse(await fs.readFile(`/options.json`));
   }
 
-  async #initContent(checkVersions = true){
+  async #initContent(checkVersions = true) {
+    const self = this
     const updateVersions: Version[] = [];
     this.win.content.innerHTML = '';
 
@@ -132,84 +135,221 @@ export default class Launcher {
     this.progressBar.style.width = '100%'
     div.appendChild(this.progressBar);
 
-    const versions = document.createElement('div');
-    versions.style.display = 'flex';
-    versions.style.alignItems = 'center';
-    versions.style.fontSize = '13px';
-    const txtVersions = document.createElement('span');
-    txtVersions.style.minWidth = '70px'
-    txtVersions.textContent = `Версии:`;
-    versions.appendChild(txtVersions);
-    this.listVersions = document.createElement(`select`);
-    this.listVersions.value = 'Выберите версию..';
-    this.listVersions.style.width = '100%';
-    this.listVersions.value = this.options.version;
-    for(const ver of this.versions){
-      const el = document.createElement('option');
-      el.innerHTML = ver.name;
-      if(ver.scriptPath && checkVersions) updateVersions.push(ver);
-      this.listVersions.appendChild(el);
-    }
-    versions.appendChild(this.listVersions);
-    const addVersionBtn = document.createElement('button');
-    addVersionBtn.innerHTML = `+`;
-    addVersionBtn.onclick = () => this.addVersion();
-    versions.appendChild(addVersionBtn);
-    const removeVersionBtn = document.createElement('button');
-    removeVersionBtn.innerHTML = `-`;
-    removeVersionBtn.onclick = async() => {
-      const p = this.versions.findIndex(e => e.name == this.listVersions.value);
-      if(p != -1){
-        const version = this.versions[p];
-        removeVersionBtn.disabled = true;
-        this.versions.splice(p, 1);
-        await fs.deleteDirectory(version.path, true);
-        await this.writeData();
-        this.#initContent();
-      }
-    }
-    versions.appendChild(removeVersionBtn);
-    div.appendChild(versions);
+    {
+      const tabs = createElement('div', {
+        css: {
+          background: '#0f0e0e',
+          borderRadius: '5px',
+          width: '100%'
+        }
+      });
+      div.appendChild(tabs);
 
-    const profiles = document.createElement('div');
-    profiles.style.display = 'flex';
-    profiles.style.alignItems = 'center';
-    profiles.style.fontSize = '13px'
-    const txtProfiles = document.createElement('span');
-    txtProfiles.style.minWidth = '70px'
-    txtProfiles.textContent = `Профили:`;
-    profiles.appendChild(txtProfiles);
-    this.listProfiles = document.createElement(`select`);
-    this.listProfiles.value = 'Выберите профиль..';
-    this.listProfiles.style.width = '100%';
-    this.listProfiles.value = this.options.profile;
-    for(const pr of this.profiles){
-      const el = document.createElement('option');
-      el.innerHTML = pr.name;
-      if(pr.name == '') {
-        pr.name = 'Новый аккаунт';
-        el.style.background = '#57e057';
+      const btns = createElement('div', {
+        css: {
+          width: '100%'
+        }
+      });
+      tabs.appendChild(btns);
+
+      const contents = createElement('div', {
+        css: {
+          width: '10%%'
+        }
+      });
+      tabs.appendChild(contents);
+
+      let size = 0, maxSize = 2;
+      function addTab(name: string, content: HTMLElement, defaultSelected = false) {
+        const btn = createElement('button', {
+          text: name,
+          css: {
+            borderRadius: size == 0 ? '5px 0 0 0' : size == maxSize-1 ? '0 5px 0 0' : '0'
+          }
+        });
+        btn.onclick = () => {
+          Array.from(contents.children).forEach(e => (e as HTMLElement).style.display = 'none');
+          content.style.display = 'block';
+        }
+
+        if(!defaultSelected) content.style.display = 'none';
+
+        btns.appendChild(btn);
+        contents.appendChild(content);
+        size++;
       }
-      this.listProfiles.appendChild(el);
+
+      addTab('Профили', createElement('div', {}, elem => {
+        const selectedProfile = createElement('span', {
+          text: 'Выбран: никакой',
+          css: {
+            margin: '5px',
+            verticalAlign: 'text-bottom',
+            fontSize: '12px'
+          }
+        });
+
+        this.listProfiles = document.createElement(`select`);
+        this.listProfiles.size = 3
+        this.listProfiles.value = 'Выберите профиль..';
+        this.listProfiles.style.width = '100%';
+        this.listProfiles.onchange = e => {
+          const p = this.profiles.find(e => e.name == this.listProfiles.value);
+          if(p) {
+            selectedProfile.textContent = `Выбран: ` + noXSS(p.name);
+          } else {
+            selectedProfile.textContent = `Выбран: никакой`;
+          }
+        }
+        function update() {
+          self.listProfiles.value = self.options.profile;
+          for(const pr of self.profiles){
+            const el = document.createElement('option');
+            el.innerHTML = pr.name;
+            if(pr.name == '') {
+              pr.name = 'Новый аккаунт';
+              el.style.background = '#57e057';
+            }
+            self.listProfiles.appendChild(el);
+          }
+          selectedProfile.textContent = `Выбран: ` + noXSS(self.options.profile);
+        }
+        update()
+        elem.appendChild(this.listProfiles);
+
+        const addProfileBtn = createElement('button', {
+          text: '+',
+          css: {
+            width: '20px',
+            height: '20px',
+            borderRadius: '5px 0 0 5px',
+            fontFamily: 'monospace',
+            padding: '0'
+          }
+        });
+        addProfileBtn.onclick = () => this.addProfile();
+        elem.appendChild(addProfileBtn);
+        const removeProfileBtn = createElement('button', {
+          text: '-',
+          css: {
+            width: '20px',
+            height: '20px',
+            borderRadius: '0 5px 5px 0',
+            fontFamily: 'monospace',
+            padding: '0'
+          }
+        });
+        removeProfileBtn.onclick = async () => {
+          const p = this.profiles.findIndex(e => e.name == this.listProfiles.value);
+          if(p != -1) {
+            this.win.lock();
+            const profile = this.profiles[p];
+            this.profiles.splice(p, 1);
+            await this.writeData();
+            this.statusText.innerHTML = `Профиль ${profile.name} удален`;
+            this.win.unlock();
+            update();
+          }
+        }
+        elem.appendChild(removeProfileBtn);
+        elem.appendChild(selectedProfile);
+      }), true);
+      addTab('Версии', createElement('div', {}, elem => {
+        this.listVersions = document.createElement(`select`);
+        this.listVersions.size = 3
+        this.listVersions.value = 'Выберите версию..';
+        this.listVersions.style.width = '100%';
+        function update() {
+          self.listVersions.innerHTML = '';
+          self.listVersions.value = self.options.version;
+          for(const ver of self.versions){
+            const el = document.createElement('option');
+            el.innerHTML = ver.name;
+            if(ver.scriptPath && checkVersions) updateVersions.push(ver);
+            self.listVersions.appendChild(el);
+          }
+        }
+        update()
+        elem.appendChild(self.listVersions);
+
+        const addVersionBtn = createElement('button', {
+          text: '+',
+          css: {
+            width: '20px',
+            height: '20px',
+            borderRadius: '5px 0 0 5px',
+            fontFamily: 'monospace',
+            padding: '0'
+          }
+        });
+        addVersionBtn.onclick = () => this.addVersion();
+        elem.appendChild(addVersionBtn);
+        const removeVersionBtn = createElement('button', {
+          text: '-',
+          css: {
+            width: '20px',
+            height: '20px',
+            borderRadius: '0 5px 5px 0',
+            fontFamily: 'monospace',
+            padding: '0'
+          }
+        });
+        removeVersionBtn.onclick = async() => {
+          const p = this.versions.findIndex(e => e.name == this.listVersions.value);
+          if(p != -1) {
+            this.win.lock()
+            const version = this.versions[p];
+            this.versions.splice(p, 1);
+            await fs.deleteDirectory(version.path, true);
+            await this.writeData();
+            this.statusText.innerHTML = `Версия ${version.name} удалена`;
+            this.win.unlock();
+            update()
+          }
+        }
+        elem.appendChild(removeVersionBtn);
+      }));
     }
-    profiles.appendChild(this.listProfiles);
-    const addProfileBtn = document.createElement('button');
-    addProfileBtn.innerHTML = `+`;
-    addProfileBtn.onclick = () => this.addProfile();
-    profiles.appendChild(addProfileBtn);
-    const removeProfileBtn = document.createElement('button');
-    removeProfileBtn.innerHTML = `-`;
-    removeProfileBtn.onclick = async() => {
-      const p = this.profiles.findIndex(e => e.name == this.listProfiles.value);
-      if(p != -1){
-        removeProfileBtn.disabled = true;
-        this.profiles.splice(p, 1);
-        await this.writeData();
-        this.#initContent();
-      }
-    }
-    profiles.appendChild(removeProfileBtn);
-    div.appendChild(profiles);
+
+    // const profiles = document.createElement('div');
+    // profiles.style.display = 'flex';
+    // profiles.style.alignItems = 'center';
+    // profiles.style.fontSize = '13px'
+    // const txtProfiles = document.createElement('span');
+    // txtProfiles.style.minWidth = '70px'
+    // txtProfiles.textContent = `Профили:`;
+    // profiles.appendChild(txtProfiles);
+    // this.listProfiles = document.createElement(`select`);
+    // this.listProfiles.value = 'Выберите профиль..';
+    // this.listProfiles.style.width = '100%';
+    // this.listProfiles.value = this.options.profile;
+    // for(const pr of this.profiles){
+    //   const el = document.createElement('option');
+    //   el.innerHTML = pr.name;
+    //   if(pr.name == '') {
+    //     pr.name = 'Новый аккаунт';
+    //     el.style.background = '#57e057';
+    //   }
+    //   this.listProfiles.appendChild(el);
+    // }
+    // profiles.appendChild(this.listProfiles);
+    // const addProfileBtn = document.createElement('button');
+    // addProfileBtn.innerHTML = `+`;
+    // addProfileBtn.onclick = () => this.addProfile();
+    // profiles.appendChild(addProfileBtn);
+    // const removeProfileBtn = document.createElement('button');
+    // removeProfileBtn.innerHTML = `-`;
+    // removeProfileBtn.onclick = async() => {
+    //   const p = this.profiles.findIndex(e => e.name == this.listProfiles.value);
+    //   if(p != -1){
+    //     removeProfileBtn.disabled = true;
+    //     this.profiles.splice(p, 1);
+    //     await this.writeData();
+    //     this.#initContent();
+    //   }
+    // }
+    // profiles.appendChild(removeProfileBtn);
+    // div.appendChild(profiles);
 
     const btns = document.createElement('div');
     btns.style.display = 'flex';
@@ -258,17 +398,130 @@ export default class Launcher {
     }
     btns.appendChild(this.updateBtn);
 
-    const githubBtn = document.createElement('button');
-    githubBtn.innerHTML = `Github`;
-    githubBtn.style.margin = '1px';
-    githubBtn.onclick = () => window.open('https://github.com/lumik0/bafiaonline', '_blank');
-    btns.appendChild(githubBtn);
+    this.settingsBtn = document.createElement('button');
+    this.settingsBtn.innerHTML = `Настройки`;
+    this.settingsBtn.style.margin = '1px';
+    this.settingsBtn.onclick = async () => {
+      this.openSettings();
+    }
+    btns.appendChild(this.settingsBtn);
 
     const info = document.createElement('div');
-    info.innerHTML = `Есть идеи что-то добавить? Нашли баг? Проблемы? <a href="https://t.me/bafiaonlinebot">@bafiaonlinebot</a>`;
+    info.style.fontSize = '12px'
+    info.innerHTML = ``.replaceAll('\n', '<br/>');
+    fetch('https://raw.githubusercontent.com/lumik0/bafiaonline/refs/heads/master/core/news.txt').then(r => r.status == 200 ? r.text() : null).then(t => info.innerHTML = t ? t.replaceAll('\n', '<br/>') : '');
     div.appendChild(info);
 
-    this.updateBtn.click();
+    const extra = document.createElement('div');
+    extra.style.fontSize = '12px'
+    extra.innerHTML = `\nЕсть идеи что-то добавить? Нашли баг? Проблемы? <a href="https://t.me/bafiaonlinebot">@bafiaonlinebot</a>
+Исходный код: <a href="https://github.com/lumik0/bafiaonline">Github</a>`.replaceAll('\n', '<br/>');
+    div.appendChild(extra);
+
+    // this.updateBtn.click();
+  }
+
+  openSettings() {
+    this.win.lock();
+
+    const width = isMobile() ? window.innerWidth-150 : 300
+    const win = new Window({
+      title: 'Настройки',
+      width,
+      height: 220,
+      resizable: false,
+      moveable: false,
+      noMobile: true,
+      minButton: false,
+      maxButton: false,
+      x: this.win.x + (this.win.width - width) / 2,
+      y: this.win.y + (this.win.height - 200) / 2,
+    });
+    win.content.style.overflow = 'hidden';
+    win.on('close', () => {
+      this.win.unlock();
+    });
+
+    const div = document.createElement('div');
+    div.style.padding = '2px';
+    win.content.appendChild(div);
+
+    const e = document.createElement('div');
+    e.style.display = 'flex';
+    e.style.padding = '5px';
+    e.style.flexDirection = 'column';
+    div.appendChild(e);
+
+    function addCheckbox(text: string, onChange: (v: boolean) => void, value = false){
+      const d = createElement('div', {
+        css: {
+          borderRadius: '10px',
+          background: '#212020',
+          height: '30px',
+          margin: '2px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }
+      });
+
+      e.appendChild(d);
+      const t = createElement('span', {
+        css: {
+          marginLeft: '10px'
+        },
+        text
+      });
+      d.appendChild(t);
+      const cb = createElement('input', {
+        type: 'checkbox',
+        checked: value,
+        css: {
+          zoom: '1.5'
+        }
+      });
+      cb.onchange = () => onChange(cb.checked);
+      d.appendChild(cb);
+    }
+    function addButton(text: string, btnText: string, onClick: () => void){
+      const d = createElement('div', {
+        css: {
+          borderRadius: '10px',
+          background: '#212020',
+          height: '30px',
+          margin: '2px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }
+      });
+
+      e.appendChild(d);
+      const t = createElement('span', {
+        css: {
+          marginLeft: '10px'
+        },
+        text
+      });
+      d.appendChild(t);
+      const btn = createElement('button', {
+        text: btnText,
+      });
+      btn.onclick = () => onClick();
+      d.appendChild(btn);
+    }
+
+    addButton('Очистить все данные', 'Очистить', async() => {
+      const e = confirm('Вы уверены? Восстановить будет невозможно');
+      if(e) {
+        try {
+          await fs.erase();
+          window.location.reload();
+        } catch(e) {
+          alert(`Ошибка: ${e}`);
+        }
+      }
+    });
   }
 
   addProfile() {
@@ -602,7 +855,7 @@ export default class Launcher {
     const loadFileBtn = document.createElement('button');
     loadFileBtn.style.width = '100%'
     loadFileBtn.innerHTML = 'Загрузить файл';
-    loadFileBtn.onclick = () => this.readDownloadVersion();
+    loadFileBtn.onclick = () => this.downloadFileVersion();
     win.content.appendChild(loadFileBtn);
 
     const div = document.createElement('div');
@@ -618,9 +871,8 @@ export default class Launcher {
       try{
         const version = await this.readVersion(src);
         if(version){
-          win.lock();
-          await self.downloadVersion({...version, scriptPath: src});
           win.close();
+          await self.downloadVersion({...version, scriptPath: src});
         } else {
           alert(`Ошибка: ${e}`);
         }
@@ -646,10 +898,9 @@ export default class Launcher {
         if(version){
           const e = document.createElement('button');
           e.textContent = noXSS(url);
-          e.onclick = async() => {
-            win.lock();
-            await self.downloadVersion({...version, scriptPath: url});
+          e.onclick = async () => {
             win.close();
+            await self.downloadVersion({...version, scriptPath: url});
           }
           foundScripts.appendChild(e);
           found = true;
@@ -685,7 +936,7 @@ export default class Launcher {
     self.addVersion(version);
   }
 
-  readDownloadVersion(){
+  downloadFileVersion(){
     const self = this;
     const input = document.createElement('input');
     input.type = 'file';

@@ -843,8 +843,7 @@
             clearRequest.onsuccess = () => {
             };
             clearRequest.onerror = (event2) => {
-              new Error(`Error deleting store "${storeName}":`, event2.target.error);
-              res(false);
+              rej(new Error(`Error deleting store "${storeName}":`, event2.target.error));
               return;
             };
           }
@@ -854,8 +853,7 @@
           };
         };
         request.onerror = (event) => {
-          new Error("Error opening db", event.target.error);
-          res(false);
+          rej(new Error("Error opening db", event.target.error));
         };
       });
     }
@@ -1589,9 +1587,6 @@
       this.customListeners[evt] = arr.filter((h) => h.callback !== callback);
       return arr.length < before;
     }
-    /**
-      * Объект(событие) может измениться
-      */
     async call(evt, event = void 0) {
       const arr = this.customListeners[evt];
       if (!arr) return event;
@@ -1601,9 +1596,6 @@
       }
       return event;
     }
-    /**
-      * Синхронный вызов слушателей (с приоритетом)
-      */
     emit(evt, ...args) {
       const arr = this.customListeners[evt];
       if (!arr) return false;
@@ -1612,9 +1604,6 @@
       }
       return arr.length > 0;
     }
-    /**
-      * Асинхронный вызов слушателей (с приоритетом, собирает результаты)
-      */
     async emitR(evt, ...args) {
       const arr = this.customListeners[evt];
       if (!arr) return [];
@@ -1765,12 +1754,16 @@
   }
 
   // core/src/utils/DOM.ts
-  function createElement(tagName, options) {
+  function createElement(tagName, options, callback = () => {
+  }) {
     const elem = document.createElement(tagName);
     if (options.className) elem.className = options.className;
     if (options.id) elem.id = options.id;
     if (options.text) elem.textContent = options.text;
     if (options.html) elem.innerHTML = options.html;
+    if (options.type) elem.type = options.type;
+    if (options.checked) elem.checked = options.checked;
+    if (options.value) elem.value = options.value;
     if (options.width) elem.width = options.width;
     if (options.height) elem.height = options.height;
     if (options.css) {
@@ -1778,6 +1771,7 @@
         elem.style[key] = options.css[key];
       }
     }
+    callback(elem);
     return elem;
   }
 
@@ -3028,6 +3022,7 @@
     listProfiles;
     playBtn;
     updateBtn;
+    settingsBtn;
     constructor() {
       this.win = new Window({
         title: `\u041B\u0430\u0443\u043D\u0447\u0435\u0440 (${App_default.version})`,
@@ -3093,6 +3088,7 @@
       this.options = JSON.parse(await fs_default.readFile(`/options.json`));
     }
     async #initContent(checkVersions = true) {
+      const self2 = this;
       const updateVersions = [];
       this.win.content.innerHTML = "";
       const div = document.createElement("div");
@@ -3105,83 +3101,172 @@
       this.progressBar.value = 0;
       this.progressBar.style.width = "100%";
       div.appendChild(this.progressBar);
-      const versions = document.createElement("div");
-      versions.style.display = "flex";
-      versions.style.alignItems = "center";
-      versions.style.fontSize = "13px";
-      const txtVersions = document.createElement("span");
-      txtVersions.style.minWidth = "70px";
-      txtVersions.textContent = `\u0412\u0435\u0440\u0441\u0438\u0438:`;
-      versions.appendChild(txtVersions);
-      this.listVersions = document.createElement(`select`);
-      this.listVersions.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044E..";
-      this.listVersions.style.width = "100%";
-      this.listVersions.value = this.options.version;
-      for (const ver of this.versions) {
-        const el = document.createElement("option");
-        el.innerHTML = ver.name;
-        if (ver.scriptPath && checkVersions) updateVersions.push(ver);
-        this.listVersions.appendChild(el);
+      {
+        let addTab = function(name, content, defaultSelected = false) {
+          const btn = createElement("button", {
+            text: name,
+            css: {
+              borderRadius: size == 0 ? "5px 0 0 0" : size == maxSize - 1 ? "0 5px 0 0" : "0"
+            }
+          });
+          btn.onclick = () => {
+            Array.from(contents.children).forEach((e) => e.style.display = "none");
+            content.style.display = "block";
+          };
+          if (!defaultSelected) content.style.display = "none";
+          btns2.appendChild(btn);
+          contents.appendChild(content);
+          size++;
+        };
+        const tabs = createElement("div", {
+          css: {
+            background: "#0f0e0e",
+            borderRadius: "5px",
+            width: "100%"
+          }
+        });
+        div.appendChild(tabs);
+        const btns2 = createElement("div", {
+          css: {
+            width: "100%"
+          }
+        });
+        tabs.appendChild(btns2);
+        const contents = createElement("div", {
+          css: {
+            width: "10%%"
+          }
+        });
+        tabs.appendChild(contents);
+        let size = 0, maxSize = 2;
+        addTab("\u041F\u0440\u043E\u0444\u0438\u043B\u0438", createElement("div", {}, (elem) => {
+          const selectedProfile = createElement("span", {
+            text: "\u0412\u044B\u0431\u0440\u0430\u043D: \u043D\u0438\u043A\u0430\u043A\u043E\u0439",
+            css: {
+              margin: "5px",
+              verticalAlign: "text-bottom",
+              fontSize: "12px"
+            }
+          });
+          this.listProfiles = document.createElement(`select`);
+          this.listProfiles.size = 3;
+          this.listProfiles.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C..";
+          this.listProfiles.style.width = "100%";
+          this.listProfiles.onchange = (e) => {
+            const p = this.profiles.find((e2) => e2.name == this.listProfiles.value);
+            if (p) {
+              selectedProfile.textContent = `\u0412\u044B\u0431\u0440\u0430\u043D: ` + noXSS(p.name);
+            } else {
+              selectedProfile.textContent = `\u0412\u044B\u0431\u0440\u0430\u043D: \u043D\u0438\u043A\u0430\u043A\u043E\u0439`;
+            }
+          };
+          function update() {
+            self2.listProfiles.value = self2.options.profile;
+            for (const pr of self2.profiles) {
+              const el = document.createElement("option");
+              el.innerHTML = pr.name;
+              if (pr.name == "") {
+                pr.name = "\u041D\u043E\u0432\u044B\u0439 \u0430\u043A\u043A\u0430\u0443\u043D\u0442";
+                el.style.background = "#57e057";
+              }
+              self2.listProfiles.appendChild(el);
+            }
+            selectedProfile.textContent = `\u0412\u044B\u0431\u0440\u0430\u043D: ` + noXSS(self2.options.profile);
+          }
+          update();
+          elem.appendChild(this.listProfiles);
+          const addProfileBtn = createElement("button", {
+            text: "+",
+            css: {
+              width: "20px",
+              height: "20px",
+              borderRadius: "5px 0 0 5px",
+              fontFamily: "monospace",
+              padding: "0"
+            }
+          });
+          addProfileBtn.onclick = () => this.addProfile();
+          elem.appendChild(addProfileBtn);
+          const removeProfileBtn = createElement("button", {
+            text: "-",
+            css: {
+              width: "20px",
+              height: "20px",
+              borderRadius: "0 5px 5px 0",
+              fontFamily: "monospace",
+              padding: "0"
+            }
+          });
+          removeProfileBtn.onclick = async () => {
+            const p = this.profiles.findIndex((e) => e.name == this.listProfiles.value);
+            if (p != -1) {
+              this.win.lock();
+              const profile = this.profiles[p];
+              this.profiles.splice(p, 1);
+              await this.writeData();
+              this.statusText.innerHTML = `\u041F\u0440\u043E\u0444\u0438\u043B\u044C ${profile.name} \u0443\u0434\u0430\u043B\u0435\u043D`;
+              this.win.unlock();
+              update();
+            }
+          };
+          elem.appendChild(removeProfileBtn);
+          elem.appendChild(selectedProfile);
+        }), true);
+        addTab("\u0412\u0435\u0440\u0441\u0438\u0438", createElement("div", {}, (elem) => {
+          this.listVersions = document.createElement(`select`);
+          this.listVersions.size = 3;
+          this.listVersions.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044E..";
+          this.listVersions.style.width = "100%";
+          function update() {
+            self2.listVersions.innerHTML = "";
+            self2.listVersions.value = self2.options.version;
+            for (const ver of self2.versions) {
+              const el = document.createElement("option");
+              el.innerHTML = ver.name;
+              if (ver.scriptPath && checkVersions) updateVersions.push(ver);
+              self2.listVersions.appendChild(el);
+            }
+          }
+          update();
+          elem.appendChild(self2.listVersions);
+          const addVersionBtn2 = createElement("button", {
+            text: "+",
+            css: {
+              width: "20px",
+              height: "20px",
+              borderRadius: "5px 0 0 5px",
+              fontFamily: "monospace",
+              padding: "0"
+            }
+          });
+          addVersionBtn2.onclick = () => this.addVersion();
+          elem.appendChild(addVersionBtn2);
+          const removeVersionBtn = createElement("button", {
+            text: "-",
+            css: {
+              width: "20px",
+              height: "20px",
+              borderRadius: "0 5px 5px 0",
+              fontFamily: "monospace",
+              padding: "0"
+            }
+          });
+          removeVersionBtn.onclick = async () => {
+            const p = this.versions.findIndex((e) => e.name == this.listVersions.value);
+            if (p != -1) {
+              this.win.lock();
+              const version = this.versions[p];
+              this.versions.splice(p, 1);
+              await fs_default.deleteDirectory(version.path, true);
+              await this.writeData();
+              this.statusText.innerHTML = `\u0412\u0435\u0440\u0441\u0438\u044F ${version.name} \u0443\u0434\u0430\u043B\u0435\u043D\u0430`;
+              this.win.unlock();
+              update();
+            }
+          };
+          elem.appendChild(removeVersionBtn);
+        }));
       }
-      versions.appendChild(this.listVersions);
-      const addVersionBtn = document.createElement("button");
-      addVersionBtn.innerHTML = `+`;
-      addVersionBtn.onclick = () => this.addVersion();
-      versions.appendChild(addVersionBtn);
-      const removeVersionBtn = document.createElement("button");
-      removeVersionBtn.innerHTML = `-`;
-      removeVersionBtn.onclick = async () => {
-        const p = this.versions.findIndex((e) => e.name == this.listVersions.value);
-        if (p != -1) {
-          const version = this.versions[p];
-          removeVersionBtn.disabled = true;
-          this.versions.splice(p, 1);
-          await fs_default.deleteDirectory(version.path, true);
-          await this.writeData();
-          this.#initContent();
-        }
-      };
-      versions.appendChild(removeVersionBtn);
-      div.appendChild(versions);
-      const profiles = document.createElement("div");
-      profiles.style.display = "flex";
-      profiles.style.alignItems = "center";
-      profiles.style.fontSize = "13px";
-      const txtProfiles = document.createElement("span");
-      txtProfiles.style.minWidth = "70px";
-      txtProfiles.textContent = `\u041F\u0440\u043E\u0444\u0438\u043B\u0438:`;
-      profiles.appendChild(txtProfiles);
-      this.listProfiles = document.createElement(`select`);
-      this.listProfiles.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C..";
-      this.listProfiles.style.width = "100%";
-      this.listProfiles.value = this.options.profile;
-      for (const pr of this.profiles) {
-        const el = document.createElement("option");
-        el.innerHTML = pr.name;
-        if (pr.name == "") {
-          pr.name = "\u041D\u043E\u0432\u044B\u0439 \u0430\u043A\u043A\u0430\u0443\u043D\u0442";
-          el.style.background = "#57e057";
-        }
-        this.listProfiles.appendChild(el);
-      }
-      profiles.appendChild(this.listProfiles);
-      const addProfileBtn = document.createElement("button");
-      addProfileBtn.innerHTML = `+`;
-      addProfileBtn.onclick = () => this.addProfile();
-      profiles.appendChild(addProfileBtn);
-      const removeProfileBtn = document.createElement("button");
-      removeProfileBtn.innerHTML = `-`;
-      removeProfileBtn.onclick = async () => {
-        const p = this.profiles.findIndex((e) => e.name == this.listProfiles.value);
-        if (p != -1) {
-          removeProfileBtn.disabled = true;
-          this.profiles.splice(p, 1);
-          await this.writeData();
-          this.#initContent();
-        }
-      };
-      profiles.appendChild(removeProfileBtn);
-      div.appendChild(profiles);
       const btns = document.createElement("div");
       btns.style.display = "flex";
       btns.style.margin = "5px";
@@ -3216,15 +3301,119 @@
         }
       };
       btns.appendChild(this.updateBtn);
-      const githubBtn = document.createElement("button");
-      githubBtn.innerHTML = `Github`;
-      githubBtn.style.margin = "1px";
-      githubBtn.onclick = () => window.open("https://github.com/lumik0/bafiaonline", "_blank");
-      btns.appendChild(githubBtn);
+      this.settingsBtn = document.createElement("button");
+      this.settingsBtn.innerHTML = `\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438`;
+      this.settingsBtn.style.margin = "1px";
+      this.settingsBtn.onclick = async () => {
+        this.openSettings();
+      };
+      btns.appendChild(this.settingsBtn);
       const info = document.createElement("div");
-      info.innerHTML = `\u0415\u0441\u0442\u044C \u0438\u0434\u0435\u0438 \u0447\u0442\u043E-\u0442\u043E \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C? \u041D\u0430\u0448\u043B\u0438 \u0431\u0430\u0433? \u041F\u0440\u043E\u0431\u043B\u0435\u043C\u044B? <a href="https://t.me/bafiaonlinebot">@bafiaonlinebot</a>`;
+      info.style.fontSize = "12px";
+      info.innerHTML = ``.replaceAll("\n", "<br/>");
+      fetch("https://raw.githubusercontent.com/lumik0/bafiaonline/refs/heads/master/core/news.txt").then((r) => r.status == 200 ? r.text() : null).then((t) => info.innerHTML = t ? t.replaceAll("\n", "<br/>") : "");
       div.appendChild(info);
-      this.updateBtn.click();
+      const extra = document.createElement("div");
+      extra.style.fontSize = "12px";
+      extra.innerHTML = `
+\u0415\u0441\u0442\u044C \u0438\u0434\u0435\u0438 \u0447\u0442\u043E-\u0442\u043E \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C? \u041D\u0430\u0448\u043B\u0438 \u0431\u0430\u0433? \u041F\u0440\u043E\u0431\u043B\u0435\u043C\u044B? <a href="https://t.me/bafiaonlinebot">@bafiaonlinebot</a>
+\u0418\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u043A\u043E\u0434: <a href="https://github.com/lumik0/bafiaonline">Github</a>`.replaceAll("\n", "<br/>");
+      div.appendChild(extra);
+    }
+    openSettings() {
+      this.win.lock();
+      const width = isMobile() ? window.innerWidth - 150 : 300;
+      const win = new Window({
+        title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438",
+        width,
+        height: 220,
+        resizable: false,
+        moveable: false,
+        noMobile: true,
+        minButton: false,
+        maxButton: false,
+        x: this.win.x + (this.win.width - width) / 2,
+        y: this.win.y + (this.win.height - 200) / 2
+      });
+      win.content.style.overflow = "hidden";
+      win.on("close", () => {
+        this.win.unlock();
+      });
+      const div = document.createElement("div");
+      div.style.padding = "2px";
+      win.content.appendChild(div);
+      const e = document.createElement("div");
+      e.style.display = "flex";
+      e.style.padding = "5px";
+      e.style.flexDirection = "column";
+      div.appendChild(e);
+      function addCheckbox(text, onChange, value = false) {
+        const d = createElement("div", {
+          css: {
+            borderRadius: "10px",
+            background: "#212020",
+            height: "30px",
+            margin: "2px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }
+        });
+        e.appendChild(d);
+        const t = createElement("span", {
+          css: {
+            marginLeft: "10px"
+          },
+          text
+        });
+        d.appendChild(t);
+        const cb = createElement("input", {
+          type: "checkbox",
+          checked: value,
+          css: {
+            zoom: "1.5"
+          }
+        });
+        cb.onchange = () => onChange(cb.checked);
+        d.appendChild(cb);
+      }
+      function addButton(text, btnText, onClick) {
+        const d = createElement("div", {
+          css: {
+            borderRadius: "10px",
+            background: "#212020",
+            height: "30px",
+            margin: "2px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }
+        });
+        e.appendChild(d);
+        const t = createElement("span", {
+          css: {
+            marginLeft: "10px"
+          },
+          text
+        });
+        d.appendChild(t);
+        const btn = createElement("button", {
+          text: btnText
+        });
+        btn.onclick = () => onClick();
+        d.appendChild(btn);
+      }
+      addButton("\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C \u0432\u0441\u0435 \u0434\u0430\u043D\u043D\u044B\u0435", "\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C", async () => {
+        const e2 = confirm("\u0412\u044B \u0443\u0432\u0435\u0440\u0435\u043D\u044B? \u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0431\u0443\u0434\u0435\u0442 \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E");
+        if (e2) {
+          try {
+            await fs_default.erase();
+            window.location.reload();
+          } catch (e3) {
+            alert(`\u041E\u0448\u0438\u0431\u043A\u0430: ${e3}`);
+          }
+        }
+      });
     }
     addProfile() {
       {
@@ -3544,7 +3733,7 @@
       const loadFileBtn = document.createElement("button");
       loadFileBtn.style.width = "100%";
       loadFileBtn.innerHTML = "\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B";
-      loadFileBtn.onclick = () => this.readDownloadVersion();
+      loadFileBtn.onclick = () => this.downloadFileVersion();
       win.content.appendChild(loadFileBtn);
       const div = document.createElement("div");
       div.style.display = "flex";
@@ -3559,9 +3748,8 @@
         try {
           const version2 = await this.readVersion(src);
           if (version2) {
-            win.lock();
-            await self2.downloadVersion({ ...version2, scriptPath: src });
             win.close();
+            await self2.downloadVersion({ ...version2, scriptPath: src });
           } else {
             alert(`\u041E\u0448\u0438\u0431\u043A\u0430: ${e}`);
           }
@@ -3587,9 +3775,8 @@
             const e2 = document.createElement("button");
             e2.textContent = noXSS(url);
             e2.onclick = async () => {
-              win.lock();
-              await self2.downloadVersion({ ...version2, scriptPath: url });
               win.close();
+              await self2.downloadVersion({ ...version2, scriptPath: url });
             };
             foundScripts.appendChild(e2);
             found = true;
@@ -3625,7 +3812,7 @@
       self2.statusText.textContent = updated ? `\u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u043E` : "";
       self2.addVersion(version);
     }
-    readDownloadVersion() {
+    downloadFileVersion() {
       const self2 = this;
       const input = document.createElement("input");
       input.type = "file";

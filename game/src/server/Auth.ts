@@ -100,7 +100,7 @@ export default class Auth {
         return true;
       }
     } else {
-      await MessageBox('У тебя нет профили');
+      await MessageBox('У вас нет профиля');
     }
     return false;
   }
@@ -117,20 +117,28 @@ export default class Auth {
   async signUp({ email, password }: { email: string, password: string }) {
     if(!email || !password) return;
 
-    const data = await fetch(`https://api.mafia.dottap.com/user/sign_up`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-      },
-      body: new URLSearchParams({
-        email,
-        username: '',
-        password: MD5(password),
-        deviceId: tokenHex(8),
-        lang: 'RUS'
-      })
-    });
-    const result = await data.json();
+    let response: Response
+    let result: any
+
+    try {
+      response = await fetch(`https://api.mafia.dottap.com/user/sign_up`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: new URLSearchParams({
+          email,
+          username: '',
+          password: MD5(password),
+          deviceId: tokenHex(8),
+          lang: 'RUS'
+        })
+      });
+      result = await response.json();
+    } catch(e) {
+      await MessageBox('Ошибка: ' + e, { title: 'ОШИБКА' });
+      return;
+    }
     if(result.error){
       if(result.error == 'USING_TEMP_EMAIL'){
         await MessageBox(`Запрещено использовать сервисы для временной регистрации email.\nИспользуйте популярные сервисы, например Gmail, Mail.Ru, Yandex, Yahoo и тд.`);
