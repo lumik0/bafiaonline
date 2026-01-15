@@ -3150,9 +3150,7 @@
           });
           this.listProfiles = document.createElement(`select`);
           this.listProfiles.size = 3;
-          this.listProfiles.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C..";
           this.listProfiles.style.width = "100%";
-          this.listProfiles.value = self2.options.profile;
           this.listProfiles.onchange = (e) => {
             const p = this.profiles.find((e2) => e2.name == this.listProfiles.value);
             if (p) {
@@ -3162,7 +3160,7 @@
             }
           };
           function update() {
-            self2.listProfiles.value = self2.options.profile;
+            self2.listProfiles.innerHTML = "";
             for (const pr of self2.profiles) {
               const el = document.createElement("option");
               el.innerHTML = pr.name;
@@ -3172,6 +3170,7 @@
               }
               self2.listProfiles.appendChild(el);
             }
+            self2.listProfiles.value = self2.options.profile;
             selectedProfile.textContent = `\u0412\u044B\u0431\u0440\u0430\u043D: ` + noXSS(self2.options.profile);
           }
           update();
@@ -3216,18 +3215,16 @@
         addTab("\u0412\u0435\u0440\u0441\u0438\u0438", createElement("div", {}, (elem) => {
           this.listVersions = document.createElement(`select`);
           this.listVersions.size = 3;
-          this.listVersions.value = "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044E..";
           this.listVersions.style.width = "100%";
-          this.listVersions.value = self2.options.version;
           function update() {
             self2.listVersions.innerHTML = "";
-            self2.listVersions.value = self2.options.version;
             for (const ver of self2.versions) {
               const el = document.createElement("option");
               el.innerHTML = ver.name;
               if (ver.scriptPath && checkVersions) updateVersions.push(ver);
               self2.listVersions.appendChild(el);
             }
+            self2.listVersions.value = self2.options.version;
           }
           update();
           elem.appendChild(self2.listVersions);

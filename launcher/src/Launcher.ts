@@ -191,9 +191,7 @@ export default class Launcher {
 
         this.listProfiles = document.createElement(`select`);
         this.listProfiles.size = 3
-        this.listProfiles.value = 'Выберите профиль..';
         this.listProfiles.style.width = '100%';
-        this.listProfiles.value = self.options.profile;
         this.listProfiles.onchange = e => {
           const p = this.profiles.find(e => e.name == this.listProfiles.value);
           if(p) {
@@ -203,7 +201,7 @@ export default class Launcher {
           }
         }
         function update() {
-          self.listProfiles.value = self.options.profile;
+          self.listProfiles.innerHTML = '';
           for(const pr of self.profiles){
             const el = document.createElement('option');
             el.innerHTML = pr.name;
@@ -213,6 +211,7 @@ export default class Launcher {
             }
             self.listProfiles.appendChild(el);
           }
+          self.listProfiles.value = self.options.profile;
           selectedProfile.textContent = `Выбран: ` + noXSS(self.options.profile);
         }
         update()
@@ -258,18 +257,16 @@ export default class Launcher {
       addTab('Версии', createElement('div', {}, elem => {
         this.listVersions = document.createElement(`select`);
         this.listVersions.size = 3
-        this.listVersions.value = 'Выберите версию..';
         this.listVersions.style.width = '100%';
-        this.listVersions.value = self.options.version;
         function update() {
           self.listVersions.innerHTML = '';
-          self.listVersions.value = self.options.version;
           for(const ver of self.versions){
             const el = document.createElement('option');
             el.innerHTML = ver.name;
             if(ver.scriptPath && checkVersions) updateVersions.push(ver);
             self.listVersions.appendChild(el);
           }
+          self.listVersions.value = self.options.version;
         }
         update()
         elem.appendChild(self.listVersions);
