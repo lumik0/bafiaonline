@@ -106,6 +106,7 @@ export default class Room extends Screen {
       this.status = 2;
       this.title = options.data.title;
       this.playersData = options.data.playersData;
+      this.playersStat = options.data.playersStat;
       this.selectedRoles = options.data.selectedRoles;
       this.localFirstMessages = options.data.messages;
     }
