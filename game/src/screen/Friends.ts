@@ -1,0 +1,320 @@
+import PacketDataKeys from '../../../core/src/PacketDataKeys';
+import { createElement } from '../../../core/src/utils/DOM';
+import { formatDate } from '../../../core/src/utils/format';
+import { wait } from '../../../core/src/utils/utils';
+import App from '../App';
+import ConfirmBox from '../dialog/ConfirmBox';
+import MessageBox from '../dialog/MessageBox';
+import ProfileInfo from '../dialog/ProfileInfo';
+import { getAvatarImg, getBackgroundImg, getTexture } from '../utils/Resources';
+import Dashboard from './Dashboard';
+import PrivateChat from './PrivateChat';
+import Room from './Room';
+import Screen from './Screen';
+
+export default class Friends extends Screen {
+  div!: HTMLDivElement
+  list!: HTMLDivElement
+
+  isSearch = false
+  searchValue = ""
+
+  constructor(){
+    super('Friends');
+
+    this.element.style.overflow = 'hidden';
+    
+    App.title = 'Друзья';
+            
+    (async()=> this.element.style.background = `url(${await getBackgroundImg('menu3')}) 0% 0% / cover`)();
+    
+    const header = document.createElement('div');
+    header.className = 'header';
+    this.element.appendChild(header);
+    const back = document.createElement('button');
+    back.className = 'back';
+    back.onclick = () => this.emit('back');
+    header.appendChild(back);
+    const backImg = document.createElement('img');
+    backImg.width = 24;
+    getTexture(`ui/Jb.png`).then(e => backImg.src = e);
+    back.appendChild(backImg);
+    const title = document.createElement('label');
+    title.textContent = 'Друзья';
+    header.appendChild(title);
+    
+    this.on('back', () => {
+      App.screen = new Dashboard();
+    });
+    
+    this.init();
+  }
+
+  async init(){
+    App.server.send(PacketDataKeys.ADD_CLIENT_TO_FRIENDSHIP_LIST, {
+      [PacketDataKeys.USER_OBJECT_ID]: App.user.objectId,
+      [PacketDataKeys.TOKEN]: App.user.token
+    });
+
+    this.div = document.createElement('div');
+    this.div.style.display = 'flex';
+    this.div.style.padding = '10px';
+    this.div.style.flexDirection = 'column';
+    this.element.appendChild(this.div);
+    const btns = createElement('div', {
+      css: {
+        display: 'flex',
+        width: '100%'
+      },
+      appendTo: this.div
+    });
+    const friends = createElement('button', {
+      className: 'gray',
+      text: 'Друзья',
+      css: {
+        width: '100%',
+        margin: '2px'
+      },
+      appendTo: btns
+    });
+    friends.onclick = async() => {
+      App.server.send(PacketDataKeys.ADD_CLIENT_TO_FRIENDSHIP_LIST, {
+        [PacketDataKeys.USER_OBJECT_ID]: App.user.objectId,
+        [PacketDataKeys.TOKEN]: App.user.token
+      });
+      const data = await App.server.awaitPacket([PacketDataKeys.FRIENDSHIP_LIST]);
+      friends.className = 'gray';
+      requests.className = 'dark-gray';
+      search.className = 'dark-gray';
+      this.isSearch = false;
+      this.updateFriends(data[PacketDataKeys.FRIENDSHIP_LIST][PacketDataKeys.FRIENDSHIP_LIST]);
+    }
+    const requests = createElement('button', {
+      className: 'dark-gray',
+      text: 'Запросы',
+      css: {
+        width: '100%',
+        margin: '2px'
+      },
+      appendTo: btns
+    });
+    requests.onclick = async() => {
+      App.server.send(PacketDataKeys.GET_SENT_FRIEND_REQUESTS_LIST, {
+        [PacketDataKeys.USER_OBJECT_ID]: App.user.objectId,
+        [PacketDataKeys.TOKEN]: App.user.token
+      });
+      const data = await App.server.awaitPacket([PacketDataKeys.FRIENDSHIP_LIST]);
+      friends.className = 'dark-gray';
+      requests.className = 'gray';
+      search.className = 'dark-gray';
+      this.isSearch = false;
+      this.updateFriends(data[PacketDataKeys.FRIENDSHIP_LIST][PacketDataKeys.FRIENDSHIP_LIST]);
+    }
+    const search = createElement('button', {
+      className: 'dark-gray',
+      text: 'Поиск',
+      css: {
+        width: '100%',
+        margin: '2px'
+      },
+      appendTo: btns
+    });
+    search.onclick = async() => {
+      friends.className = 'dark-gray';
+      requests.className = 'dark-gray';
+      search.className = 'gray';
+      this.isSearch = true;
+      this.updateFriends([]);
+    }
+
+    this.list = document.createElement('div');
+    this.list.style.overflowY = 'overlay';
+    this.list.style.height = (App.height - 125) + 'px';
+    this.div.appendChild(this.list);
+
+    this.on('resize', () => {
+      this.list.style.height = (App.height - 125) + 'px';
+    });
+    
+    const data = await App.server.awaitPacket([PacketDataKeys.FRIENDSHIP_LIST]);
+    this.updateFriends(data[PacketDataKeys.FRIENDSHIP_LIST][PacketDataKeys.FRIENDSHIP_LIST]);
+  }
+
+  updateFriends(data: any){
+    this.list.innerHTML = '';
+
+    let inputSearch!: HTMLInputElement;
+    if(this.isSearch){
+      // console.log(data);
+      inputSearch = createElement('input', {
+        value: this.searchValue,
+        css: {
+          width: '100%'
+        }
+      });
+      inputSearch.onchange = async() => {
+        this.searchValue = inputSearch.value;
+        App.server.send(PacketDataKeys.SEARCH_USER, {
+          [PacketDataKeys.SEARCH_TEXT]: inputSearch.value
+        });
+        const data = await App.server.awaitPacket([PacketDataKeys.SEARCH_USER]);
+        this.updateFriends(data[PacketDataKeys.USERS]);
+      }
+
+      this.list.appendChild(inputSearch);
+    }
+
+    for(const f of data){
+      const isFriend = !!f[PacketDataKeys.FRIEND];
+      const objectId = f[PacketDataKeys.OBJECT_ID];
+      const user = isFriend ? f[PacketDataKeys.FRIEND] : this.isSearch ? {
+        photo: f[PacketDataKeys.PHOTO],
+        objectId
+      } : f[PacketDataKeys.USER];
+      const userObjectId = this.isSearch ? f[PacketDataKeys.PLAYER_OBJECT_ID] : user[PacketDataKeys.PLAYER_OBJECT_ID];
+      const username = !this.isSearch ? user[PacketDataKeys.USERNAME] : f[PacketDataKeys.USERNAME];
+      const newMessages = Number(f[PacketDataKeys.NEW_MESSAGES]);
+      const accepted = f[PacketDataKeys.ACCEPTED];
+      let isClicked = false;
+
+      const e = document.createElement('div');
+      e.style.background = 'rgba(200,200,200,.4)';
+      e.style.padding = '7px';
+      e.style.margin = '5px';
+      e.style.borderRadius = '10px';
+      e.style.display = 'flex';
+      e.onclick = () => {
+        wait(5).then(() => {
+          if(this.isSearch) {
+            ProfileInfo(userObjectId);
+            return;
+          }
+          if(!isClicked) App.screen = new PrivateChat(objectId, userObjectId, user)
+        });
+      }
+      
+      const avatar = document.createElement('img');
+      avatar.width = avatar.height = 40;
+      avatar.style.borderRadius = '100%';
+      avatar.onmousedown = e => e.preventDefault();
+      avatar.onclick = () => {
+        isClicked = true;
+        ProfileInfo(userObjectId);
+      }
+      getAvatarImg(this.isSearch ? { photo: f[PacketDataKeys.PHOTO] } : user).then(s => avatar.src = s);
+      e.appendChild(avatar);
+
+      const badge = document.createElement('div');
+      badge.style.width = badge.style.height = '15px';
+      badge.style.minWidth = badge.style.minHeight = '15px';
+      badge.style.maxWidth = badge.style.maxHeight = '15px';
+      badge.style.boxSizing = 'border-box';
+      badge.style.background = (user ? user[PacketDataKeys.IS_ONLINE] : f[PacketDataKeys.IS_ONLINE]) ? '#3fe33f' : '#636363';
+      badge.style.border = '2px solid white';
+      badge.style.borderRadius = '100%';
+      badge.style.position = 'relative';
+      badge.style.left = '-45px'
+      e.appendChild(badge);
+
+      const d = document.createElement('div');
+      d.style.display = 'flex';
+      d.style.flexDirection = 'column';
+      d.style.width = '300px';
+      e.appendChild(d);
+
+      const nick = document.createElement('span');
+      nick.textContent = username;
+      nick.style.padding = '0 5px 7px 10px';
+      nick.style.color = 'black';
+      d.appendChild(nick);
+
+      const date = document.createElement('span');
+      date.textContent = this.isSearch ? f[PacketDataKeys.IS_ONLINE] ? 'В сети' : 'Не в сети' : formatDate(f[PacketDataKeys.UPDATED]);
+      date.style.padding = '0 5px 0 5px';
+      date.style.fontSize = '11px'
+      date.style.color = 'black';
+      d.appendChild(date);
+
+      const btns = document.createElement('div');
+      btns.style.display = 'flex';
+      btns.style.width = '100%';
+      btns.style.justifyContent = 'flex-end';
+      e.appendChild(btns);
+
+      if(f[PacketDataKeys.ROOM]){
+        const btnRoom = document.createElement('button');
+        btnRoom.textContent = 'В комнате';
+        btnRoom.onclick = () => {
+          isClicked = true;
+          App.screen = new Room(f[PacketDataKeys.ROOM][PacketDataKeys.OBJECT_ID]);
+        }
+        btns.appendChild(btnRoom);
+      }
+
+      if(newMessages > 0){
+        const div1 = document.createElement('div');
+        div1.style.display = 'flex';
+        div1.style.alignItems = 'center';
+        div1.style.padding = '5px';
+        div1.textContent = newMessages > 0 ? newMessages + '' : '';
+        if(newMessages > 0) {
+          const img = document.createElement('img');
+          img.width = 18;
+          img.height = 14;
+          img.style.marginLeft = '5px';
+          getTexture('ui/0Y.png').then(e => img.src = e);
+          div1.appendChild(img);
+        }
+        btns.appendChild(div1);
+      }
+
+      if(accepted === 0){
+        const btnAcceptFriend = createElement('button', {
+          className: 'green',
+          text: 'Принять',
+          appendTo: btns
+        });
+        btnAcceptFriend.onclick = async() => {
+          isClicked = true;
+          const e = await ConfirmBox(`Принять заявку в друзья от данного пользователя?`, { title: `ПРИНЯТЬ ДРУЖБУ` });
+          if(e) {
+            App.server.send(PacketDataKeys.ADD_FRIEND, {
+              [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+            });
+            const data = await App.server.awaitPacket([PacketDataKeys.ADD_FRIEND, PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL]);
+            if(data[PacketDataKeys.TYPE] == PacketDataKeys.YOUR_FRIENDSHIP_LIST_FULL){
+              MessageBox(`Список ваших друзей полон. Вы уже добавили ${data[PacketDataKeys.FRIENDSHIP_LIST_LIMIT]} друзей в список друзей\n\nВы сможете добавить 200 друзей, если подключите VIP\n\nПожалуйста, освободите список ваших друзей`);
+              return;
+            }
+            if(data[PacketDataKeys.TYPE] == PacketDataKeys.ADD_FRIEND){
+              btnAcceptFriend.style.display = 'none';
+            }
+          }
+        }
+      }
+      if(!this.isSearch){
+        const btnRemoveFriend = createElement('button', {
+          className: 'gray',
+          text: 'X',
+          appendTo: btns
+        });
+        btnRemoveFriend.onclick = async() => {
+          isClicked = true;
+          const c = await ConfirmBox(`Удалить данного пользователя из друзей? Все личные сообщения так-же будут удалены.`, { title: `УДАЛИТЬ ИЗ ДРУЗЕЙ`, height: 175 });
+          if(c) {
+            App.server.send(PacketDataKeys.REMOVE_FRIEND, {
+              [PacketDataKeys.FRIEND_USER_OBJECT_ID]: userObjectId
+            });
+            const data = await App.server.awaitPacket([PacketDataKeys.REMOVE_FRIEND]);
+            if(data[PacketDataKeys.TYPE] == PacketDataKeys.REMOVE_FRIEND)
+              e.remove();
+          }
+        }
+      }
+
+      this.list.appendChild(e);
+    }
+
+    inputSearch?.focus();
+  }
+}
