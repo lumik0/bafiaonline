@@ -23,6 +23,8 @@ import { createElement } from "../../../core/src/utils/DOM";
 import { Role } from "../enums";
 
 const defaultFilterOptions = {
+  version: 1,
+  enabled: false,
   minPl: 5,
   maxPl: 21,
   minLvl: 1,
@@ -106,6 +108,11 @@ export default class Rooms extends Screen {
       const filter = await fs.readFile(App.config.path + '/filter.json');
       this.filterOptions = JSON.parse(filter);
     } catch {}
+    if(this.filterOptions.version != 1) {
+      this.filterOptions.version = 1;
+      this.filterOptions.enabled = false;
+      await fs.writeFile(App.config.path + '/filter.json', JSON.stringify(this.filterOptions));
+    }
 
     const filterElem = document.createElement('div');
     filterElem.className = 'rooms-filter';
@@ -149,7 +156,8 @@ export default class Rooms extends Screen {
           },
           appendTo: box.content
         });
-        function add<T extends string | number | boolean>(name: string, value: T, onChange?: (value: T) => void){
+        let mainEl!: HTMLInputElement
+        function add<T extends string | number | boolean>(name: string, value: T, onChange?: (value: T) => void, main = false){
           const isBool = typeof value == 'boolean';
           const isNum = typeof value == 'number';
 
@@ -184,6 +192,9 @@ export default class Rooms extends Screen {
             },
             appendTo: el
           });
+          
+          if(main)
+            mainEl = val;
 
           if(isBool) {
             (val as HTMLInputElement).checked = value as boolean;
@@ -201,6 +212,11 @@ export default class Rooms extends Screen {
               onChange((isNaN(parsed) ? 0 : parsed) as T);
             } else {
               onChange(val.value as T);
+            }
+
+            if(!main && !self.filterOptions.enabled) {
+              self.filterOptions.enabled = true;
+              mainEl.checked = true;
             }
 
             self.updateRooms();
@@ -267,6 +283,7 @@ export default class Rooms extends Screen {
           box.destroy();
           filterBtn.click();
         });
+        add('Включить фильтр', this.filterOptions.enabled, v => this.filterOptions.enabled = v, true);
         add('Мин. игроков', this.filterOptions.minPl, v => this.filterOptions.minPl = v);
         add('Макс. игроков', this.filterOptions.maxPl, v => this.filterOptions.maxPl = v);
         add('Мин. лвл', this.filterOptions.minLvl, v => this.filterOptions.minLvl = v);
@@ -437,6 +454,8 @@ export default class Rooms extends Screen {
       const title = (room[PacketDataKeys.TITLE] as string || '').toLowerCase();
       if(!title.includes(searchStr)) return false;
     }
+
+    if(!this.filterOptions.enabled) return true;
 
     const status = room[PacketDataKeys.STATUS];
     if(status == 0 && !this.filterOptions.isRegistration) return false;

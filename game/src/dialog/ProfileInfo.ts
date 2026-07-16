@@ -320,34 +320,34 @@ export default async function ProfileInfo(playerObjectId: string){
     roomElem.elem.style.width = '90%';
     div.appendChild(roomElem.elem);
   }
-  if(!isMe) addButton('Подать жалобу', async()=>{
-    'MAKE_COMPLAINT';
-    const w = new Box({ title: 'ПОДАТЬ ЖАЛОБУ', height: 200, canCloseAnywhere: true });
-    const div = createElement('div', {
-      css: {
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-around',
-        alignItems: 'center',
-        height: '100%',
-        color: 'black'
-      }
-    });
-    const input = createElement('input', { type: 'text', placeholder: 'Причина' });
-    const btn = createElement('button', { text: 'Отправить', css: { width: '100%' } });
-    btn.onclick = () => {
-      App.server.send(PacketDataKeys.MAKE_COMPLAINT, {
-        [PacketDataKeys.REASON]: input.value,
-        [PacketDataKeys.PLAYER_OBJECT_ID]: profile.playerObjectId
-      });
-      w.close();
-    }
-    div.appendChild(createElement('div', { text: `Подать жалобу на игрока: [${profile.username}]` }));
-    div.appendChild(createElement('div', { text: `Пожалуйста введите причину` }));
-    div.appendChild(input);
-    div.appendChild(btn);
-    w.content.appendChild(div);
-  });
+  // if(!isMe) addButton('Подать жалобу', async()=>{
+  //   'MAKE_COMPLAINT';
+  //   const w = new Box({ title: 'ПОДАТЬ ЖАЛОБУ', height: 200, canCloseAnywhere: true });
+  //   const div = createElement('div', {
+  //     css: {
+  //       display: 'flex',
+  //       flexDirection: 'column',
+  //       justifyContent: 'space-around',
+  //       alignItems: 'center',
+  //       height: '100%',
+  //       color: 'black'
+  //     }
+  //   });
+  //   const input = createElement('input', { type: 'text', placeholder: 'Причина' });
+  //   const btn = createElement('button', { text: 'Отправить', css: { width: '100%' } });
+  //   btn.onclick = () => {
+  //     App.server.send(PacketDataKeys.MAKE_COMPLAINT, {
+  //       [PacketDataKeys.REASON]: input.value,
+  //       [PacketDataKeys.PLAYER_OBJECT_ID]: profile.playerObjectId
+  //     });
+  //     w.close();
+  //   }
+  //   div.appendChild(createElement('div', { text: `Подать жалобу на игрока: [${profile.username}]` }));
+  //   div.appendChild(createElement('div', { text: `Пожалуйста введите причину` }));
+  //   div.appendChild(input);
+  //   div.appendChild(btn);
+  //   w.content.appendChild(div);
+  // });
 
   addH(`Статистика`);
 

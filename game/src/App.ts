@@ -136,6 +136,11 @@ class App extends Events<AppEvents> {
     this.#initEvents();
 
     Bafia.init();
+
+    if(navigator.storage && navigator.storage.persist && (isIOS() || isMacOS())) {
+      const persisted = await navigator.storage.persisted();
+      if(!persisted) await navigator.storage.persist();
+    }
   }
 
   async #loadImgs() {
