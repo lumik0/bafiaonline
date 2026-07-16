@@ -5543,6 +5543,7 @@
   var Friends = class extends Screen {
     div;
     list;
+    title;
     isSearch = false;
     searchValue = "";
     constructor() {
@@ -5561,9 +5562,9 @@
       backImg.width = 24;
       getTexture(`ui/Jb.png`).then((e) => backImg.src = e);
       back.appendChild(backImg);
-      const title = document.createElement("label");
-      title.textContent = "\u0414\u0440\u0443\u0437\u044C\u044F";
-      header.appendChild(title);
+      this.title = document.createElement("label");
+      this.title.textContent = "\u0414\u0440\u0443\u0437\u044C\u044F";
+      header.appendChild(this.title);
       this.on("back", () => {
         App_default.screen = new Dashboard();
       });
@@ -5658,6 +5659,7 @@
       this.list.innerHTML = "";
       let inputSearch;
       if (this.isSearch) {
+        this.title.innerHTML = `\u0414\u0440\u0443\u0437\u044C\u044F`;
         inputSearch = createElement("input", {
           value: this.searchValue,
           css: {
@@ -5673,6 +5675,9 @@
           this.updateFriends(data2[PacketDataKeys_default.USERS]);
         };
         this.list.appendChild(inputSearch);
+      } else {
+        const online = data.filter((e) => e.ff?.on == true).length;
+        this.title.innerHTML = `\u0414\u0440\u0443\u0437\u044C\u044F (\u043E\u043D\u043B\u0430\u0439\u043D: ${online} \u0438\u0437 ${data.length})`;
       }
       for (const f of data) {
         const isFriend = !!f[PacketDataKeys_default.FRIEND];
