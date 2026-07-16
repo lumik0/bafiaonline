@@ -3350,6 +3350,7 @@
     emojiPanel;
     input;
     rolesElem;
+    timerEl;
     meElem;
     yourRoleElem;
     deadImgElem;
@@ -3419,7 +3420,7 @@
           self2.localFirstMessages = rs[PacketDataKeys_default.MESSAGES];
         }
         self2.players = rs[PacketDataKeys_default.PLAYERS];
-        self2.titleElem.textContent = `${self2.title} (${self2.players.length}/${self2.maxPlayers})`;
+        self2.titleElem.textContent = `${self2.title} ${self2.players.length} [${self2.minPlayers}/${self2.maxPlayers}]`;
         if (rs[PacketDataKeys_default.GAME_STATUS]) {
           self2.status = rs[PacketDataKeys_default.GAME_STATUS][PacketDataKeys_default.STATUS];
           self2.gameDayTime = rs[PacketDataKeys_default.GAME_STATUS][PacketDataKeys_default.DAYTIME];
@@ -3945,7 +3946,7 @@
         }
       }
       const yourRoleMsg = `\u0412\u044B<br/>${RuRoles[this.me()?.role - 1]}`;
-      let timer, mafia, mir, giveUpButton;
+      let mafia, mir, giveUpButton;
       {
         this.gameInfoElem.innerHTML = "";
         this.gameInfoElem.style.display = "flex";
@@ -4045,7 +4046,7 @@
           mir = document.createElement("div");
           mir.textContent = noXSS(`\u041C\u0438\u0440\u043D\u044B\u0435: ${playersStat[PacketDataKeys_default.CIVILIAN_ALL]} | ${playersStat[PacketDataKeys_default.CIVILIAN_ALIVE]}`);
           mir.style.color = "#186400";
-          timer = createElement("div", {
+          this.timerEl = createElement("div", {
             text: noXSS(this.timer + ""),
             className: "black",
             css: {
@@ -4053,7 +4054,8 @@
               fontSize: "35px",
               fontWeight: "bold",
               marginTop: "15px",
-              padding: "5px"
+              padding: "5px",
+              transition: "color 3s"
             }
           });
           giveUpButton = createElement("button", {
@@ -4066,14 +4068,14 @@
           {
             const role = this.me()?.role ?? 1;
             if (this.players.length > 7 && this.me()?.alive && (playersStat[PacketDataKeys_default.MAFIA_ALIVE] == 1 && isMafia(role) || playersStat[PacketDataKeys_default.CIVILIAN_ALIVE] == 1 && !isMafia(role))) {
-              timer.style.marginTop = "0";
+              this.timerEl.style.marginTop = "0";
               giveUpButton.style.display = "block";
             }
           }
           giveUpButton.onclick = () => App_default.server.send(PacketDataKeys_default.GIVE_UP, { [PacketDataKeys_default.ROOM_OBJECT_ID]: this.roomObjectId });
           div.appendChild(mafia);
           div.appendChild(mir);
-          div.appendChild(timer);
+          div.appendChild(this.timerEl);
           div.appendChild(giveUpButton);
           this.gameInfoElem.appendChild(div);
         }
@@ -4086,12 +4088,12 @@
         if (!this.isGame) return;
         if (data[PacketDataKeys_default.TYPE] == PacketDataKeys_default.GAME_DAYTIME) {
           this.gameDayTime = data[PacketDataKeys_default.DAYTIME];
-          timer.textContent = noXSS(data[PacketDataKeys_default.TIMER]);
+          this.changeTimer(data[PacketDataKeys_default.TIMER]);
           this.changeDayTime();
           this.updatePlayersGame();
         } else if (typeof data[PacketDataKeys_default.TIMER] == "number") {
           this.timer = data[PacketDataKeys_default.TIMER];
-          timer.textContent = noXSS(data[PacketDataKeys_default.TIMER]);
+          this.changeTimer(data[PacketDataKeys_default.TIMER]);
         } else if (data[PacketDataKeys_default.TYPE] == PacketDataKeys_default.PLAYERS_STAT) {
           mafia.textContent = noXSS(`\u041C\u0430\u0444\u0438\u044F: ${data[PacketDataKeys_default.MAFIA_ALL]} | ${data[PacketDataKeys_default.MAFIA_ALIVE]}`);
           mir.textContent = noXSS(`\u041C\u0438\u0440\u043D\u044B\u0435: ${data[PacketDataKeys_default.CIVILIAN_ALL]} | ${data[PacketDataKeys_default.CIVILIAN_ALIVE]}`);
@@ -4099,7 +4101,7 @@
             const role = this.me()?.role ?? 1;
             if (this.players.length > 7 && this.me()?.alive && (data[PacketDataKeys_default.MAFIA_ALIVE] == 1 && isMafia(role) || data[PacketDataKeys_default.CIVILIAN_ALIVE] == 1 && !isMafia(role))) {
               giveUpButton.style.display = "block";
-              timer.style.marginTop = "0";
+              this.timerEl.style.marginTop = "0";
             }
           });
         } else if (data[PacketDataKeys_default.TYPE] == PacketDataKeys_default.USER_DATA) {
@@ -4117,6 +4119,19 @@
         }
       });
       this.updatePlayersGame();
+    }
+    changeTimer(t = this.timer) {
+      this.timer = t;
+      this.timerEl.textContent = `${t}`;
+      if (t <= 5) {
+        this.timerEl.style.color = "darkred";
+      } else if (t <= 10) {
+        this.timerEl.style.color = "red";
+      } else if (t <= 15) {
+        this.timerEl.style.color = "orange";
+      } else {
+        this.timerEl.style.color = "black";
+      }
     }
     async changeDayTime() {
       if (this.gameDayTime < 2) {
@@ -4556,7 +4571,7 @@
     updatePlayersWaiting(players) {
       if (this.status == 4 || this.status == 3) return;
       this.usersWaiting = players.map((e) => e[PacketDataKeys_default.OBJECT_ID]);
-      this.titleElem.textContent = `${this.title} (${players.length}/${this.maxPlayers})`;
+      this.titleElem.textContent = `${this.title} ${players.length} [${this.minPlayers}/${this.maxPlayers}]`;
       this.gamePlayersListElem.innerHTML = "";
       for (let i = 0; i < players.length; i++) {
         const player = players[i];
@@ -4981,6 +4996,8 @@
 
   // game/src/screen/Rooms.ts
   var defaultFilterOptions = {
+    version: 1,
+    enabled: false,
     minPl: 5,
     maxPl: 21,
     minLvl: 1,
@@ -5050,6 +5067,11 @@
         this.filterOptions = JSON.parse(filter);
       } catch {
       }
+      if (this.filterOptions.version != 1) {
+        this.filterOptions.version = 1;
+        this.filterOptions.enabled = false;
+        await fs_default.writeFile(App_default.config.path + "/filter.json", JSON.stringify(this.filterOptions));
+      }
       const filterElem = document.createElement("div");
       filterElem.className = "rooms-filter";
       this.element.appendChild(filterElem);
@@ -5090,7 +5112,8 @@
             },
             appendTo: box.content
           });
-          function add(name, value, onChange) {
+          let mainEl;
+          function add(name, value, onChange, main = false) {
             const isBool = typeof value == "boolean";
             const isNum = typeof value == "number";
             const el = createElement("div", {
@@ -5122,6 +5145,8 @@
               },
               appendTo: el
             });
+            if (main)
+              mainEl = val;
             if (isBool) {
               val.checked = value;
             } else {
@@ -5136,6 +5161,10 @@
                 onChange(isNaN(parsed) ? 0 : parsed);
               } else {
                 onChange(val.value);
+              }
+              if (!main && !self2.filterOptions.enabled) {
+                self2.filterOptions.enabled = true;
+                mainEl.checked = true;
               }
               self2.updateRooms();
               fs_default.writeFile(App_default.config.path + "/filter.json", JSON.stringify(self2.filterOptions));
@@ -5198,6 +5227,7 @@
             box.destroy();
             filterBtn.click();
           });
+          add("\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440", this.filterOptions.enabled, (v) => this.filterOptions.enabled = v, true);
           add("\u041C\u0438\u043D. \u0438\u0433\u0440\u043E\u043A\u043E\u0432", this.filterOptions.minPl, (v) => this.filterOptions.minPl = v);
           add("\u041C\u0430\u043A\u0441. \u0438\u0433\u0440\u043E\u043A\u043E\u0432", this.filterOptions.maxPl, (v) => this.filterOptions.maxPl = v);
           add("\u041C\u0438\u043D. \u043B\u0432\u043B", this.filterOptions.minLvl, (v) => this.filterOptions.minLvl = v);
@@ -5321,6 +5351,7 @@
         const title = (room[PacketDataKeys_default.TITLE] || "").toLowerCase();
         if (!title.includes(searchStr)) return false;
       }
+      if (!this.filterOptions.enabled) return true;
       const status = room[PacketDataKeys_default.STATUS];
       if (status == 0 && !this.filterOptions.isRegistration) return false;
       if (status == 3 && !this.filterOptions.isStarted) return false;
@@ -6349,34 +6380,6 @@
       roomElem.elem.style.width = "90%";
       div.appendChild(roomElem.elem);
     }
-    if (!isMe) addButton("\u041F\u043E\u0434\u0430\u0442\u044C \u0436\u0430\u043B\u043E\u0431\u0443", async () => {
-      "MAKE_COMPLAINT";
-      const w = new Box({ title: "\u041F\u041E\u0414\u0410\u0422\u042C \u0416\u0410\u041B\u041E\u0411\u0423", height: 200, canCloseAnywhere: true });
-      const div2 = createElement("div", {
-        css: {
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-around",
-          alignItems: "center",
-          height: "100%",
-          color: "black"
-        }
-      });
-      const input = createElement("input", { type: "text", placeholder: "\u041F\u0440\u0438\u0447\u0438\u043D\u0430" });
-      const btn2 = createElement("button", { text: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C", css: { width: "100%" } });
-      btn2.onclick = () => {
-        App_default.server.send(PacketDataKeys_default.MAKE_COMPLAINT, {
-          [PacketDataKeys_default.REASON]: input.value,
-          [PacketDataKeys_default.PLAYER_OBJECT_ID]: profile.playerObjectId
-        });
-        w.close();
-      };
-      div2.appendChild(createElement("div", { text: `\u041F\u043E\u0434\u0430\u0442\u044C \u0436\u0430\u043B\u043E\u0431\u0443 \u043D\u0430 \u0438\u0433\u0440\u043E\u043A\u0430: [${profile.username}]` }));
-      div2.appendChild(createElement("div", { text: `\u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430 \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043F\u0440\u0438\u0447\u0438\u043D\u0443` }));
-      div2.appendChild(input);
-      div2.appendChild(btn2);
-      w.content.appendChild(div2);
-    });
     addH(`\u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430`);
     const stat = document.createElement("div");
     stat.style.display = "flex";
@@ -8771,6 +8774,10 @@ ${getLogs().join("\n")}
       this.#initCommands();
       this.#initEvents();
       Bafia_default.init();
+      if (navigator.storage && navigator.storage.persist && (isIOS() || isMacOS())) {
+        const persisted = await navigator.storage.persisted();
+        if (!persisted) await navigator.storage.persist();
+      }
     }
     async #loadImgs() {
       for (let i = 1; i < 11; i++) {

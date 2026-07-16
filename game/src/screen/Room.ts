@@ -46,6 +46,7 @@ export default class Room extends Screen {
   emojiPanel!: HTMLDivElement;
   input!: HTMLInputElement
   rolesElem!: HTMLDivElement;
+  timerEl!: HTMLDivElement;
 
   meElem?: HTMLElement
   yourRoleElem?: HTMLSpanElement
@@ -219,7 +220,7 @@ export default class Room extends Screen {
         self.localFirstMessages = rs[PacketDataKeys.MESSAGES];
       }
       self.players = rs[PacketDataKeys.PLAYERS];
-      self.titleElem.textContent = `${self.title} (${self.players.length}/${self.maxPlayers})`;
+      self.titleElem.textContent = `${self.title} ${self.players.length} [${self.minPlayers}/${self.maxPlayers}]`;
       if(rs[PacketDataKeys.GAME_STATUS]) {
         self.status = rs[PacketDataKeys.GAME_STATUS][PacketDataKeys.STATUS];
         self.gameDayTime = rs[PacketDataKeys.GAME_STATUS][PacketDataKeys.DAYTIME];
@@ -802,7 +803,7 @@ export default class Room extends Screen {
     }
 
     const yourRoleMsg = `Вы<br/>${RuRoles[this.me()?.role! - 1]}`;
-    let timer: HTMLDivElement, mafia: HTMLDivElement, mir: HTMLDivElement, giveUpButton: HTMLButtonElement;
+    let mafia: HTMLDivElement, mir: HTMLDivElement, giveUpButton: HTMLButtonElement;
     {
       this.gameInfoElem.innerHTML = '';
       this.gameInfoElem.style.display = 'flex';
@@ -902,7 +903,7 @@ export default class Room extends Screen {
         mir = document.createElement('div');
         mir.textContent = noXSS(`Мирные: ${playersStat[PacketDataKeys.CIVILIAN_ALL]} | ${playersStat[PacketDataKeys.CIVILIAN_ALIVE]}`);
         mir.style.color = '#186400';
-        timer = createElement('div', {
+        this.timerEl = createElement('div', {
           text: noXSS(this.timer + ''),
           className: 'black',
           css: {
@@ -910,7 +911,8 @@ export default class Room extends Screen {
             fontSize: '35px',
             fontWeight: 'bold',
             marginTop: '15px',
-            padding: '5px'
+            padding: '5px',
+            transition: 'color 3s'
           }
         });
         giveUpButton = createElement('button', {
@@ -923,14 +925,14 @@ export default class Room extends Screen {
         {
           const role = this.me()?.role ?? 1;
           if(this.players.length > 7 && this.me()?.alive && ((playersStat[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (playersStat[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
-            timer.style.marginTop = '0';
+            this.timerEl.style.marginTop = '0';
             giveUpButton.style.display = 'block';
           }
         }
         giveUpButton.onclick = () => App.server.send(PacketDataKeys.GIVE_UP, { [PacketDataKeys.ROOM_OBJECT_ID]: this.roomObjectId });
         div.appendChild(mafia);
         div.appendChild(mir);
-        div.appendChild(timer);
+        div.appendChild(this.timerEl);
         div.appendChild(giveUpButton);
         this.gameInfoElem.appendChild(div);
       }
@@ -945,12 +947,12 @@ export default class Room extends Screen {
       if(!this.isGame) return;
       if(data[PacketDataKeys.TYPE] == PacketDataKeys.GAME_DAYTIME){
         this.gameDayTime = data[PacketDataKeys.DAYTIME];
-        timer.textContent = noXSS(data[PacketDataKeys.TIMER]);
+        this.changeTimer(data[PacketDataKeys.TIMER]);
         this.changeDayTime();
         this.updatePlayersGame()
       } else if(typeof data[PacketDataKeys.TIMER] == 'number'){
         this.timer = data[PacketDataKeys.TIMER];
-        timer.textContent = noXSS(data[PacketDataKeys.TIMER]);
+        this.changeTimer(data[PacketDataKeys.TIMER]);
       } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.PLAYERS_STAT) {
         mafia.textContent = noXSS(`Мафия: ${data[PacketDataKeys.MAFIA_ALL]} | ${data[PacketDataKeys.MAFIA_ALIVE]}`);
         mir.textContent = noXSS(`Мирные: ${data[PacketDataKeys.CIVILIAN_ALL]} | ${data[PacketDataKeys.CIVILIAN_ALIVE]}`);
@@ -959,7 +961,7 @@ export default class Room extends Screen {
           const role = this.me()?.role ?? 1;
           if(this.players.length > 7 && this.me()?.alive && ((data[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (data[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
             giveUpButton.style.display = 'block';
-            timer.style.marginTop = '0';
+            this.timerEl.style.marginTop = '0';
           }
         });
       } else if(data[PacketDataKeys.TYPE] == PacketDataKeys.USER_DATA){
@@ -985,6 +987,20 @@ export default class Room extends Screen {
     });
 
     this.updatePlayersGame();
+  }
+
+  changeTimer(t = this.timer){
+    this.timer = t;
+    this.timerEl.textContent = `${t}`;
+    if(t <= 5) {
+      this.timerEl.style.color = 'darkred';
+    } else if(t <= 10) {
+      this.timerEl.style.color = 'red';
+    } else if(t <= 15) {
+      this.timerEl.style.color = 'orange';
+    } else {
+      this.timerEl.style.color = 'black';
+    }
   }
 
   async changeDayTime(){
@@ -1423,7 +1439,7 @@ export default class Room extends Screen {
   updatePlayersWaiting(players: any[]){
     if(this.status == 4 || this.status == 3) return;
     this.usersWaiting = players.map(e => e[PacketDataKeys.OBJECT_ID]);
-    this.titleElem.textContent = `${this.title} (${players.length}/${this.maxPlayers})`;
+    this.titleElem.textContent = `${this.title} ${players.length} [${this.minPlayers}/${this.maxPlayers}]`;
     this.gamePlayersListElem.innerHTML = '';
     for(let i = 0; i < players.length; i++){
       const player = players[i];
