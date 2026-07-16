@@ -15,6 +15,7 @@ import Screen from './Screen';
 export default class Friends extends Screen {
   div!: HTMLDivElement
   list!: HTMLDivElement
+  title!: HTMLLabelElement;
 
   isSearch = false
   searchValue = ""
@@ -39,9 +40,9 @@ export default class Friends extends Screen {
     backImg.width = 24;
     getTexture(`ui/Jb.png`).then(e => backImg.src = e);
     back.appendChild(backImg);
-    const title = document.createElement('label');
-    title.textContent = 'Друзья';
-    header.appendChild(title);
+    this.title = document.createElement('label');
+    this.title.textContent = 'Друзья';
+    header.appendChild(this.title);
     
     this.on('back', () => {
       App.screen = new Dashboard();
@@ -145,6 +146,7 @@ export default class Friends extends Screen {
 
     let inputSearch!: HTMLInputElement;
     if(this.isSearch){
+      this.title.innerHTML = `Друзья`
       // console.log(data);
       inputSearch = createElement('input', {
         value: this.searchValue,
@@ -162,6 +164,9 @@ export default class Friends extends Screen {
       }
 
       this.list.appendChild(inputSearch);
+    } else {
+      const online = data.filter((e: any) => e.ff?.on == true).length;
+      this.title.innerHTML = `Друзья (онлайн: ${online} из ${data.length})`;
     }
 
     for(const f of data){
