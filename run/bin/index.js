@@ -3873,7 +3873,7 @@
           });
           {
             const role = this.me()?.role ?? 1;
-            if (this.players.length > 7 && this.me()?.alive && (playersStat[PacketDataKeys_default.MAFIA_ALIVE] == 1 && isMafia(role) || playersStat[PacketDataKeys_default.CIVILIAN_ALIVE] == 1 && !isMafia(role))) {
+            if (this.players.length > 7 && this.me()?.alive && (playersStat[PacketDataKeys_default.MAFIA_ALIVE] == 1 && isMafia(role) || (playersStat[PacketDataKeys_default.CIVILIAN_ALIVE] == 1 && !isMafia(role) || playersStat[PacketDataKeys_default.MAFIA_ALIVE] == 1 && playersStat[PacketDataKeys_default.CIVILIAN_ALIVE] == 1))) {
               this.timerEl.style.marginTop = "0";
               giveUpButton.style.display = "block";
             }
@@ -3905,7 +3905,7 @@
           mir.textContent = noXSS(`\u041C\u0438\u0440\u043D\u044B\u0435: ${data[PacketDataKeys_default.CIVILIAN_ALL]} | ${data[PacketDataKeys_default.CIVILIAN_ALIVE]}`);
           wait(500).then(() => {
             const role = this.me()?.role ?? 1;
-            if (this.players.length > 7 && this.me()?.alive && (data[PacketDataKeys_default.MAFIA_ALIVE] == 1 && isMafia(role) || data[PacketDataKeys_default.CIVILIAN_ALIVE] == 1 && !isMafia(role))) {
+            if (this.players.length > 7 && this.me()?.alive && (data[PacketDataKeys_default.MAFIA_ALIVE] == 1 && isMafia(role) || (data[PacketDataKeys_default.CIVILIAN_ALIVE] == 1 && !isMafia(role) || data[PacketDataKeys_default.MAFIA_ALIVE] == 1 && data[PacketDataKeys_default.CIVILIAN_ALIVE] == 1))) {
               giveUpButton.style.display = "block";
               this.timerEl.style.marginTop = "0";
             }
@@ -4231,10 +4231,10 @@
           xssAllowed = true;
         } else if (type == 4) {
           msg = `\u0418\u0433\u0440\u0430 \u043D\u0430\u0447\u0430\u043B\u0430\u0441\u044C`;
-        } else if (type == 7) {
+        } else if (type == 6) {
           msg = `\u041D\u0430\u0441\u0442\u0443\u043F\u0438\u043B\u0430 \u043D\u043E\u0447\u044C [\u041C\u0410\u0424\u0418\u042F \u0432 \u0447\u0430\u0442\u0435]`;
           color = "#113B81";
-        } else if (type == 6) {
+        } else if (type == 7) {
           msg = `[\u041C\u0410\u0424\u0418\u042F \u0432\u044B\u0431\u0438\u0440\u0430\u0435\u0442 \u0436\u0435\u0440\u0442\u0432\u0443]`;
           color = "#113B81";
         } else if (type == 8) {
@@ -5694,6 +5694,7 @@
     messagesElem;
     writingElem;
     input;
+    emojiPanel;
     async init() {
       App_default2.server.send(PacketDataKeys_default.ADD_CLIENT_TO_PRIVATE_CHAT, {
         [PacketDataKeys_default.TOKEN]: App_default2.user.token,
@@ -5721,9 +5722,22 @@
         },
         appendTo: this.element
       });
-      const footer = document.createElement("div");
-      footer.style.width = "100%";
-      this.element.appendChild(footer);
+      const footer = createElement("div", {
+        css: {
+          display: "flex",
+          flexDirection: "column",
+          width: "100%"
+        },
+        appendTo: this.element
+      });
+      const footer2 = createElement("div", {
+        css: {
+          display: "flex",
+          width: "100%"
+        },
+        appendTo: footer
+      });
+      let lastValue = "";
       this.input = document.createElement("input");
       this.input.className = "input-chat";
       this.input.type = `text`;
@@ -5735,23 +5749,46 @@
           this.sendMessage(msg);
         }
       });
-      if (isMobile()) {
-        this.input.addEventListener("focus", () => {
-          App_default2.width = innerWidth;
-          App_default2.height = innerHeight - 1;
+      this.emojiPanel = createElement("div", {
+        css: {
+          display: "none"
+        },
+        appendTo: footer
+      });
+      for (const e of ["sm1", "sm2", "sm3", "sm4", "sm5", "sm6"]) {
+        const img = createElement("img", {
+          width: 50,
+          height: 50,
+          css: {},
+          appendTo: this.emojiPanel
         });
-        this.input.addEventListener("blur", () => {
-          App_default2.width = innerWidth;
-          App_default2.height = innerHeight - 2;
-        });
+        getTexture(`emoji/${e}.png`).then((e2) => img.src = e2);
+        img.onclick = () => {
+          insertAtCaret(this.input, `:${e}:`);
+        };
       }
+      const emojiBtn = createElement("img", {
+        width: isMobile() ? 40 : 25,
+        height: isMobile() ? 40 : 25,
+        css: {},
+        appendTo: footer2
+      });
+      getTexture("emoji/sm1.png").then((e) => emojiBtn.src = e);
+      emojiBtn.onclick = () => {
+        this.emojiPanel.style.display = this.emojiPanel.style.display == "none" ? "block" : "none";
+        if (this.emojiPanel.style.display == "block") {
+          this.messagesElem.style.height = App_default2.height - (isMobile() ? 110 : 90) - 60 + "px";
+        } else {
+          this.messagesElem.style.height = App_default2.height - (isMobile() ? 110 : 90) + "px";
+        }
+      };
       this.on("keydown", (e) => e.key == "Enter" && this.input.focus());
-      footer.appendChild(this.input);
+      footer2.appendChild(this.input);
       const sendBtn = createElement("img", {
         width: isMobile() ? 40 : 25,
         height: isMobile() ? 40 : 25,
         css: {},
-        appendTo: footer
+        appendTo: footer2
       });
       getTexture("ui/6p.png").then((e) => sendBtn.src = e);
       sendBtn.onclick = () => {
