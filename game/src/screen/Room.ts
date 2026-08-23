@@ -924,7 +924,7 @@ export default class Room extends Screen {
         });
         {
           const role = this.me()?.role ?? 1;
-          if(this.players.length > 7 && this.me()?.alive && ((playersStat[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (playersStat[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
+          if(this.players.length > 7 && this.me()?.alive && ((playersStat[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (playersStat[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role) || (playersStat[PacketDataKeys.MAFIA_ALIVE] == 1 && playersStat[PacketDataKeys.CIVILIAN_ALIVE] == 1)))) {
             this.timerEl.style.marginTop = '0';
             giveUpButton.style.display = 'block';
           }
@@ -959,7 +959,7 @@ export default class Room extends Screen {
 
         wait(500).then(() => {
           const role = this.me()?.role ?? 1;
-          if(this.players.length > 7 && this.me()?.alive && ((data[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (data[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role)))) {
+          if(this.players.length > 7 && this.me()?.alive && ((data[PacketDataKeys.MAFIA_ALIVE] == 1 && isMafia(role)) || (data[PacketDataKeys.CIVILIAN_ALIVE] == 1 && !isMafia(role) || (data[PacketDataKeys.MAFIA_ALIVE] == 1 && data[PacketDataKeys.CIVILIAN_ALIVE] == 1)))) {
             giveUpButton.style.display = 'block';
             this.timerEl.style.marginTop = '0';
           }
@@ -1309,8 +1309,8 @@ export default class Room extends Screen {
       if(type == 2) { msg = `Игрок ${nickElement} вошёл`; color = '#186400'; xssAllowed = true }
       else if(type == 3) { msg = `Игрок ${nickElement} вышел`; color = '#940000'; xssAllowed = true }
       else if(type == 4) { msg = `Игра началась` }
-      else if(type == 7) { msg = `Наступила ночь [МАФИЯ в чате]`; color = '#113B81' }
-      else if(type == 6) { msg = `[МАФИЯ выбирает жертву]`; color = '#113B81' }
+      else if(type == 6) { msg = `Наступила ночь [МАФИЯ в чате]`; color = '#113B81' }
+      else if(type == 7) { msg = `[МАФИЯ выбирает жертву]`; color = '#113B81' }
       else if(type == 8) { msg = `Наступил день [Все общаются в чате]`; color = '#C46509' }
       else if(type == 9) { msg = `[Все голосуют] Выберите игрока, которого хотите казнить`; color = '#C46509' }
       else if(type == 13) { msg = `Игрок [${nickElement}] УБИТ!`; color = '#940000'; xssAllowed = true }

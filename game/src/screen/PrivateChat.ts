@@ -14,6 +14,7 @@ export default class PrivateChat extends Screen {
   messagesElem!: HTMLDivElement
   writingElem!: HTMLDivElement
   input!: HTMLInputElement
+  emojiPanel!: HTMLDivElement;
 
   constructor(public friendObjectId: string, public friendUserObjectId: string, public user: any){
     super('PrivateChat');
@@ -75,10 +76,23 @@ export default class PrivateChat extends Screen {
       appendTo: this.element
     });
 
-    const footer = document.createElement('div');
-    footer.style.width = '100%';
-    this.element.appendChild(footer);
+    const footer = createElement('div', {
+      css: {
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%'
+      },
+      appendTo: this.element
+    });
+    const footer2 = createElement('div', {
+      css: {
+        display: 'flex',
+        width: '100%'
+      },
+      appendTo: footer
+    });
 
+    let lastValue = '';
     this.input = document.createElement('input');
     this.input.className = 'input-chat'
     this.input.type = `text`;
@@ -90,25 +104,47 @@ export default class PrivateChat extends Screen {
         this.sendMessage(msg);
       }
     });
-    if(isMobile()){
-      this.input.addEventListener('focus', () => {
-        App.width = innerWidth;
-        App.height = innerHeight-1;
-        // this.messagesElem.scrollTop = this.messagesElem.scrollHeight;
+    
+    this.emojiPanel = createElement('div', {
+      css: {
+        display: 'none'
+      },
+      appendTo: footer
+    });
+    for(const e of ['sm1','sm2','sm3','sm4','sm5','sm6']) {
+      const img = createElement('img', {
+        width: 50, height: 50,
+        css: {},
+        appendTo: this.emojiPanel
       });
-      this.input.addEventListener('blur', () => {
-        App.width = innerWidth;
-        App.height = innerHeight-2;
-      });
+      getTexture(`emoji/${e}.png`).then(e => img.src = e);
+      img.onclick = () => {
+        insertAtCaret(this.input, `:${e}:`);
+      }
+    }
+
+    const emojiBtn = createElement('img', {
+      width: isMobile() ? 40 : 25, height: isMobile() ? 40 : 25,
+      css: {},
+      appendTo: footer2
+    });
+    getTexture('emoji/sm1.png').then(e => emojiBtn.src = e);
+    emojiBtn.onclick = () => {
+      this.emojiPanel.style.display = this.emojiPanel.style.display == 'none' ? 'block' : 'none';
+      if(this.emojiPanel.style.display == 'block') {
+        this.messagesElem.style.height = (App.height - (isMobile() ? 110 : 90)-60) + 'px';
+      } else {
+        this.messagesElem.style.height = (App.height - (isMobile() ? 110 : 90)) + 'px';
+      }
     }
 
     this.on('keydown', e => e.key == 'Enter' && this.input.focus());
-    footer.appendChild(this.input);
+    footer2.appendChild(this.input);
 
     const sendBtn = createElement('img', {
       width: isMobile() ? 40 : 25, height: isMobile() ? 40 : 25,
       css: {},
-      appendTo: footer
+      appendTo: footer2
     });
     getTexture('ui/6p.png').then(e => sendBtn.src = e);
     sendBtn.onclick = () => {
