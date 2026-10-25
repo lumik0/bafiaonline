@@ -1,0 +1,33 @@
+# Публикация сайта на GitHub Pages. Запускается ТОЛЬКО вручную (Actions → Deploy → Run workflow).
+# Перед первым запуском: Settings → Pages → Source → "GitHub Actions".
+# На сайт попадают play.html (новая версия) и run/ (старая, как есть) - оба адреса остаются рабочими.
+name: deploy
+on: workflow_dispatch
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

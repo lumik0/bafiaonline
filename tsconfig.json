@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["bun"],
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@common/*": ["./common/*"],
+      "@game/*": ["./game/*"],
+      "@launcher/*": ["./launcher/*"],
+      "@mods/*": ["./mods/*"]
+    }
+  },
+  "include": ["common", "game", "launcher", "mods", "scripts", "dev", "tests", "*.d.ts"],
+  "exclude": ["legacy", "node_modules", "run"]
+}

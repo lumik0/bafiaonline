@@ -1,0 +1,5 @@
+[serve.static]
+plugins = ["./scripts/tsrx-plugin.ts", "./scripts/mod-plugin.ts"]
+
+[test]
+preload = ["./tests/setup.ts"]

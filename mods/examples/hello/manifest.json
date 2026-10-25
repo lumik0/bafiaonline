@@ -1,0 +1,8 @@
+{
+  "id": "hello",
+  "name": "Привет",
+  "version": "1.1.0",
+  "author": "Бафия",
+  "description": "Пример мода: команда /hi, счётчик сообщений общего чата, панель с кнопками темы и показа уведомлений",
+  "permissions": ["chat:read", "chat:send", "commands", "ui:panel", "theme", "storage", "notify"]
+}

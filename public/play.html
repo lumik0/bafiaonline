@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Бафия">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <link rel="manifest" href="./play.webmanifest">
+  <link rel="icon" href="./play/icon.png">
+  <link rel="apple-touch-icon" href="./play/splash_screens/icon.png">
+  <!--STARTUP_IMAGES-->
+  <title>Бафия онлайн (бета)</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #242424; font-family: Arial, Helvetica, sans-serif; -webkit-overflow-scrolling: touch; }
+    #root { height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    // Сервис-воркер только для этой страницы: старая версия в run/ его не видит
+    if('serviceWorker' in navigator)
+      navigator.serviceWorker.register('./play-sw.js', { scope: './play.html' }).catch(() => {});
+  </script>
+  <script src="./play/bin/index.js?v=__VERSION__"></script>
+</body>
+</html>

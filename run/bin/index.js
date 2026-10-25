@@ -10494,6 +10494,10 @@ ${getLogs().join("\n")}
         this.openSettings();
       };
       btns.appendChild(this.settingsBtn);
+      const notice = document.createElement("div");
+      notice.style.cssText = "margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: #1f3a24; font-size: 12px";
+      notice.innerHTML = `\uD83C\uDF89 \u0412\u044B\u0448\u043B\u0430 \u043D\u043E\u0432\u0430\u044F \u0431\u0435\u0442\u0430-\u0432\u0435\u0440\u0441\u0438\u044F \u2014 \u043C\u043D\u043E\u0433\u043E \u043D\u043E\u0432\u043E\u0432\u0432\u0435\u0434\u0435\u043D\u0438\u0439! <a href="https://lumik0.github.io/bafiaonline/play.html" style="color: #b3f8b3">\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C</a>`;
+      div.appendChild(notice);
       const info = document.createElement("div");
       info.style.fontSize = "12px";
       info.innerHTML = ``.replaceAll("\n", "<br/>");

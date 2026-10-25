@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "target": "ESNext", "module": "ESNext", "moduleResolution": "bundler", "lib": ["ESNext", "WebWorker"], "strict": true, "noEmit": true, "skipLibCheck": true },
+  "include": ["index.ts", "../../sdk/bafia.d.ts"]
+}

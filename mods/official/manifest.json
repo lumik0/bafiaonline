@@ -1,0 +1,8 @@
+{
+  "id": "bafia",
+  "name": "Бафия: официальный",
+  "version": "1.0.0",
+  "author": "Бафия",
+  "description": "Меню комнат и игроков, расширенная статистика в профиле, авто-клик",
+  "permissions": ["rooms:join", "clipboard", "ui:menu", "ui:profile", "ui:dialog", "profile:read", "game:read", "room:act"]
+}

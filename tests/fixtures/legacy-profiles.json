@@ -1,0 +1,7 @@
+[
+  { "version": 1, "name": "Euaek", "email": "a@b.c", "password": "md5hash", "token": "tok-1", "userId": "uo-1", "playerUserId": "p-1", "photo": "ph1" },
+  { "name": "OldFormat", "token": "tok-2", "userId": "uo-2" },
+  { "version": 1, "name": "", "token": "tok-3", "userId": "uo-3", "needUpdate": true, "futureField": { "x": 1 } },
+  "мусор",
+  null
+]
