@@ -275,3 +275,34 @@ test("ErrorBoundary: ошибка при отрисовке уходит в за
   dispose();
   root.remove();
 });
+
+test("диалоги: клик по затемнению закрывает окно только после задержки и не проваливается", async() => {
+  const { DialogManager, createDialogs } = await import("./dialog/dialogs");
+  const { DialogLayer } = await import("./dialog/DialogLayer.tsrx");
+  const manager = new DialogManager();
+  const dialogs = createDialogs(manager);
+
+  const root = document.body.appendChild(document.createElement("div"));
+  const dispose = ui.mount(() => DialogLayer({ manager }) as any, root);
+  const underlying = document.body.appendChild(document.createElement("button"));
+  let clicked = 0;
+  underlying.addEventListener("click", () => clicked++);
+
+  const message = dialogs.alert("Привет");
+  await nextTick();
+  const backdrop = root.querySelector<HTMLElement>(".backdrop")!;
+
+  // сразу после открытия случайный клик по затемнению окно не закрывает
+  backdrop.click();
+  expect(manager.isOpen).toBe(true);
+
+  await new Promise(resolve => setTimeout(resolve, 400));
+  backdrop.click();
+  await message;
+  expect(manager.isOpen).toBe(false);
+  expect(clicked).toBe(0);
+
+  underlying.remove();
+  dispose();
+  root.remove();
+});

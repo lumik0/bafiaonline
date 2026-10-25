@@ -32,7 +32,7 @@ export function GameInfo({ ctx, session }: { ctx: GameContext, session: RoomSess
 			.info { display: flex; align-items: stretch; margin: 5px 10px; min-height: 125px; box-sizing: border-box; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
 			.me { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; font-size: 12px; text-align: center; }
 			.me img { width: 50px; height: 70px; object-fit: contain; }
-			.me .dead { position: absolute; top: 0; left: 8px; width: 50px; height: 70px; }
+			.me .dead { position: absolute; top: 0; left: 0; width: 50px; height: 70px; }
 			.picture { position: relative; cursor: pointer; }
 			.vote { position: absolute; right: 0; bottom: 4px; padding: 3px; border-radius: 3px; background: red; color: #fff; }
 			.blur { filter: blur(5px); }

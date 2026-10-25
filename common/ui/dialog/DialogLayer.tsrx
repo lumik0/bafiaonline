@@ -1,6 +1,9 @@
 import { fromEvents, onCleanup, onMount } from "@common/ui";
 import type { DialogManager } from "@common/ui/dialog/manager";
 
+/** сколько мс после открытия клики по затемнению не закрывают окно (случайный тап) */
+const DISMISS_DELAY = 350;
+
 /** слой окон поверх экрана: затемнение, карточка с заголовком, закрытие по Esc и по клику на затемнение */
 export function DialogLayer({ manager }: { manager: DialogManager }) @{
 	const entries = fromEvents(manager, "change", () => [...manager.entries]);
@@ -24,7 +27,7 @@ export function DialogLayer({ manager }: { manager: DialogManager }) @{
 			@keyframes pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
 		</style>
 		@for (const entry of entries()) {
-			<div class="backdrop" onPointerDown={(event) => { if(event.target == event.currentTarget && entry.dismissable) entry.close(undefined); }}>
+			<div class="backdrop" onClick={(event) => { if(event.target == event.currentTarget && entry.dismissable && Date.now() - entry.openedAt > DISMISS_DELAY) entry.close(undefined); }}>
 				<div class={entry.wide ? "card wide" : "card"} role="dialog" aria-modal="true" style={entry.width ? { width: "min(" + entry.width + "px, 100%)" } : undefined}>
 					@if (entry.title) {
 						<div class="head">{entry.title}</div>

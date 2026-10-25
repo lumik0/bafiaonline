@@ -18,6 +18,8 @@ export interface DialogEntry {
   readonly dismissable: boolean
   readonly wide: boolean
   readonly width?: number
+  /** когда окно открыли (мс): клики по затемнению сразу после открытия не закрывают его */
+  readonly openedAt: number
   readonly render: (close: (value?: unknown) => void) => unknown
   close(value?: unknown): void
 }
@@ -39,6 +41,7 @@ export class DialogManager extends Events<{ change: () => void }> {
         dismissable: options.dismissable ?? true,
         wide: options.wide ?? false,
         width: options.width,
+        openedAt: Date.now(),
         render: options.render as DialogEntry["render"],
         close: value => {
           if(!this.stack.includes(entry)) return;

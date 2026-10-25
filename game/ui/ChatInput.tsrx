@@ -41,7 +41,7 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 
 	const submit = () => {
 		const value = input.value;
-		if(!value.trim()) return ctx.panic(new Error(), 'no message');
+		if(!value.trim()) return;
 		input.value = "";
 		send(value);
 	};
