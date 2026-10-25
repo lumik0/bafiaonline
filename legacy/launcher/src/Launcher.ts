@@ -619,6 +619,11 @@ export default class Launcher {
     }
     btns.appendChild(this.settingsBtn);
 
+    const notice = document.createElement('div');
+    notice.style.cssText = 'margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: #1f3a24; font-size: 12px';
+    notice.innerHTML = `🎉 Вышла новая бета-версия - много нововведений! <a href="https://lumik0.github.io/bafiaonline/play.html" style="color: #b3f8b3">Попробовать</a>`;
+    div.appendChild(notice);
+
     const info = document.createElement('div');
     info.style.fontSize = '12px'
     info.innerHTML = ``.replaceAll('\n', '<br/>');
