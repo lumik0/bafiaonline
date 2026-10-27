@@ -1,6 +1,7 @@
 import { syncAssets, type Assets, type AssetsSource } from "@common/assets";
 import { importFromLegacy, type Account } from "@common/storage";
 import type { Notifier } from "@common/ui/notifications/center";
+import { versionNumber } from "@common/version";
 import type { ThemeManager } from "@common/ui/theme";
 import Events from "@common/utils/emitter";
 import { alert, confirm } from "./dialogs";
@@ -103,7 +104,7 @@ export class LauncherModel extends Events<{ change: () => void }> {
       }
 
       const window = manager.open({
-        title: "Бафия", icon: "🎮",
+        title: `Бафия ${versionNumber}`, icon: "🎮",
         width: 400, height: 500, minWidth: 250, minHeight: 400,
         center: true, zoom: .7, fullscreen: this.options.windowsInFS
       });

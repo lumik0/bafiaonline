@@ -3,6 +3,7 @@ import type { Account, Accounts } from "@common/storage";
 import { md5salt } from "@common/utils/md5";
 import Events from "@common/utils/emitter";
 import { formatDuration } from "@common/utils/format";
+import { languageCode } from "./market";
 import type { User } from "./user";
 
 /** вход всегда по почте и паролю: по токену не входим, поэтому пароль хранится в аккаунте */
@@ -140,5 +141,20 @@ export class Auth extends Events<{ signedIn: (account: Account, reconnected: boo
       photo: this.user.photo
     });
     return { status: "ok", account };
+  }
+}
+
+export type PasswordResetResult =
+  | { status: "sent" }
+  | { status: "noUser" }
+  | { status: "tooOften", seconds?: number };
+
+/** письмо со ссылкой для смены пароля на почту аккаунта; вход в аккаунт не нужен */
+export async function requestPasswordReset(client: ServerClient, email: string): Promise<PasswordResetResult> {
+  const reply = await client.request("resetPassword", { email, language: languageCode() }, ["passwordResetSent", "passwordResetNoUser", "passwordResetTooOften"]);
+  switch(reply.name) {
+    case "passwordResetSent": return { status: "sent" };
+    case "passwordResetNoUser": return { status: "noUser" };
+    default: return { status: "tooOften", seconds: reply.data.seconds };
   }
 }

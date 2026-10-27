@@ -46,6 +46,8 @@ const dashboardUser = t.object({
   roleStatistics: optionalField(K.PLAYER_ROLE_STATISTICS, t.record(t.number)),
   serverLanguage: optionalField(K.SERVER_LANGUAGE, t.string),
   updated: optionalField(K.UPDATED, t.number),
+  /** когда создан аккаунт */
+  created: optionalField(K.CREATED, t.number),
   vip: optionalField(K.VIP, t.any),
   winsAsKiller: optionalField(K.WINS_AS_KILLER, t.number),
   winsAsMafia: optionalField(K.WINS_AS_MAFIA, t.number),

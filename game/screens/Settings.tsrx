@@ -2,11 +2,13 @@ import { createSignal, fromEvents, onMount } from "@common/ui";
 import { BAFIA_LIMITS, PREMIUM_COLORS } from "@common/bafia/protocol";
 import { PREMIUM_BOT_URL } from "@common/constants";
 import { BAFIA_CONSENT } from "../domain/bafia";
+import { formatDateTime } from "@common/utils/format";
 import { isMobile } from "@common/utils/mobile";
 import { AppBar } from "../ui/AppBar.tsrx";
 import { SettingRow } from "../ui/SettingRow.tsrx";
 import { LanguageChoice } from "../ui/dialogs/LanguageChoice.tsrx";
 import { LogsView } from "../ui/dialogs/LogsView.tsrx";
+import { resetPassword } from "../ui/reset-password";
 import type { GameContext } from "../context";
 
 export function Settings({ ctx }: { ctx: GameContext }) @{
@@ -35,6 +37,8 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			setSexBusy(false);
 		}
 	};
+
+	const registered = fromEvents(ctx.user, "change", () => ctx.user.created);
 
 	const bafiaOn = fromEvents(ctx.settings, "change", () => ctx.settings.data.bafia.enabled);
 	const premium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumUntil);
@@ -104,6 +108,10 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 						<button class={sex() === 1 ? "sex on" : "sex"} disabled={sexBusy()} onClick={() => void changeSex(1)}>{"♀ Женский"}</button>
 					</div>
 				</SettingRow>
+				<SettingRow label="Пароль"><button onClick={() => void resetPassword(ctx, ctx.host.account?.email ?? "")}>{"Сменить"}</button></SettingRow>
+				@if (registered()) {
+					<SettingRow label="Дата регистрации"><span>{formatDateTime(registered()!)}</span></SettingRow>
+				}
 				<SettingRow label="Язык сервера">
 					<button onClick={() => void ctx.dialogs.manager.open({ title: "ЯЗЫК СЕРВЕРА", render: (close) => LanguageChoice({ ctx, close }) })}>{"Выбрать"}</button>
 				</SettingRow>

@@ -2,7 +2,7 @@ import { createSignal } from "@common/ui";
 import { AppBar } from "../ui/AppBar.tsrx";
 
 /** вход по почте и паролю. submit возвращает текст ошибки или undefined, если вошли */
-export function Authorization({ email = "", error = "", submit }: { email?: string, error?: string, submit: (email: string, password: string) => Promise<string | undefined> }) @{
+export function Authorization({ email = "", error = "", submit, forgot }: { email?: string, error?: string, submit: (email: string, password: string) => Promise<string | undefined>, forgot?: (email: string) => void }) @{
 	const [message, setMessage] = createSignal(error);
 	const [pending, setPending] = createSignal(false);
 	let emailInput!: HTMLInputElement, passwordInput!: HTMLInputElement;
@@ -23,6 +23,7 @@ export function Authorization({ email = "", error = "", submit }: { email?: stri
 			input { padding: 40px 12px; font-size: 16px; user-select: text; -webkit-user-select: text; }
 			.error { white-space: pre-wrap; color: #ff9a9a; font-size: 14px; min-height: 18px; }
 			button { padding: 10px; font-size: 16px; }
+			.link { background: none; border: none; text-decoration: underline; font-size: 14px; opacity: .8; }
 			.hint { font-size: 12px; opacity: .6; text-align: center; }
 		</style>
 		<div class="page">
@@ -32,6 +33,9 @@ export function Authorization({ email = "", error = "", submit }: { email?: stri
 				<input ref={passwordInput} type="password" placeholder="Пароль" autocomplete="current-password" required />
 				<div class="error">{message()}</div>
 				<button type="submit" disabled={pending()}>{pending() ? "Входим…" : "Войти"}</button>
+				@if (forgot) {
+					<button type="button" class="link" onClick={() => forgot(emailInput.value.trim())}>{"Забыли пароль?"}</button>
+				}
 				<div class="hint">{"Регистрация: напиши @bafiaonlinebot"}</div>
 			</form>
 		</div>

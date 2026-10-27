@@ -1,4 +1,5 @@
 import { fromEvents } from "@common/ui";
+import { longPress } from "@common/ui/long-press";
 import { roomRank, sortRoles, statusText, type RoomItem } from "../domain/rooms/room";
 import type { GameContext } from "../context";
 
@@ -14,7 +15,7 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 		ranks: Object.fromEntries([1, 2, 3, 4, 5, 6].map(rank => [rank, ctx.assets.url(`textures/rank/rank${rank}_36.png`)])) as Record<number, string>,
 		friends: ctx.assets.url("textures/ui/4v.png")
 	}));
-	let pressTimer: ReturnType<typeof setTimeout> | undefined;
+	const press = longPress();
 
 	<>
 		<style>
@@ -38,9 +39,11 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 			class={"room" + (room.myStatus == 0 ? " playing" : room.myStatus == 1 ? " killed" : "")}
 			onClick={open}
 			onContextMenu={(event) => { if(!menu) return; event.preventDefault(); if((event as PointerEvent).pointerType != "touch") menu(event); }}
-			onPointerDown={(event) => { if(menu && event.pointerType == "touch") pressTimer = setTimeout(() => menu(event), 600); }}
-			onPointerUp={() => clearTimeout(pressTimer)}
-			onPointerLeave={() => clearTimeout(pressTimer)}
+			onPointerDown={(event) => { if(menu) press.down(event, () => menu(event)); }}
+			onPointerMove={press.move}
+			onPointerUp={press.cancel}
+			onPointerCancel={press.cancel}
+			onPointerLeave={press.cancel}
 		>
 			@if (room.myStatus == 0) {
 				<div class="banner">{"Ты играешь в этой комнате"}</div>

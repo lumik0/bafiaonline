@@ -60,7 +60,7 @@ describe("игра", () => {
     expect(text()).toContain("11");
     expect(text()).toContain("99 700");
     expect(text()).toContain("10 000");
-    expect(window.title).toBe("Бафия - Euaek");
+    expect(window.title).toBe("Бафия 2.0.2 - Euaek");
   });
 
   test("неверный пароль: экран входа с причиной", async() => {
@@ -84,6 +84,54 @@ describe("игра", () => {
 
     expect(game.ctx.nav.top?.name).toBe("menu");
     expect(text()).toContain("Euaek");
+  });
+
+  test("сброс пароля: «Забыли пароль?» на экране входа и «Сменить» в настройках отправляют письмо", async() => {
+    const respond = (packet: Record<string, any>, socket: FakeSocket) => {
+      server(packet, socket);
+      if(packet.ty == "usrp") socket.receive(packet.e == "нет@почты.ру" ? { ty: "uwene" } : { ty: "usrps" });
+    };
+    const { game, window, network, text, click, press } = await launch(undefined, respond);
+    await tick(10);
+    expect(game.ctx.nav.top?.name).toBe("authorization");
+
+    // экран входа: вводим почту в окне и получаем подтверждение
+    const submitEmail = async(value: string) => {
+      const input = [...window.content.querySelectorAll("input")].at(-1) as HTMLInputElement;
+      input.value = value;
+      [...window.content.querySelectorAll("form")].at(-1)!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+      await tick(20);
+    };
+    click("Забыли пароль?");
+    await tick(20);
+    expect(text()).toContain("СМЕНА ПАРОЛЯ");
+    await submitEmail("a@b.c");
+    expect(network.last.sent.find(packet => packet.ty == "usrp")).toMatchObject({ ty: "usrp", e: "a@b.c" });
+    expect(text()).toContain("Письмо отправлено на a@b.c");
+    click("OK");
+    await tick(20);
+
+    // такой почты нет
+    click("Забыли пароль?");
+    await tick(20);
+    await submitEmail("нет@почты.ру");
+    expect(text()).toContain("Пользователя с такой почтой нет");
+    click("OK");
+    await tick(20);
+
+    // после входа: строка «Пароль» в настройках с той же кнопкой
+    const [email, password] = [...window.content.querySelectorAll("input")] as HTMLInputElement[];
+    email!.value = "a@b.c";
+    password!.value = "правильный";
+    window.content.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    await tick(30);
+    press("Настройки");
+    await tick(350);
+    const row = [...window.content.querySelectorAll(".row")].find(item => item.textContent?.includes("Пароль"))!;
+    expect(row).toBeTruthy();
+    [...row.querySelectorAll("button")].find(button => button.textContent == "Сменить")!.click();
+    await tick(20);
+    expect(text()).toContain("СМЕНА ПАРОЛЯ");
   });
 
   test("кнопка меню открывает экран, «назад» возвращает в меню", async() => {
@@ -210,6 +258,13 @@ describe("игра", () => {
 
     const rows = () => [...window.content.querySelectorAll(".row")].map(row => row.textContent ?? "");
     expect(rows().some(row => row.includes("Премиум"))).toBe(false);
+
+    // дата регистрации появляется, когда сервер её прислал
+    expect(rows().some(row => row.includes("Дата регистрации"))).toBe(false);
+    game.ctx.user.created = Date.UTC(2024, 0, 15, 12, 0);
+    game.ctx.user.emit("change");
+    await tick(20);
+    expect(rows().find(row => row.includes("Дата регистрации"))).toMatch(/15\.01\.2024/);
 
     game.ctx.settings.update(settings => { settings.bafia.enabled = true; });
     await tick(20);

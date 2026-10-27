@@ -22,6 +22,8 @@ export class User extends Events<{ change: () => void }> {
   goldCoins = 0;
   silverCoins = 0;
   serverLanguage = "";
+  /** когда создан аккаунт, мс */
+  created?: number;
   playedGames = 0;
   matchMakingScore = 0;
   /** входящих заявок в друзья и непрочитанных личных сообщений (из дашборда) */
@@ -44,6 +46,7 @@ export class User extends Events<{ change: () => void }> {
     this.previousLevelExperience = user.previousLevelExperience ?? 0;
     this.vip = !!user.vip;
     this.serverLanguage = user.serverLanguage ?? "";
+    if(user.created !== undefined) this.created = user.created < 1e11 ? user.created * 1000 : user.created;
     this.playedGames = user.playedGames ?? 0;
     this.matchMakingScore = user.matchMakingScore ?? 0;
     this.friendRequests = friendshipRequests ?? 0;

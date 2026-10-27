@@ -66,7 +66,7 @@ describe("LauncherModel", () => {
     await model.play(model.accounts[0]);
 
     expect(host?.account?.email).toBe("a@b.c");
-    expect(host?.window.title).toBe("Бафия");
+    expect(host?.window.title).toBe("Бафия 2.0.2");
     expect(manager.windows).toContain(host!.window);
     expect(model.window?.locked).toBe(false);
     expect(JSON.parse((await files.read("/options.json"))!).profile).toBe("u1");

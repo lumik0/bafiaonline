@@ -4,13 +4,13 @@ import { Connection, ServerClient } from "@common/net";
 import { createFakeNetwork, instantDelay, type FakeSocket } from "@common/net/testing";
 import { createStorage, MemoryFileStore } from "@common/storage";
 import { md5salt } from "@common/utils/md5";
-import { Auth } from "./auth";
+import { Auth, requestPasswordReset } from "./auth";
 import { User } from "./user";
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 const signedIn = { ty: "usi", usid: { u: "Euaek", t: "session-token", o: "o1", uo: "uo1" } };
-const dashboard = { ty: "db", db: { du: { u: "Euaek", puo: "p1", ph: "photo1", l: 11, ex: 100, nle: 200 }, uac: { gcns: 5, scns: 7 } } };
+const dashboard = { ty: "db", db: { du: { u: "Euaek", puo: "p1", ph: "photo1", l: 11, ex: 100, nle: 200, c: 1700000000000 }, uac: { gcns: 5, scns: 7 } } };
 
 /** сервер, который отвечает как настоящий на вход и дашборд */
 function serverReplies(packet: Record<string, any>, socket: FakeSocket) {
@@ -39,7 +39,7 @@ describe("Auth", () => {
     expect(result.status).toBe("ok");
     expect(network.last.sent[0]).toMatchObject({ ty: "sin", e: "a@b.c", pw: md5salt("right"), ds: "browser" });
     expect(network.last.sent[0]!.pw).not.toBe("right");
-    expect(user).toMatchObject({ username: "Euaek", level: 11, goldCoins: 5, silverCoins: 7, userObjectId: "uo1" });
+    expect(user).toMatchObject({ username: "Euaek", level: 11, goldCoins: 5, silverCoins: 7, userObjectId: "uo1", created: 1700000000000 });
     expect(client.session).toEqual({ userObjectId: "uo1", token: "session-token" });
     expect(await storage.accounts.list()).toEqual([expect.objectContaining({ name: "Euaek", email: "a@b.c", userId: "uo1", token: "session-token", playerUserId: "p1" })]);
   });
@@ -103,3 +103,26 @@ describe("Auth", () => {
     expect(network.last.sent).toEqual([]);
   });
 });
+
+describe("сброс пароля", () => {
+  test("письмо отправлено, почты нет, слишком часто - три ответа сервера", async() => {
+    const { network, client } = await setup();
+    const asked: unknown[] = [];
+    const reply = (answer: Record<string, unknown>) => {
+      network.respond = (packet, socket) => {
+        if(packet.ty == "usrp") { asked.push(packet); socket.receive(answer); }
+      };
+    };
+
+    reply({ ty: "usrps" });
+    expect(await requestPasswordReset(client, "a@b.c")).toEqual({ status: "sent" });
+    expect(asked[0]).toMatchObject({ ty: "usrp", e: "a@b.c", alc: "RUS" });
+
+    reply({ ty: "uwene" });
+    expect(await requestPasswordReset(client, "x@y.z")).toEqual({ status: "noUser" });
+
+    reply({ ty: "ustmr", usrsfr: 120 });
+    expect(await requestPasswordReset(client, "a@b.c")).toEqual({ status: "tooOften", seconds: 120 });
+  });
+});
+

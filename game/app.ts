@@ -3,6 +3,7 @@ import { Bafia, BAFIA_CONSENT } from "./domain/bafia";
 import { MessageAlerts } from "./domain/message-alerts";
 import { animationSource } from "./ui/animation-source";
 import { BAFIA_SERVER_URL, SERVER_URLS } from "@common/constants";
+import { versionNumber } from "@common/version";
 import { log } from "@common/logger";
 import { describeCrash, normalizeError, type CrashInfo } from "@common/panic";
 import { createSignal, mount } from "@common/ui";
@@ -21,6 +22,7 @@ import { ModManager } from "./mods/manager";
 import { officialMod } from "./mods/official";
 import { bindBrowserBack } from "./ui/browser-back";
 import { rehostRoom } from "./domain/rooms/rehost";
+import { resetPassword } from "./ui/reset-password";
 import { waitAndJoin } from "./ui/room-actions";
 import { ModsScreen } from "./screens/ModsScreen.tsrx";
 import { ShopScreen } from "./screens/ShopScreen.tsrx";
@@ -184,7 +186,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
 
   const screens: Screens<Routes> = {
     loading: () => Loading({ text: loadingText, assets: host.assets, down: serverDown }),
-    authorization: ({ params }) => Authorization({ email: params.email, error: params.error, submit: signIn }),
+    authorization: ({ params }) => Authorization({ email: params.email, error: params.error, submit: signIn, forgot: (email: string) => void resetPassword(ctx, email) }),
     menu: () => Menu({ user, assets: host.assets, settings, actions }),
     settings: () => Settings({ ctx }),
     theme: () => ThemePage({ ctx }),
@@ -235,7 +237,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   auth.keepSubscription = () => !!activeSession();
   auth.on("signedIn", (_account, reconnected) => { if(reconnected) activeSession()?.rejoin(); });
 
-  user.on("change", () => { if(user.username) host.window.setTitle(`Бафия - ${user.username}`); });
+  user.on("change", () => { if(user.username) host.window.setTitle(`Бафия ${versionNumber} - ${user.username}`); });
 
   // что видит игрок без связи: «Подключение…», потом «не удаётся», потом «сервер не отвечает»
   let failedAttempts = 0;

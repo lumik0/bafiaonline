@@ -65,7 +65,7 @@ export type BuyResult =
   | { status: "full", size?: number };
 
 /** ISO3-код языка заглавными, как у официального приложения: "RUS" */
-export const languageCode = (language = typeof navigator != "undefined" ? navigator.language : "ru") =>
+export const languageCode = (language = (typeof navigator != "undefined" && navigator.language) || "ru") =>
   ({ ru: "RUS", en: "ENG", uk: "UKR", be: "BEL", kk: "KAZ" } as Record<string, string>)[language.slice(0, 2).toLowerCase()] ?? "ENG";
 
 /** ссылку на оплату открываем, только если это https без логина и пароля */

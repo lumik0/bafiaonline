@@ -1,4 +1,5 @@
 import { createSignal, fromEvents } from "@common/ui";
+import { longPress } from "@common/ui/long-press";
 import { createViewCache, type PlayerView } from "../../domain/room/views";
 import { nickStyle } from "../../domain/decorations";
 import { playerMenuData } from "../../mods/data";
@@ -19,7 +20,7 @@ export function PlayersGrid({ ctx, session, mention }: { ctx: GameContext, sessi
 		dead: ctx.assets.url("textures/roles/dead.png")
 	}));
 	const showIndex = fromEvents(ctx.settings, "change", () => ctx.settings.data.game.showIndexPl);
-	let pressTimer: ReturnType<typeof setTimeout> | undefined;
+	const longTap = longPress();
 
 	const press = (view: PlayerView) => view.action ? session.act(view.playerObjectId) : mention(view.username);
 
@@ -58,9 +59,11 @@ export function PlayersGrid({ ctx, session, mention }: { ctx: GameContext, sessi
 					class="cell"
 					onClick={() => press(view)}
 					onContextMenu={(event) => { event.preventDefault(); if((event as PointerEvent).pointerType != "touch") void menu(view, event); }}
-					onPointerDown={(event) => { if(event.pointerType == "touch") pressTimer = setTimeout(() => void menu(view, event), 600); }}
-					onPointerUp={() => clearTimeout(pressTimer)}
-					onPointerLeave={() => clearTimeout(pressTimer)}
+					onPointerDown={(event) => longTap.down(event, () => void menu(view, event))}
+					onPointerMove={longTap.move}
+					onPointerUp={longTap.cancel}
+					onPointerCancel={longTap.cancel}
+					onPointerLeave={longTap.cancel}
 				>
 					<img src={images().roles[view.role]} alt="" draggable={false} />
 					@if (!view.alive) {

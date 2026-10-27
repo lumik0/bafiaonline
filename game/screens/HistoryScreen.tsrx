@@ -1,4 +1,5 @@
 import { fromEvents } from "@common/ui";
+import { longPress } from "@common/ui/long-press";
 import { formatDateTime } from "@common/utils/format";
 import { HISTORY_NAME_MAX, HISTORY_NOTE_MAX, outcomeOf, recordTitle, type HistoryRecord, type Outcome } from "../domain/history";
 import { sessionDeps } from "../domain/room/deps";
@@ -18,7 +19,7 @@ export function HistoryScreen({ ctx }: { ctx: GameContext }) @{
 		roles: Object.fromEntries(ROLE_IDS.map(id => [id, ctx.assets.url(`textures/roles/${id}.png`)])) as Record<number, string>,
 		ranks: Object.fromEntries([1, 2, 3, 4, 5, 6].map(rank => [rank, ctx.assets.url(`textures/rank/rank${rank}_36.png`)])) as Record<number, string>
 	}));
-	let pressTimer: ReturnType<typeof setTimeout> | undefined;
+	const longTap = longPress();
 
 	const outcome = (record: HistoryRecord) => outcomeOf(record, ctx.user.playerObjectId);
 	const playersCount = (record: HistoryRecord) => Object.keys(record.playersData ?? {}).length;
@@ -88,9 +89,11 @@ export function HistoryScreen({ ctx }: { ctx: GameContext }) @{
 						class={"game" + (outcome(record) == "win" ? " win" : outcome(record) == "lose" ? " lose" : "")}
 						onClick={() => open(record)}
 						onContextMenu={(event) => { event.preventDefault(); if((event as PointerEvent).pointerType != "touch") void menu(record, event); }}
-						onPointerDown={(event) => { if(event.pointerType == "touch") pressTimer = setTimeout(() => void menu(record, event), 600); }}
-						onPointerUp={() => clearTimeout(pressTimer)}
-						onPointerLeave={() => clearTimeout(pressTimer)}
+						onPointerDown={(event) => longTap.down(event, () => void menu(record, event))}
+						onPointerMove={longTap.move}
+						onPointerUp={longTap.cancel}
+						onPointerCancel={longTap.cancel}
+						onPointerLeave={longTap.cancel}
 					>
 						@if (outcome(record)) {
 							<div class="result">{OUTCOMES[outcome(record)!]}</div>

@@ -306,3 +306,38 @@ test("диалоги: клик по затемнению закрывает ок
   dispose();
   root.remove();
 });
+
+test("долгое нажатие: открывает меню после задержки, но не при прокрутке или отмене жеста", async() => {
+  const { longPress } = await import("./long-press");
+  const touch = (x: number, y: number) => ({ pointerType: "touch", clientX: x, clientY: y }) as PointerEvent;
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const opened: string[] = [];
+  const press = longPress(40, 10);
+
+  press.down(touch(0, 0), () => opened.push("hold"));
+  await wait(70);
+  expect(opened).toEqual(["hold"]);
+
+  // палец сдвинулся (прокрутка списка)
+  press.down(touch(0, 0), () => opened.push("scroll"));
+  press.move(touch(0, 30));
+  await wait(70);
+  expect(opened).toEqual(["hold"]);
+
+  // браузер забрал жест под прокрутку: pointercancel
+  press.down(touch(0, 0), () => opened.push("cancel"));
+  press.cancel();
+  await wait(70);
+  expect(opened).toEqual(["hold"]);
+
+  // небольшая дрожь пальца не отменяет
+  press.down(touch(0, 0), () => opened.push("jitter"));
+  press.move(touch(3, 4));
+  await wait(70);
+  expect(opened).toEqual(["hold", "jitter"]);
+
+  // мышь не запускает долгое нажатие
+  press.down({ pointerType: "mouse", clientX: 0, clientY: 0 } as PointerEvent, () => opened.push("mouse"));
+  await wait(70);
+  expect(opened).toEqual(["hold", "jitter"]);
+});

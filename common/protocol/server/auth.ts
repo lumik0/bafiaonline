@@ -25,5 +25,14 @@ export const authMessages = {
     secondsRemaining: optionalField(K.TIME_SEC_REMAINING, t.number)
   }),
 
-  emailNotVerified: serverPacket(K.EMAIL_NOT_VERIFIED, {})
+  emailNotVerified: serverPacket(K.EMAIL_NOT_VERIFIED, {}),
+
+  /** письмо для сброса пароля отправлено */
+  passwordResetSent: serverPacket(K.USER_RESET_PASSWORD_SENDED, {}),
+  /** пользователя с такой почтой нет */
+  passwordResetNoUser: serverPacket(K.USER_WITH_EMAIL_NOT_EXISTS, {}),
+  /** слишком частые запросы: через сколько секунд можно снова */
+  passwordResetTooOften: serverPacket(K.USTMR, {
+    seconds: optionalField(K.USRSFR, t.number)
+  })
 };
