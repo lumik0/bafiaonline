@@ -80,6 +80,12 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 		rank: ctx.assets.url(`textures/rank/rank${rankOf(level)}_36.png`),
 		roles: Object.fromEntries(roleIds.map(role => [role, ctx.assets.url(`textures/roles/${role}.png`)])) as Record<number, string>
 	}));
+	// заглушка по постоянному id пользователя: playerObjectId в каждой игре новый
+	const userId = player.objectId;
+	const isMuted = fromEvents(ctx.settings, "change", () => !!userId && ctx.settings.data.muted.includes(userId));
+	const toggleMute = () => userId && ctx.settings.update(settings => {
+		settings.muted = settings.muted.includes(userId) ? settings.muted.filter(id => id != userId) : [...settings.muted, userId];
+	});
 	const hidden = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername && isMe);
 
 	/** подтвердить, выполнить действие с дружбой и перезагрузить профиль, чтобы кнопки обновились */
@@ -179,6 +185,10 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 					<button onClick={() => void showNicks()}>{"История ников"}</button>
 				}
 				@if (!isMe) {
+					<>
+					@if (userId) {
+					<button class={isMuted() ? "dark-gray" : ""} onClick={toggleMute}>{isMuted() ? "Включить звук" : "Заглушить"}</button>
+					}
 					@if (!friendship && !flag) {
 						<button onClick={() => void friendAction("Отправить этому игроку заявку в друзья?", "ДОБАВИТЬ В ДРУЗЬЯ", () => ctx.profile.addFriend(playerObjectId))}>{"Добавить в друзья"}</button>
 					} @else if (flag == 2) {
@@ -191,6 +201,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 						<button onClick={() => friendship && (close(), ctx.nav.push("privateChat", { friendshipId: friendship, playerObjectId, username: player.username ?? "", photo: player.photo }))}>{"Личные сообщения"}</button>
 						</>
 					}
+					</>
 				}
 			</div>
 

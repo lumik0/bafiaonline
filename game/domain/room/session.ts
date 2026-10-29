@@ -163,7 +163,11 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   }
 
   private addMessage(message: Parameters<typeof toRoomEntry>[0], wire: unknown) {
-    this.addWire(wire, toRoomEntry(message));
+    const entry = toRoomEntry(message);
+    // как в старой версии: кнопки по самому сообщению, даже если пакет "ku" не дошёл или пришёл позже
+    if(entry.kickVote && !this.kickVote) this.kickVote = { targetPlayerObjectId: entry.kickVote.targetPlayerObjectId, timer: 10, voted: false };
+    else if(message.type == 25) this.kickVote = undefined;
+    this.addWire(wire, entry);
     this.state.changed();
   }
 

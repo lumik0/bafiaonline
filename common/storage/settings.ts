@@ -10,6 +10,8 @@ export const defaultGameSettings = (mobile: boolean) => ({
   hideUsername: false,
   /** весь интерфейс с маленькой буквы (ники, сообщения и названия комнат не меняются) */
   lowercase: false,
+  /** заглушенные игроки (постоянный `objectId` пользователя, `playerObjectId` в каждой игре новый): их сообщения в чатах не показываются */
+  muted: [] as string[],
   /** сервер Бафии: только с согласия; `key` - случайный ключ установки, с аккаунтом не связан */
   bafia: {
     enabled: false,

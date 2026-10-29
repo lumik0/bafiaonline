@@ -51,7 +51,10 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	const emoji = fromEvents(assets, "change", () => Object.fromEntries(EMOJI.map(name => [name, assets.url(`textures/emoji/${name}.png`)])) as Record<string, string>);
 
 	let previous: Row[] = [];
-	const rows = () => previous = stableRows(previous, toRows(entries()));
+	// заглушенные игроки: их сообщения не показываем
+	const muted = ctx?.settings ? fromEvents(ctx.settings, "change", () => new Set(ctx.settings.data.muted)) : () => new Set<string>();
+	const visible = () => entries().filter(entry => entry.kind != "message" || !entry.user?.objectId || !muted().has(entry.user.objectId));
+	const rows = () => previous = stableRows(previous, toRows(visible()));
 
 	// к новым сообщениям прокручиваем, только если читатель и так внизу: старую переписку не сбиваем
 	let stick = true;
@@ -103,7 +106,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 											} @else if (part.kind == "gif") {
 												<GifMessage bafia={bafia} id={part.id} />
 											} @else if (part.kind == "mention") {
-												<span class={part.mine ? (hideName() ? "mention blur" : "mention") : ""}>{part.text}</span>
+												<span class={part.mine ? (hideName() ? "mention blur" : "mention") : ""} data-keep>{part.text}</span>
 											} @else {
 												<span>{part.text}</span>
 											}
@@ -126,7 +129,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 						<div class="line" style={{ color: lineColor(row.entry) }}>
 							@for (const part of parseText(row.entry.text, myName())) {
 								@if (part.kind == "mention") {
-									<span class={part.mine ? (hideName() ? "mention blur" : "mention") : ""}>{part.text}</span>
+									<span class={part.mine ? (hideName() ? "mention blur" : "mention") : ""} data-keep>{part.text}</span>
 								} @else {
 									<span>{part.text}</span>
 								}

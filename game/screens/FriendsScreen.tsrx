@@ -5,6 +5,7 @@ import { AppBar } from "../ui/AppBar.tsrx";
 import { nickStyle, photoRing } from "../domain/decorations";
 import { Avatar } from "../ui/Avatar.tsrx";
 import type { GameContext } from "../context";
+import { enterRoom } from "../domain/rooms/enter";
 
 type Tab = "friends" | "requests" | "search";
 
@@ -109,7 +110,7 @@ export function FriendsScreen({ ctx }: { ctx: GameContext }) @{
 									<span class="badge">{item.newMessages}</span>
 								}
 								@if (item.roomId) {
-									<button onClick={() => ctx.nav.push("soon", { title: "Комната" })}>{"В комнате"}</button>
+									<button onClick={() => void enterRoom(ctx, item.roomId!, ctx.rooms.get(item.roomId!)?.hasPassword ?? false)}>{"В комнате"}</button>
 								}
 								@if (item.incoming) {
 									<button onClick={() => void accept(item)}>{"Принять"}</button>
