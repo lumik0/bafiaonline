@@ -42,12 +42,13 @@ export interface ChatEntry {
   kickVote?: { targetPlayerObjectId?: string }
 }
 
-export type Tone = "text" | "vote" | "danger" | "info" | "day" | "dead" | "night";
+export type VisitRole = "doctor" | "lover" | "sheriff" | "barman" | "informer" | "mafia";
+export type Tone = "text" | "vote" | "danger" | "info" | "day" | "dead" | "night" | `visit-${VisitRole}`;
 
 /** имя токена темы для смысла сообщения */
-export const toneToken = (tone: Tone | undefined): string => ({
+export const toneToken = (tone: Tone | undefined): string => tone?.startsWith("visit-") ? "chat-" + tone : ({
   text: "chat-text", vote: "chat-vote", danger: "chat-danger", info: "chat-info", day: "chat-day", dead: "chat-dead", night: "chat-night"
-})[tone ?? "text"];
+} as Record<string, string>)[tone ?? "text"]!;
 
 let nextId = 1;
 

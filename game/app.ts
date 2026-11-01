@@ -76,9 +76,23 @@ export interface GameInstance {
   dispose(): void
 }
 
+/** адрес из ?server=ws://... для проверки с поддельным сервером; только свой компьютер или локальная сеть, чужой сервер получил бы пароль */
+function serverOverride(): string | undefined {
+  if(typeof location == "undefined") return undefined;
+  const value = new URLSearchParams(location.search).get("server");
+  if(!value) return undefined;
+  try {
+    const { protocol, hostname } = new URL(value);
+    const local = hostname == "localhost" || /^(127|10)\./.test(hostname) || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    return (protocol == "ws:" || protocol == "wss:") && local ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** запуск игры в окне лаунчера: соединение, вход, навигация по экранам */
 export async function startGame(host: GameHost, options: StartOptions = {}): Promise<GameInstance> {
-  const client = new ServerClient(new Connection({ url: options.url ?? SERVER_URLS, createSocket: options.createSocket }));
+  const client = new ServerClient(new Connection({ url: options.url ?? serverOverride() ?? SERVER_URLS, createSocket: options.createSocket }));
   const user = new User();
   const auth = new Auth(client, host.storage.accounts, user);
   const nav = new Navigator<Routes>();

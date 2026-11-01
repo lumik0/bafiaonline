@@ -8,6 +8,8 @@ import type { GameContext } from "../context";
 import type { Routes } from "../routes";
 import type { Screens } from "@common/ui/nav/navigator";
 
+const MENU_BACKGROUND = "textures/backgrounds/menu3.png";
+
 /**
  * «Интерфейс с маленькой буквы»: надписи, кроме текста игроков
  * такие места помечены атрибутом data-keep
@@ -24,10 +26,15 @@ injectStyle("lowercase", `
 /** корень игры: экраны, окна поверх них и масштаб из настроек */
 export function GameRoot({ ctx, screens }: { ctx: GameContext, screens: Screens<Routes> }) @{
 	const zoom = fromEvents(ctx.settings, "change", () => ctx.settings.data.window.zoom || 1);
+	const navAnimation = fromEvents(ctx.settings, "change", () => ctx.settings.data.navAnimation);
 	const lowercase = fromEvents(ctx.settings, "change", () => ctx.settings.data.lowercase);
 	// фон по умолчанию у всех экранов - как в меню; пока картинка не загрузилась, обычный фон темы
-	const picture = fromEvents(ctx.assets, "change", () => ctx.assets.url("textures/backgrounds/menu3.png"));
-	const background = () => picture() ? "linear-gradient(var(--menu-overlay), var(--menu-overlay)), url(" + picture() + ") center / cover" : "var(--bg)";
+	// обои темы; если игрок заменил «Фон меню» своей картинкой, то она важнее
+	const wallpaper = fromEvents(ctx.theme, "change", () => ctx.assets.isCustom(MENU_BACKGROUND) ? { path: MENU_BACKGROUND, position: "left center" } : ctx.theme.wallpaper);
+	// и смена обоев, и загрузка картинки перерисовывают фон (новый объект каждый раз - чтобы сигнал сработал)
+	const loaded = fromEvents(ctx.assets, "change", () => ({}));
+	const picture = () => (loaded(), ctx.assets.url(wallpaper().path));
+	const background = () => picture() ? "linear-gradient(var(--menu-overlay), var(--menu-overlay)), url(" + picture() + ") " + wallpaper().position + " / cover" : "var(--bg)";
 
 	// без заголовка окна кнопку закрытия рисует шапка экрана
 	const controls = {
@@ -60,7 +67,7 @@ export function GameRoot({ ctx, screens }: { ctx: GameContext, screens: Screens<
 				<>
 					<WindowControlsContext.Provider value={controls}>
 						<ErrorBoundary fallback={(error: unknown) => <ReportCrash ctx={ctx} error={error} />}>
-							<NavHost navigator={ctx.nav} screens={screens} />
+							<NavHost navigator={ctx.nav} screens={screens} animated={navAnimation} />
 						</ErrorBoundary>
 					</WindowControlsContext.Provider>
 					<DialogLayer manager={ctx.dialogs.manager} />

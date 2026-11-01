@@ -1,5 +1,6 @@
 import type { ServerData } from "@common/protocol";
-import { toChatUser, type ChatEntry, type Tone } from "../chat/message";
+import { Role } from "../enums";
+import { toChatUser, type ChatEntry, type Tone, type VisitRole } from "../chat/message";
 
 type Raw = ServerData<"chatMessage">["message"];
 
@@ -60,6 +61,24 @@ const SPEAKER_AVATARS: Record<string, string> = {
   "Бармен": "textures/roles/barman_chat.png",
   "Информатор": "textures/roles/unknown_chat.png"
 };
+
+/** роли, которые ночью «приходят в гости»: слово в тексте и окончание глагола */
+const VISITORS: Partial<Record<Role, { key: VisitRole, name: string, verb: string }>> = {
+  [Role.Doctor]: { key: "doctor", name: "Доктор", verb: "пришёл" },
+  [Role.Lover]: { key: "lover", name: "Любовница", verb: "пришла" },
+  [Role.Sheriff]: { key: "sheriff", name: "Шериф", verb: "пришёл" },
+  [Role.Barman]: { key: "barman", name: "Бармен", verb: "пришёл" },
+  [Role.Informer]: { key: "informer", name: "Информатор", verb: "пришёл" },
+  [Role.Mafia]: { key: "mafia", name: "Мафия", verb: "пришла" }
+};
+
+/** своё сообщение о ночном ходе: только у тебя в чате, сервер о нём не знает. Без подходящей роли - `undefined` */
+export function visitEntry(role: number | undefined, target: { username: string }, self: boolean): ChatEntry | undefined {
+  const visitor = VISITORS[role as Role];
+  if(!visitor) return undefined;
+  const where = self ? "к себе" : `к ${nick(target.username)}`;
+  return { id: nextId++, kind: "system", text: `${visitor.name} ${visitor.verb} в гости ${where}`, tone: `visit-${visitor.key}` };
+}
 
 /** сообщение чата комнаты → строка для ChatView */
 export function toRoomEntry(raw: Raw): ChatEntry {

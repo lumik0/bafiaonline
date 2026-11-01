@@ -5,7 +5,7 @@ import Events from "@common/utils/emitter";
 import { applyBarmanEffect } from "../chat/message";
 import { withRecord, type HistoryFile, type HistoryRecord } from "../history";
 import type { DocumentStore } from "../store";
-import { toRoomEntry } from "./messages";
+import { toRoomEntry, visitEntry } from "./messages";
 import { RoomState, type RoomSettings } from "./state";
 
 type Handle = { remove(): void };
@@ -188,7 +188,22 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   act(playerObjectId: string) {
     if(this.replay) return;
     this.deps.client.send("roleAction", { playerObjectId, roomId: this.roomId, modelType: this.state.settings.modelType });
+    this.announceVisit(playerObjectId);
     this.state.changed();
+  }
+
+  private lastVisit?: { id: number, target: string }
+
+  /** ночной ход сразу виден в чате (только тебе): сервер о нём молчит. Повторный клик по тому же игроку не дублирует строку */
+  private announceVisit(playerObjectId: string) {
+    const { state } = this;
+    const me = state.me, target = state.playerBy(playerObjectId);
+    if(!state.isNight || state.phase != "game" || !me?.alive || !target) return;
+    if(this.lastVisit?.target == playerObjectId && state.messages.entries.at(-1)?.id == this.lastVisit.id) return;
+    const entry = visitEntry(me.role, target, target.playerObjectId == me.playerObjectId);
+    if(!entry) return;
+    state.messages.add(entry);
+    this.lastVisit = { id: entry.id, target: playerObjectId };
   }
 
   giveUp() {
@@ -201,6 +216,12 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     const message = applyBarmanEffect(text, this.deps.settings.data.game.barmanEffect);
     if(!message.trim()) return;
     this.deps.client.send("sendRoomMessage", { message: { text: message, style: 0, sticker: false }, roomId: this.roomId, modelType: this.state.settings.modelType });
+  }
+
+  /** начать голосование за исключение игрока; условия (серебро, регистрация) проверяет сервер */
+  kick(playerObjectId: string) {
+    if(this.replay) return;
+    this.deps.client.send("kickUser", { roomId: this.roomId, playerObjectId });
   }
 
   voteKick(vote: boolean) {

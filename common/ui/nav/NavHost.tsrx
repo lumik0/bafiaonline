@@ -18,7 +18,7 @@ const COMMIT_SPEED = .5;   // или быстро смахнуть, px/мс
  * при возврате наоборот; у левого края работает жест «назад» (смахнуть вправо)
  * живёт только верхний экран, на время перехода - два: предыдущий создаётся заново
  */
-export function NavHost<R extends RouteMap>({ navigator, screens, duration = 300 }: { navigator: Navigator<R>, screens: Screens<R>, duration?: number }) @{
+export function NavHost<R extends RouteMap>({ navigator, screens, duration = 300, animated }: { navigator: Navigator<R>, screens: Screens<R>, duration?: number, animated?: () => boolean }) @{
 	const makeLayer = (entry: Entry<any>, initial: Animation = ""): Layer => {
 		const [animation, setAnimation] = createSignal<Animation>(initial);
 		return { entry, animation, setAnimation };
@@ -51,7 +51,7 @@ export function NavHost<R extends RouteMap>({ navigator, screens, duration = 300
 		const current = layers();
 		const existing = current.find(layer => layer.entry.key == transition.to.key);
 
-		if(!transition.animate || !transition.from) {
+		if(!transition.animate || !transition.from || animated?.() === false) {
 			setLayers([existing ?? makeLayer(transition.to)]);
 			if(existing) existing.setAnimation("");
 			return;

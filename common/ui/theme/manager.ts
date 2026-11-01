@@ -2,7 +2,7 @@ import { randomId } from "../../utils/digest";
 import Events from "../../utils/emitter";
 import { JsonDocument } from "../../storage/document";
 import type { FileStore } from "../../storage/files";
-import { defaultPresetId, effects, getPreset, isBuiltIn, presets } from "./presets";
+import { defaultPresetId, defaultWallpaper, effects, getPreset, isBuiltIn, presets } from "./presets";
 import { getToken, isValidValue, tokens, type ThemeValues, type TokenKey } from "./tokens";
 
 export const THEME_PATH = "/theme.json";
@@ -137,6 +137,11 @@ export class ThemeManager extends Events<{ change: (changed: TokenKey[]) => void
     if(values) this.layers.set(id, sanitizeOverrides(values));
     else if(!this.layers.delete(id)) return;
     this.changed();
+  }
+
+  /** обои выбранной темы: у основы свои, иначе стандартные */
+  get wallpaper(): { path: string, position: string } {
+    return getPreset(this.current.base)?.wallpaper ?? defaultWallpaper;
   }
 
   /** эффект выбранной темы: свой, иначе тот, что задан у основы */

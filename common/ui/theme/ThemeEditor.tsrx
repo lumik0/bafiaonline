@@ -56,14 +56,18 @@ function SwatchCard({ pickers, token, title }: { pickers: Pickers, token: TokenK
 }
 
 /** строка с образцом текста нужного цвета и кнопкой «A» */
-function TextRow({ pickers, token, title, text }: { pickers: Pickers, token: TokenKey, title: string, text: string }) @{
+function TextRow({ pickers, token, title, text, background }: { pickers: Pickers, token: TokenKey, title: string, text: string, background?: TokenKey }) @{
 	<>
 		<style>
 			.trow { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--surface); min-height: 44px; }
-			.trow span { flex: 1; font-size: 15px; font-weight: 500; }
+			.trow .sample-text { flex: 1; min-width: 0; font-size: 15px; font-weight: 500; }
+			.trow .sample-text span { display: inline-block; padding: 2px 6px; border-radius: 4px; }
 		</style>
 		<div class="trow">
-			<span style={{ color: "var(--" + token + ")" }}>{text}</span>
+			<div class="sample-text"><span style={{ color: "var(--" + token + ")", background: background ? "var(--" + background + ")" : "transparent" }}>{text}</span></div>
+			@if (background) {
+				<PickButton pickers={pickers} token={background} title={"Фон: " + title} kind="fill" />
+			}
 			<PickButton pickers={pickers} token={token} title={title} kind="text" />
 		</div>
 	</>
@@ -170,8 +174,22 @@ export function ThemeEditor({ theme, assets, dialogs }: { theme: ThemeManager, a
 	<>
 		<style>
 			.editor { display: flex; flex-direction: column; gap: 12px; padding: 12px; color: var(--text); }
-			.themes { padding: 8px 10px; border-radius: 8px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; }
-			.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+			.themes { padding: 10px; border-radius: 8px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+			.caption { font-size: 15px; font-weight: 600; }
+			.list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+			.item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; text-align: left; border-radius: 8px; background: rgba(255, 255, 255, .25); color: var(--text-dark); border: 2px solid transparent; font-size: 15px; font-weight: 500; }
+			.item:hover { background: rgba(255, 255, 255, .4); }
+			.item.current { border-color: var(--accent); background: rgba(255, 255, 255, .5); }
+			.dot { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid var(--accent); box-sizing: border-box; }
+			.item.current .dot { background: radial-gradient(circle, var(--accent) 45%, transparent 50%); }
+			.title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.tag { flex: none; font-size: 11px; opacity: .65; }
+			.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+			.actions.two { grid-template-columns: repeat(2, 1fr); }
+			.actions button { padding: 8px 4px; font-size: 14px; }
+			.extra { display: flex; flex-direction: column; gap: 8px; }
+			.extra label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+			.extra select { flex: 1; max-width: 220px; }
 			.heading { text-align: center; font-size: 17px; font-weight: 500; margin: 4px 0 0; color: var(--text); }
 			.reset { width: 100%; padding: 10px; font-size: 15px; }
 			.sample-name { display: flex; align-items: center; gap: 8px; color: var(--text-dark); font-size: 15px; }
@@ -191,26 +209,33 @@ export function ThemeEditor({ theme, assets, dialogs }: { theme: ThemeManager, a
 		</style>
 		<div class="editor">
 			<div class="themes">
-				<div class="bar">
-					<select onChange={(event) => theme.select(event.currentTarget.value)}>
-						@for (const item of themes()) {
-							<option value={item.id} selected={active() == item.id}>{item.name}</option>
-						}
-					</select>
-					<button onClick={() => void create()}>{"Новая"}</button>
+				<div class="caption">{"Темы"}</div>
+				<div class="list" role="radiogroup" aria-label="Темы">
+					@for (const item of themes()) {
+						<button class={active() == item.id ? "item current" : "item"} role="radio" aria-checked={active() == item.id} onClick={() => theme.select(item.id)}>
+							<span class="dot"></span>
+							<span class="title" data-keep>{item.name}</span>
+							<span class="tag">{item.builtIn ? "встроенная" : "своя"}</span>
+						</button>
+					}
+				</div>
+				<div class="actions">
+					<button onClick={() => void create()}>{"＋ Новая"}</button>
 					<button disabled={builtIn()} onClick={() => void rename()}>{"Переименовать"}</button>
 					<button disabled={builtIn()} onClick={() => void remove()}>{"Удалить"}</button>
 				</div>
-				<div class="bar">
-					<label>{"Эффект: "}
+				<div class="extra">
+					<label>{"Эффект"}
 						<select onChange={(event) => theme.setEffect(event.currentTarget.value)}>
 							@for (const item of effects) {
 								<option value={item.id} selected={effect() == item.id}>{item.label}</option>
 							}
 						</select>
 					</label>
-					<button onClick={() => download("bafia-theme.json", theme.exportJson())}>{"Экспорт"}</button>
-					<button onClick={pickFile}>{"Импорт"}</button>
+					<div class="actions two">
+						<button onClick={() => download("bafia-theme.json", theme.exportJson())}>{"Экспорт"}</button>
+						<button onClick={pickFile}>{"Импорт"}</button>
+					</div>
 				</div>
 			</div>
 
@@ -236,15 +261,21 @@ export function ThemeEditor({ theme, assets, dialogs }: { theme: ThemeManager, a
 			<TextRow pickers={pickers} token="text-dark" title="Основной текст" text="Основной текст" />
 			<TextRow pickers={pickers} token="text" title="Контрастный текст" text="Контрастный текст" />
 			<TextRow pickers={pickers} token="chat-system" title="Второстепенный текст" text="Второстепенный текст" />
-			<TextRow pickers={pickers} token="chat-join" title="Игрок вошёл" text="Игрок Никнэйм вошёл" />
-			<TextRow pickers={pickers} token="chat-leave" title="Игрок вышел" text="Игрок Никнэйм вышел" />
-			<TextRow pickers={pickers} token="chat-vote" title="Регистрация" text="Регистрация" />
-			<TextRow pickers={pickers} token="chat-danger" title="Игра началась" text="Игра началась" />
-			<TextRow pickers={pickers} token="chat-day" title="Все остались живы" text="ВСЕ остались живы. Никого не удалось убить!" />
-			<TextRow pickers={pickers} token="chat-info" title="Выбор жертвы" text="[МАФИЯ выбирает жертву]" />
-			<TextRow pickers={pickers} token="chat-text" title="Обычное сообщение" text="Текст обычного сообщения" />
-			<TextRow pickers={pickers} token="chat-dead" title="Последнее слово" text="Текст последнего слова" />
-			<TextRow pickers={pickers} token="chat-night" title="Сообщение убитого игрока" text="Текст сообщения убитого игрока" />
+			<TextRow pickers={pickers} token="chat-join" title="Игрок вошёл" text="Игрок Никнэйм вошёл" background="chat-join-bg" />
+			<TextRow pickers={pickers} token="chat-leave" title="Игрок вышел" text="Игрок Никнэйм вышел" background="chat-leave-bg" />
+			<TextRow pickers={pickers} token="chat-vote" title="Регистрация" text="Регистрация" background="chat-vote-bg" />
+			<TextRow pickers={pickers} token="chat-danger" title="Игра началась" text="Игра началась" background="chat-danger-bg" />
+			<TextRow pickers={pickers} token="chat-day" title="Все остались живы" text="ВСЕ остались живы. Никого не удалось убить!" background="chat-day-bg" />
+			<TextRow pickers={pickers} token="chat-info" title="Выбор жертвы" text="[МАФИЯ выбирает жертву]" background="chat-info-bg" />
+			<TextRow pickers={pickers} token="chat-text" title="Обычное сообщение" text="Текст обычного сообщения" background="chat-text-bg" />
+			<TextRow pickers={pickers} token="chat-dead" title="Последнее слово" text="Текст последнего слова" background="chat-dead-bg" />
+			<TextRow pickers={pickers} token="chat-night" title="Сообщение убитого игрока" text="Текст сообщения убитого игрока" background="chat-night-bg" />
+			<TextRow pickers={pickers} token="chat-visit-doctor" title="Доктор пришёл к тебе в гости" text="Доктор пришёл в гости к [Никнэйм]" background="chat-visit-doctor-bg" />
+			<TextRow pickers={pickers} token="chat-visit-lover" title="Любовница пришла к тебе в гости" text="Любовница пришла в гости к [Никнэйм]" background="chat-visit-lover-bg" />
+			<TextRow pickers={pickers} token="chat-visit-sheriff" title="Шериф пришёл к тебе в гости" text="Шериф пришёл в гости к [Никнэйм]" background="chat-visit-sheriff-bg" />
+			<TextRow pickers={pickers} token="chat-visit-barman" title="Бармен пришёл к тебе в гости" text="Бармен пришёл в гости к [Никнэйм]" background="chat-visit-barman-bg" />
+			<TextRow pickers={pickers} token="chat-visit-informer" title="Информатор пришёл к тебе в гости" text="Информатор пришёл в гости к [Никнэйм]" background="chat-visit-informer-bg" />
+			<TextRow pickers={pickers} token="chat-visit-mafia" title="Мафия пришла к тебе в гости" text="Мафия пришла в гости к [Никнэйм]" background="chat-visit-mafia-bg" />
 
 			<details>
 				<summary>{"Все цвета по отдельности"}</summary>

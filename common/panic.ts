@@ -1,4 +1,4 @@
-import { getLogs } from "./logger";
+import { getReportLogs } from "./logger";
 
 /** короткий отпечаток текста (FNV-1a): одинаковые ошибки получают одинаковый ID */
 export function getId64(input: string): string {
@@ -82,6 +82,6 @@ DPR: ${environment.pixelRatio ?? "?"}
 Браузер: ${environment.userAgent ?? "?"}
 
 -- Журнал --
-${(environment.logs ?? getLogs()).join("\n")}
+${(environment.logs ?? getReportLogs()).join("\n")}
 `;
 }

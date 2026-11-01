@@ -58,21 +58,26 @@ export function Menu({ user, assets, settings, actions }: { user: User, assets: 
 			.photo { position: relative; }
 			.camera { position: absolute; left: -6px; bottom: 2px; padding: 4px; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: var(--badge-bg); color: var(--badge-text); border-color: transparent; }
 			.name { font-weight: 700; font-size: 16px; color: var(--text); text-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+			.namerow { position: relative; width: 100%; display: flex; justify-content: center; align-items: center; }
+			.tools { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; gap: 6px; }
 			.blur { filter: blur(5px); }
-			.side { position: absolute; top: 0; }
+			.side { position: absolute; top: 50%; transform: translateY(-50%); }
 			.side.left { left: 0; } .side.right { right: 0; }
 			.side button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 8px; font-size: 12px; }
 			.side img { width: 26px; height: 26px; }
 
-			.main { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 8px; }
+			.main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: 14px; margin-top: 8px; }
 			.group { display: flex; flex-direction: column; gap: 4px; width: min(220px, 70%); }
+			.group.narrow { width: min(150px, 55%); }
 			.count { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; }
 			.count img { width: 16px; height: 14px; object-fit: contain; }
-			.wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 12px; font-size: 15px; }
+			.wide { display: grid; grid-template-columns: 24px 1fr minmax(24px, auto); align-items: center; gap: 8px; padding: 9px 12px; font-size: 15px; font-weight: 600; }
+			.label { text-align: center; }
+			.extra { display: flex; gap: 6px; justify-content: flex-end; }
 
-			.bottom { margin-top: auto; display: flex; justify-content: space-between; align-items: stretch; gap: 10px; padding-top: 12px; }
-			.small { display: flex; flex-direction: column; gap: 4px; width: 38%; }
-			.shop { flex: 1; max-width: 46%; background: var(--button-shop-bg); color: var(--button-shop-text); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; }
+			.bottom { align-self: center; width: min(300px, 100%); display: flex; align-items: stretch; gap: 10px; padding-bottom: 6vh; }
+			.small { display: flex; flex-direction: column; gap: 4px; width: 46%; }
+			.shop { flex: 1; background: var(--button-shop-bg); color: var(--button-shop-text); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; }
 			.shop:enabled:hover { background: var(--button-shop-bg); filter: brightness(.92); }
 			.shop:enabled:active { background: var(--button-shop-bg); filter: brightness(.82); }
 		</style>
@@ -85,8 +90,6 @@ export function Menu({ user, assets, settings, actions }: { user: User, assets: 
 						<div class="fill" style={{ width: progress() + "%" }}></div>
 						<span>{formatNumber(me().experience) + " / " + formatNumber(me().next)}</span>
 					</div>
-					<button class="square" onClick={actions.settings} aria-label="Настройки"><img src={images().settings} alt="" /></button>
-					<button class="square" onClick={actions.profile} aria-label="Профиль"><img src={images().profile} alt="" /></button>
 				</div>
 
 				<div class="corners">
@@ -99,36 +102,44 @@ export function Menu({ user, assets, settings, actions }: { user: User, assets: 
 				</div>
 
 				<div class="hero">
-					<div class="side left">
-						<button onClick={actions.backpack}><img src={images().backpack} alt="" />{"Магазин"}</button>
-					</div>
 					<div class="photo">
 						<Avatar photo={() => me().photo} ring={() => photoRing(me().decorations)} animation={() => animationOf(me().decorations, DecorationType.PhotoBorderAnimation)} assets={assets} size={120} />
-						<button class="camera" onClick={actions.changePhoto} aria-label="Сменить фото"><Icon name="camera" size={16} /></button>
+						<button class="camera" onClick={actions.changePhoto} aria-label="Сменить фото"><Icon name="edit" size={16} /></button>
 					</div>
-					<div class={hidden() ? "name blur" : "name"} data-keep style={{ position: "relative", isolation: "isolate", ...nickStyle(me().decorations) }}>
-						@if (animationOf(me().decorations, DecorationType.UsernameAnimation)) {
-							<Lottie animation={() => animationOf(me().decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" />
-						}
-						{me().username}
+					<div class="namerow">
+						<div class="side left">
+							<button onClick={actions.backpack}><img src={images().backpack} alt="" />{"Рюкзак"}</button>
+						</div>
+						<div class={hidden() ? "name blur" : "name"} data-keep style={{ position: "relative", isolation: "isolate", ...nickStyle(me().decorations) }}>
+							@if (animationOf(me().decorations, DecorationType.UsernameAnimation)) {
+								<Lottie animation={() => animationOf(me().decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" />
+							}
+							{me().username}
+						</div>
+						<div class="tools">
+							<button class="square" onClick={actions.settings} aria-label="Настройки"><img src={images().settings} alt="" /></button>
+							<button class="square" onClick={actions.profile} aria-label="Профиль"><img src={images().profile} alt="" /></button>
+						</div>
 					</div>
 				</div>
 
 				<div class="main">
 					<div class="group">
-						<button class="wide" onClick={actions.rooms}><Icon name="rooms" />{"Комнаты"}</button>
-						<button class="wide" onClick={actions.competitive}><Icon name="trophy" />{"Соревновательный"}</button>
+						<button class="wide" onClick={actions.rooms}><Icon name="rooms" /><span class="label">{"Комнаты"}</span><span></span></button>
+						<button class="wide" onClick={actions.competitive}><Icon name="trophy" /><span class="label">{"Соревновательный"}</span><span></span></button>
 					</div>
-					<div class="group">
-						<button class="wide" onClick={actions.chat}><Icon name="chat" />{"Чат"}</button>
+					<div class="group narrow">
+						<button class="wide" onClick={actions.chat}><Icon name="chat" /><span class="label">{"Чат"}</span><span></span></button>
 						<button class="wide" onClick={actions.friends}>
-							<Icon name="person" />{"Друзья"}
-							@if (me().messages > 0) {
-								<span class="count">{me().messages}<img src={images().mail} alt="" /></span>
-							}
-							@if (me().requests > 0) {
-								<span class="count">{me().requests}<img src={images().request} alt="" /></span>
-							}
+							<Icon name="person" /><span class="label">{"Друзья"}</span>
+							<span class="extra">
+								@if (me().messages > 0) {
+									<span class="count">{me().messages}<img src={images().mail} alt="" /></span>
+								}
+								@if (me().requests > 0) {
+									<span class="count">{me().requests}<img src={images().request} alt="" /></span>
+								}
+							</span>
 						</button>
 					</div>
 				</div>
@@ -139,7 +150,7 @@ export function Menu({ user, assets, settings, actions }: { user: User, assets: 
 						<button onClick={actions.rules}>{"Правила"}</button>
 						<button onClick={actions.history}>{"История игр"}</button>
 					</div>
-					<button class="shop" onClick={actions.shop}><Icon name="store" />{"Рюкзак"}</button>
+					<button class="shop" onClick={actions.shop}><Icon name="store" />{"Магазин"}</button>
 				</div>
 			</div>
 		</div>

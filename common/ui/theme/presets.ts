@@ -25,7 +25,7 @@ const classic: ThemeValues = {
   "button-dark-bg": "#636262",
   "button-dark-text": "#363535",
 
-  "menu-overlay": "rgba(107, 101, 96, 0.82)",
+  "menu-overlay": "rgba(107, 101, 96, 0.5)",
   "button-shop-bg": "#8fae60",
   "button-shop-text": "#1b1b1b",
   "badge-bg": "rgba(215, 215, 215, 0.92)",
@@ -50,6 +50,27 @@ const classic: ThemeValues = {
   "chat-day": "#c46509",
   "chat-night": "#4b4483",
   "chat-unread-bg": "rgba(150, 150, 150, 0.35)",
+  "chat-join-bg": "transparent",
+  "chat-leave-bg": "transparent",
+  "chat-vote-bg": "transparent",
+  "chat-danger-bg": "transparent",
+  "chat-day-bg": "transparent",
+  "chat-night-bg": "transparent",
+  "chat-info-bg": "transparent",
+  "chat-dead-bg": "transparent",
+  "chat-text-bg": "transparent",
+  "chat-visit-doctor": "#0b6b5a",
+  "chat-visit-doctor-bg": "transparent",
+  "chat-visit-lover": "#b0246a",
+  "chat-visit-lover-bg": "transparent",
+  "chat-visit-sheriff": "#113b81",
+  "chat-visit-sheriff-bg": "transparent",
+  "chat-visit-barman": "#7a4a12",
+  "chat-visit-barman-bg": "transparent",
+  "chat-visit-informer": "#4b4483",
+  "chat-visit-informer-bg": "transparent",
+  "chat-visit-mafia": "#940000",
+  "chat-visit-mafia-bg": "transparent",
 
   "progress-fill": "#3b82f6",
   "progress-track": "#e5e5e5",
@@ -71,7 +92,12 @@ export interface ThemePreset {
   values: ThemeValues
   /** анимированные эффекты по умолчанию (см. `effects`) */
   effect?: string
+  /** обои меню и всех экранов: путь в образе игры; без них - стандартные */
+  wallpaper?: { path: string, position: string }
 }
+
+/** обои по умолчанию (у «Классики» и своих тем): человек в костюме слева */
+export const defaultWallpaper = { path: "textures/backgrounds/menu3.png", position: "left center" };
 
 /** эффекты поверх интерфейса: частицы и свечение. Выбираются отдельно от цветов */
 export const effects = [
@@ -115,7 +141,7 @@ export const presets: readonly ThemePreset[] = [
       "button-disabled": "#4d2a12",
       "button-border": "#120a05",
       "input-accent": "#ff7a1a",
-      "menu-overlay": "rgba(40, 18, 60, 0.82)",
+      "menu-overlay": "rgba(40, 18, 60, 0.5)",
       "chat-panel": "rgba(255, 233, 205, 0.55)",
       "chat-mention": "#c4167a",
       "chat-night": "#5a2d99",
@@ -129,6 +155,84 @@ export const presets: readonly ThemePreset[] = [
       "window-border": "#5a2d99",
       "dock-bg": "rgba(42, 19, 64, 0.85)",
       "dock-border": "#7a4a20"
+    }
+  },
+  // светлая и тёмная темы: каждая со своими обоями
+  {
+    id: "dark", label: "Тёмная", wallpaper: { path: "textures/backgrounds/dark.jpg", position: "center" }, values: {
+      ...classic,
+      "bg": "#0c0c0e",
+      "text": "#ececec",
+      "text-dark": "#ececec",
+      "accent": "#d03a41",
+      "surface": "rgba(28, 28, 32, 0.68)",
+      "surface-border": "#4a4a50",
+      "dialog-bg": "#26262b",
+      "header-bg": "#1b1b1f",
+      "header-text": "#ececec",
+      "button-bg": "#b8323a",
+      "button-hover": "#8f2429",
+      "button-active": "#6c1a1f",
+      "button-disabled": "#3a1a1c",
+      "button-gray-bg": "rgba(255, 255, 255, 0.14)",
+      "button-gray-text": "#ececec",
+      "button-dark-bg": "#3a3a3f",
+      "button-dark-text": "#b8b8b8",
+      "menu-overlay": "rgba(0, 0, 0, 0.3)",
+      "badge-bg": "rgba(40, 40, 44, 0.92)",
+      "badge-text": "#ececec",
+      "input-bg": "#1f1f24",
+      "input-text": "#ececec",
+      "chat-panel": "rgba(16, 16, 20, 0.62)",
+      "chat-text": "#ececec",
+      "chat-name": "#ffffff",
+      "chat-system": "#b8b8b8",
+      "chat-mention": "#ff7ab0",
+      "chat-join": "#6fdc63",
+      "chat-leave": "#ff7676",
+      "chat-vote": "#7be86a",
+      "chat-dead": "#9b9ba2",
+      "chat-info": "#86b4ff",
+      "chat-giveup": "#ff7676",
+      "chat-danger": "#ff7676",
+      "chat-day": "#ffae57",
+      "chat-night": "#aca0ff",
+      "chat-unread-bg": "rgba(255, 255, 255, 0.14)",
+      "chat-visit-doctor": "#4fd8bd",
+      "chat-visit-lover": "#ff7ab9",
+      "chat-visit-sheriff": "#86b4ff",
+      "chat-visit-barman": "#e0a35c",
+      "chat-visit-informer": "#aca0ff",
+      "chat-visit-mafia": "#ff7676",
+      "progress-track": "#3a3a40",
+      "desktop-bg": "#0c0c0e",
+      "window-bg": "#0c0c0e",
+      "window-title-bg": "#232327",
+      "window-title-inactive-bg": "#18181b",
+      "window-title-text": "#ececec",
+      "window-border": "#3a3a40",
+      "dock-bg": "rgba(24, 24, 28, 0.85)",
+      "dock-border": "#3a3a40"
+    }
+  },
+  {
+    id: "daylight", label: "Светлая", wallpaper: { path: "textures/backgrounds/light.jpg", position: "center" }, values: {
+      ...classic,
+      "bg": "#f2f2f2",
+      "text": "#1b1b1b",
+      "surface": "rgba(255, 255, 255, 0.7)",
+      "surface-border": "#c4c4c4",
+      "dialog-bg": "#ffffff",
+      "header-text": "#ffffff",
+      "button-text": "#ffffff",
+      "menu-overlay": "rgba(255, 255, 255, 0.25)",
+      "badge-bg": "rgba(255, 255, 255, 0.92)",
+      "chat-panel": "rgba(255, 255, 255, 0.72)",
+      "progress-track": "#d4d4d4",
+      "desktop-bg": "#dcdcdc",
+      "dock-bg": "rgba(240, 240, 240, 0.85)",
+      "dock-border": "#bbbbbb",
+      "dock-indicator": "#333333"
     }
   }
 ];

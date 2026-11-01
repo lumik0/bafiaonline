@@ -1,6 +1,7 @@
 import { createSignal, fromEvents, onMount } from "@common/ui";
 import { formatNumber } from "@common/utils/format";
 import type { PlayerProfile } from "../domain/profile";
+import type { RoomSession } from "../domain/room/session";
 import { Role, Sex } from "../domain/enums";
 import { Avatar } from "../ui/Avatar.tsrx";
 import { Lottie } from "../ui/Lottie.tsrx";
@@ -58,6 +59,14 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 		);
 	};
 	const isMe = (player.playerObjectId ?? playerObjectId) == ctx.user.playerObjectId;
+	// выгнать можно игрока из той комнаты, где ты сидишь, пока она не началась
+	const mySession = ctx.nav.top?.name == "room" ? (ctx.nav.top.params as { session?: RoomSession }).session : undefined;
+	const canKick = !!(mySession && room && room.id == mySession.roomId && !isMe && !mySession.replay && mySession.state.phase == "registration");
+	const kick = async () => {
+		if(!await ctx.dialogs.confirm("Начать голосование, чтобы выгнать этого игрока из комнаты?", { yes: "Выгнать" })) return;
+		mySession!.kick(player.playerObjectId ?? playerObjectId);
+		close();
+	};
 	const decorations = normalizeDecorations(profile.decorations);
 	const colors = profileColors(decorations);
 	const data = profileData(profile, player.playerObjectId ?? playerObjectId, isMe);
@@ -209,6 +218,9 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				<>
 					<h4>{"Сейчас играет в комнате"}</h4>
 					<RoomCard ctx={ctx} room={room} open={() => { close(); void enterRoom(ctx, room.id, room.hasPassword); }} />
+					@if (canKick) {
+						<button onClick={() => void kick()}>{"Выгнать из комнаты"}</button>
+					}
 				</>
 			}
 

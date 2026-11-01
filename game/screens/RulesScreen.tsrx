@@ -1,6 +1,7 @@
 import { fromEvents } from "@common/ui";
 import { roleNames, Role } from "../domain/enums";
 import { mafiaTeam, peacefulTeam, roleDescriptions, rulesText } from "../domain/rules";
+import { DISCLAIMER_FULL } from "@common/constants";
 import { AppBar } from "../ui/AppBar.tsrx";
 import type { GameContext } from "../context";
 
@@ -45,6 +46,10 @@ export function RulesScreen({ ctx }: { ctx: GameContext }) @{
 					@for (const paragraph of rulesText) {
 						<p>{paragraph}</p>
 					}
+				</div>
+				<h2>{"О проекте"}</h2>
+				<div class="rules">
+					<p>{DISCLAIMER_FULL}</p>
 				</div>
 			</div>
 		</div>

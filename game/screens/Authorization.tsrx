@@ -1,4 +1,5 @@
 import { createSignal } from "@common/ui";
+import { DISCLAIMER_SHORT } from "@common/constants";
 import { AppBar } from "../ui/AppBar.tsrx";
 
 /** вход по почте и паролю. submit возвращает текст ошибки или undefined, если вошли */
@@ -37,6 +38,7 @@ export function Authorization({ email = "", error = "", submit, forgot }: { emai
 					<button type="button" class="link" onClick={() => forgot(emailInput.value.trim())}>{"Забыли пароль?"}</button>
 				}
 				<div class="hint">{"Регистрация: напиши @bafiaonlinebot"}</div>
+				<div class="hint">{DISCLAIMER_SHORT}</div>
 			</form>
 		</div>
 	</>

@@ -46,7 +46,7 @@ describe("ThemeManager", () => {
 
     const id = theme.create("Моя");
     expect(theme.active).toBe(id);
-    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Моя"]);
+    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Тёмная", "Светлая", "Моя"]);
     expect(vars.get("--accent")).toBe("#d03a41");
 
     theme.set("accent", "#222222");
@@ -57,7 +57,7 @@ describe("ThemeManager", () => {
     theme.select(id);
     expect(theme.remove(id)).toBe(true);
     expect(theme.active).toBe("classic");
-    expect(theme.themes).toHaveLength(3);
+    expect(theme.themes).toHaveLength(5);
   });
 
   test("встроенные темы не удаляются и не переименовываются, но настраиваются", () => {
@@ -141,7 +141,7 @@ describe("ThemeManager", () => {
 
     expect(theme.active).toBe("classic");
     expect(theme.overrides).toEqual({ "text": "#abcdef" });
-    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Тема"]);
+    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Тёмная", "Светлая", "Тема"]);
   });
 
   test("экспорт и импорт переносят тему между игроками: она добавляется как новая", () => {
@@ -151,7 +151,7 @@ describe("ThemeManager", () => {
 
     const b = new ThemeManager(fakeTarget().target);
     expect(b.importJson(a.exportJson())).toBe(1);
-    expect(b.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Красивая"]);
+    expect(b.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Тёмная", "Светлая", "Красивая"]);
     expect(b.values.accent).toBe("#ff00aa");
     expect(b.overrides).toEqual({ accent: "#ff00aa" });
     expect(() => b.importJson("{}")).toThrow("не файл темы");
@@ -197,4 +197,13 @@ describe("ThemeManager", () => {
     theme.setLayer("mod");
     expect(vars.get("--accent")).toBe("#d03a41");
   });
+});
+
+test("у тёмной и светлой тем свои обои, у остальных стандартные", () => {
+  const theme = new ThemeManager(fakeTarget().target);
+  expect(theme.wallpaper.path).toBe("textures/backgrounds/menu3.png");
+  theme.select("dark");
+  expect(theme.wallpaper.path).toBe("textures/backgrounds/dark.jpg");
+  theme.select("daylight");
+  expect(theme.wallpaper.path).toBe("textures/backgrounds/light.jpg");
 });

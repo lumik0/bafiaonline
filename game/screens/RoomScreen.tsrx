@@ -14,6 +14,7 @@ import { ChatView, type ChatController } from "../ui/ChatView.tsrx";
 import { PlayersPanel } from "../ui/PlayersPanel.tsrx";
 import { GameInfo } from "../ui/room/GameInfo.tsrx";
 import { KickVote } from "../ui/room/KickVote.tsrx";
+import { KickVoteDialog } from "../ui/room/KickVoteDialog.tsrx";
 import { PlayersGrid } from "../ui/room/PlayersGrid.tsrx";
 import type { GameContext } from "../context";
 
@@ -74,6 +75,16 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 		if(reason == "kicked") await ctx.dialogs.alert("Тебя выгнали из комнаты", { title: "Выгнали" });
 		else await ctx.dialogs.alert("В комнате уже есть игрок с твоим интернет-подключением.\nЗаходить с нескольких аккаунтов с одного подключения нельзя.", { title: "Нельзя играть" });
 		ctx.nav.pop();
+	});
+	// голосование за исключение: окно один раз за голосование (таймер обновляет объект много раз), за себя не голосуем
+	let kickDialogShown = false;
+	const kickVote = fromEvents(session, "change", () => session.kickVote);
+	createEffect(() => {
+		const vote = kickVote();
+		if(!vote) { kickDialogShown = false; return; }
+		if(kickDialogShown || vote.voted || session.replay || vote.targetPlayerObjectId == state.myPlayerObjectId) return;
+		kickDialogShown = true;
+		void ctx.dialogs.manager.open({ title: "ГОЛОСОВАНИЕ", render: close => KickVoteDialog({ session, close }) });
 	});
 	const notice = session.on("notice", text => ctx.host.notifications.show({ key: "room-notice", kind: "warning", title: "Комната", text }));
 	const detachMods = ctx.mods.attachRoom(session);

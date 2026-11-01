@@ -101,6 +101,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 				<SettingRow label="Интерфейс с маленькой буквы">
 					<input type="checkbox" checked={data().lowercase} onChange={(event) => ctx.settings.update(settings => { settings.lowercase = event.currentTarget.checked; })} />
 				</SettingRow>
+				<SettingRow label="Анимация переходов между экранами">
+					<input type="checkbox" checked={data().navAnimation} onChange={(event) => ctx.settings.update(settings => { settings.navAnimation = event.currentTarget.checked; })} />
+				</SettingRow>
 				<SettingRow label="Моды"><button onClick={() => ctx.nav.push("mods")}>{"Открыть"}</button></SettingRow>
 				<SettingRow label="Пол">
 					<div class="sexes">

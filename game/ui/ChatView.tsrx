@@ -64,7 +64,11 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 		queueMicrotask(() => { if(stick && scroller) scroller.scrollTo({ top: scroller.scrollHeight }); });
 	});
 
-	const lineColor = (entry: ChatEntry) => "var(--" + (entry.tone ? toneToken(entry.tone) : colorToken(entry.type)) + ")";
+	const lineToken = (entry: ChatEntry) => entry.tone ? toneToken(entry.tone) : colorToken(entry.type);
+	const lineColor = (entry: ChatEntry) => "var(--" + lineToken(entry) + ")";
+	// фон строки: токен цвета + "-bg"; по умолчанию прозрачный
+	const lineBackground = (entry: ChatEntry) => "var(--" + lineToken(entry) + "-bg, transparent)";
+	const eventToken = (entry: ChatEntry) => entry.kind == "join" ? "chat-join" : entry.kind == "leave" ? "chat-leave" : "chat-danger";
 	<>
 		<style>
 			.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
@@ -75,12 +79,12 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 			.vip { margin-left: 4px; }
 			.label { font-weight: 400; font-size: 11px; opacity: .85; }
 			.blur { filter: blur(5px); }
-			.text { user-select: text; -webkit-user-select: text; font-size: 14px; line-height: 1.35; padding: 1px 0px; border-radius: 4px; }
+			.text { user-select: text; -webkit-user-select: text; font-size: 14px; line-height: 1.35; padding: 1px 4px; margin-left: -4px; border-radius: 4px; align-self: flex-start; }
 			.text.unread { background: var(--chat-unread-bg); }
 			.time { display: block; font-size: 10px; opacity: .6; }
 			.mention, .index { color: var(--chat-mention); font-weight: 700; }
 			.text img, .emoji { width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; }
-			.line { margin: 3px 8px; text-align: center; font-size: 13px; white-space: pre-line; user-select: text; -webkit-user-select: text; }
+			.line { margin: 3px 2px; padding: 0 6px; border-radius: 4px; text-align: center; font-size: 13px; white-space: pre-line; user-select: text; -webkit-user-select: text; }
 			.event { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; }
 			.who { display: inline-flex; cursor: pointer; }
 			.link { cursor: pointer; font-weight: 600; }
@@ -97,7 +101,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 									{animationOf(row.group.user.decorations, DecorationType.UsernameAnimation) ? <Lottie animation={() => animationOf(row.group.user.decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" /> : null}{nickPrefix?.(row.group.user.username) ? <span class="index">{nickPrefix(row.group.user.username)}</span> : null}{row.group.user.username}{premiumColor(row.group.user.playerObjectId) ? <PremiumBadge color={premiumColor(row.group.user.playerObjectId)!} /> : null}<span class="vip">{row.group.user.vip ?? ""}</span>{row.group.entries[0]?.label ? <span class="label">{" · " + row.group.entries[0].label}</span> : null}
 								</span>
 								@for (const entry of row.group.entries) {
-									<span class={entry.unread ? "text unread" : "text"} data-keep style={{ color: lineColor(entry) }}>
+									<span class={entry.unread ? "text unread" : "text"} data-keep style={{ color: lineColor(entry), ...(entry.unread ? {} : { background: lineBackground(entry) }) }}>
 										@for (const part of parseText(entry.text, myName())) {
 											@if (part.kind == "emoji") {
 												<img src={emoji()[part.name]} alt={part.name} />
@@ -119,14 +123,14 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 							</div>
 						</div>
 					} @else if (row.entry.kind == "join" || row.entry.kind == "leave" || row.entry.kind == "kill") {
-						<div class="line event" style={{ color: row.entry.kind == "join" ? "var(--chat-join)" : row.entry.kind == "leave" ? "var(--chat-leave)" : "var(--chat-danger)" }}>
+						<div class="line event" style={{ color: "var(--" + eventToken(row.entry) + ")", background: "var(--" + eventToken(row.entry) + "-bg, transparent)" }}>
 							<span>{"Игрок "}</span>
 							<span class="who" onClick={() => onAvatar?.(row.entry.user?.playerObjectId ?? "")}><Avatar photo={() => row.entry.user?.photo ?? ""} ring={() => photoRing(row.entry.user?.decorations)} assets={assets} size={20} /></span>
 							<span class={hideName() && row.entry.user?.username == myName() ? "link blur" : "link"} data-keep style={nickStyle(row.entry.user?.decorations)} onClick={() => controller?.mention?.(row.entry.user?.username ?? "")}>{row.entry.user?.username ?? ""}</span>
 							<span>{row.entry.kind == "join" ? " вошёл" : row.entry.kind == "leave" ? " вышел" : " " + row.entry.text}</span>
 						</div>
 					} @else {
-						<div class="line" style={{ color: lineColor(row.entry) }}>
+						<div class="line" style={{ color: lineColor(row.entry), background: lineBackground(row.entry) }}>
 							@for (const part of parseText(row.entry.text, myName())) {
 								@if (part.kind == "mention") {
 									<span class={part.mine ? (hideName() ? "mention blur" : "mention") : ""} data-keep>{part.text}</span>

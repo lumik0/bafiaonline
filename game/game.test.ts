@@ -603,8 +603,11 @@ describe("игра", () => {
     network.last.receive({ ty: "ku", puo: "p5", t: 10 });
     await tick(20);
     expect(text()).toContain("[Игрок4] начал голосование, чтобы выгнать игрока [Игрок5] из комнаты");
+    expect(game.ctx.dialogs.manager.isOpen).toBe(true);     // окно голосования открылось само
     click("Выгнать");
     expect(network.last.sent.find(packet => packet.ty == "kuv")).toMatchObject({ ro: "r1", v: true });
+    await tick(20);
+    expect(game.ctx.dialogs.manager.isOpen).toBe(false);    // проголосовал - окно закрылось
 
     // отказ на кик приходит баннером, экран комнаты остаётся
     network.last.receive({ ty: "kugs" });

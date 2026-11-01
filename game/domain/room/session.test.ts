@@ -146,6 +146,27 @@ describe("RoomSession", () => {
     expect(network.last.sent.at(-1)).toEqual({ ty: "agu", ro: "r1" });
   });
 
+  test("выгнать игрока: уходит запрос на голосование", async() => {
+    const { network, session, first } = await setup();
+    session.start(first);
+    session.kick("p3");
+    expect(network.last.sent.at(-1)).toEqual({ ty: "ku", ro: "r1", puo: "p3" });
+  });
+
+  test("ночной ход сразу виден в твоём чате, повтор по тому же игроку строку не дублирует", async() => {
+    const { network, session, first } = await setup();
+    session.start(first);
+    network.last.receive({ ty: "rst", rst: { gs: { s: 3, t: 30, d: 1 }, pls: roster(8), data: roster(8).map((p, i) => ({ puo: p.pu.puo, a: true, r: i == 0 ? 4 : 1 })), rls: { "1": 6, "4": 2 } } });
+    const target = session.state.players[2]!;
+    const count = session.state.messages.entries.length;
+
+    session.act(target.playerObjectId);
+    session.act(target.playerObjectId);
+    const added = session.state.messages.entries.slice(count);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({ kind: "system", tone: "visit-mafia", text: `Мафия пришла в гости к [${target.username}]` });
+  });
+
   test("сообщения: при смене фазы заменяются, если включена очистка; иначе дополняются", async() => {
     for(const [clearMessages, expected] of [[true, ["новое"]], [false, ["старое", "новое"]]] as const) {
       const { network, session, first } = await setup({ clearMessages });

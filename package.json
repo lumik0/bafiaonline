@@ -7,6 +7,7 @@
     "test": "bun test --conditions browser",
     "typecheck": "tsc --noEmit",
     "build": "bun scripts/build.ts",
+    "fakeserver": "bun scripts/fakeserver.ts",
     "buildmod": "bun scripts/pack-mod.ts"
   },
   "devDependencies": {

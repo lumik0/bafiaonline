@@ -1,5 +1,5 @@
 import { buildReport } from "@common/panic";
-import { getLogs } from "@common/logger";
+import { getReportLogs } from "@common/logger";
 import { version } from "@common/version";
 import type { GameContext } from "../context";
 
@@ -8,7 +8,7 @@ export function CrashScreen({ ctx }: { ctx: GameContext }) @{
 	const crash = ctx.crash()!;
 	const report = buildReport(crash, {
 		version, width: window.innerWidth, height: window.innerHeight, pixelRatio: window.devicePixelRatio,
-		location: location.href, userAgent: navigator.userAgent, logs: getLogs()
+		location: location.href, userAgent: navigator.userAgent, logs: getReportLogs()
 	});
 	let area: HTMLTextAreaElement;
 	let copied = false;

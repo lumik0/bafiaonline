@@ -1,4 +1,5 @@
 import { createSignal, fromEvents, onMount } from "@common/ui";
+import { DISCLAIMER_SHORT } from "@common/constants";
 import { accountKey, accountTitle, type LauncherModel } from "../model";
 
 // новости новой игры; `core/news.txt` - для старой версии
@@ -41,6 +42,7 @@ export function Launcher({ model, openSettings }: { model: LauncherModel, openSe
 			.news { font-size: 12px; line-height: 1.5; opacity: .85; user-select: text; -webkit-user-select: text; }
 			.news p { margin: 0; }
 			.links { font-size: 12px; opacity: .8; user-select: text; -webkit-user-select: text; }
+			.disclaimer { margin: 10px 0 0; font-size: 11px; opacity: .6; }
 			.links a { color: var(--accent); }
 		</style>
 		<div class="launcher">
@@ -83,6 +85,7 @@ export function Launcher({ model, openSettings }: { model: LauncherModel, openSe
 				{"Telegram: "}<a href="https://t.me/bafiaonline" target="_blank">{"t.me/bafiaonline"}</a><br />
 				<br />
 				{"Старая версия: "}<a href="./run/index.html">{"Перейти"}</a>
+				<p class="disclaimer">{DISCLAIMER_SHORT}</p>
 			</div>
 		</div>
 	</>
