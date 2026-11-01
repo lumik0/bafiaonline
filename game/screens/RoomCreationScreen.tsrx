@@ -89,7 +89,7 @@ export function RoomCreationScreen({ ctx }: { ctx: GameContext }) @{
 				<div class="card">
 					<div class="field">
 						<label>{"Название"}</label>
-						<input type="text" placeholder="Например, Новички, заходите" maxlength="30" value={draft().title} onInput={(event) => edit(data => { data.title = event.currentTarget.value; })} />
+						<input type="text" placeholder="Например, eriised крутая" maxlength="30" value={draft().title} onInput={(event) => edit(data => { data.title = event.currentTarget.value; })} />
 					</div>
 					<div class="field">
 						<label>{"Пароль (можно не ставить)"}</label>

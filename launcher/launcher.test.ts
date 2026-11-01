@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Assets } from "@common/assets";
+import { versionNumber } from "@common/version";
 import { createStorage, MemoryFileStore } from "@common/storage";
 import { NotificationCenter } from "@common/ui/notifications/center";
 import { ThemeManager } from "@common/ui/theme";
@@ -66,7 +67,7 @@ describe("LauncherModel", () => {
     await model.play(model.accounts[0]);
 
     expect(host?.account?.email).toBe("a@b.c");
-    expect(host?.window.title).toBe("Бафия 2.0.2");
+    expect(host?.window.title).toBe(`Бафия ${versionNumber}`);
     expect(manager.windows).toContain(host!.window);
     expect(model.window?.locked).toBe(false);
     expect(JSON.parse((await files.read("/options.json"))!).profile).toBe("u1");

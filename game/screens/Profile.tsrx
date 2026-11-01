@@ -13,6 +13,7 @@ import { profileData } from "../mods/data";
 import { enterRoom } from "../domain/rooms/enter";
 import { toRoom } from "../domain/rooms/room";
 import { RoomCard } from "../ui/RoomCard.tsrx";
+import { RoomPlayersDialog } from "../ui/dialogs/RoomPlayersDialog.tsrx";
 import type { ProfileSection } from "../mods/manager";
 import type { GameContext } from "../context";
 
@@ -217,7 +218,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			@if (room) {
 				<>
 					<h4>{"Сейчас играет в комнате"}</h4>
-					<RoomCard ctx={ctx} room={room} open={() => { close(); void enterRoom(ctx, room.id, room.hasPassword); }} />
+					<RoomCard ctx={ctx} room={room} open={() => { close(); void enterRoom(ctx, room.id, room.hasPassword); }} players={() => void ctx.dialogs.manager.open({ title: "ИГРОКИ В КОМНАТЕ", render: (done) => RoomPlayersDialog({ ctx, room, close: done }) })} />
 					@if (canKick) {
 						<button onClick={() => void kick()}>{"Выгнать из комнаты"}</button>
 					}

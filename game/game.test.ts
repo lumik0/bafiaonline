@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Assets } from "@common/assets";
+import { versionNumber } from "@common/version";
 import { createFakeNetwork, type FakeSocket } from "@common/net/testing";
 import { createStorage, MemoryFileStore, type Account } from "@common/storage";
 import { md5salt } from "@common/utils/md5";
@@ -60,7 +61,7 @@ describe("игра", () => {
     expect(text()).toContain("11");
     expect(text()).toContain("99 700");
     expect(text()).toContain("10 000");
-    expect(window.title).toBe("Бафия 2.0.2 - Euaek");
+    expect(window.title).toBe(`Бафия ${versionNumber} - Euaek`);
   });
 
   test("неверный пароль: экран входа с причиной", async() => {

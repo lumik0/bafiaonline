@@ -185,7 +185,7 @@ test("диалоги: сообщение, подтверждение, ввод �
 
   const confirmation = dialogs.confirm("Удалить?", { yes: "Удалить" });
   await nextTick();
-  expect(root.querySelector(".head")?.textContent).toBe("Подтверждение");
+  expect(root.querySelector(".head .title")?.textContent).toBe("Подтверждение");
   expect(root.textContent).toContain("Удалить?");
   click("Удалить");
   expect(await confirmation).toBe(true);
@@ -251,7 +251,7 @@ test("контекстное меню: мышью - у курсора, паль�
   // долгое нажатие пальцем (или вызов без события): окно с кнопками
   const touched = dialogs.choose(undefined, { title: "Комната", labels });
   await nextTick();
-  expect(root.querySelector(".head")?.textContent).toBe("Комната");
+  expect(root.querySelector(".head .title")?.textContent).toBe("Комната");
   [...root.querySelectorAll<HTMLElement>(".card button")].find(button => button.textContent == "Зайти")!.click();
   expect(await touched).toBe(0);
 
