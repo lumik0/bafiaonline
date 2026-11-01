@@ -5,7 +5,7 @@ import Events from "@common/utils/emitter";
 import { applyBarmanEffect } from "../chat/message";
 import { withRecord, type HistoryFile, type HistoryRecord } from "../history";
 import type { DocumentStore } from "../store";
-import { toRoomEntry, visitEntry } from "./messages";
+import { toRoomEntry, visitedEntry, visitEntry } from "./messages";
 import { RoomState, type RoomSettings } from "./state";
 
 type Handle = { remove(): void };
@@ -53,6 +53,13 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     this.replay = replay;
     this.state = new RoomState(settings, deps.myPlayerObjectId);
     this.state.on("change", () => this.emit("change"));
+    this.state.onVisited = roles => {
+      if(this.replay || !this.state.me?.alive) return;
+      for(const role of roles) {
+        const entry = visitedEntry(role);
+        if(entry) this.state.messages.add(entry);
+      }
+    };
   }
 
   /** просмотр игры из истории: состояние собирается из записи, сеть не нужна */

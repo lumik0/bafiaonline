@@ -146,6 +146,19 @@ describe("RoomSession", () => {
     expect(network.last.sent.at(-1)).toEqual({ ty: "agu", ro: "r1" });
   });
 
+  test("сервер отметил на тебе роль: сразу строка «пришёл к тебе в гости», повтор той же роли не дублирует", async() => {
+    const { network, session, first } = await setup();
+    session.start(first);
+    network.last.receive({ ty: "rst", rst: { gs: { s: 3, t: 30, d: 1 }, pls: roster(8), data: roster(8).map((p, i) => ({ puo: p.pu.puo, a: true, r: i == 0 ? 4 : 1 })), rls: { "1": 6, "4": 2 } } });
+    const count = session.state.messages.entries.length;
+
+    network.last.receive({ ty: "ud", data: [{ puo: "p1", abr: [5] }] });
+    network.last.receive({ ty: "ud", data: [{ puo: "p1", abr: [5] }] });
+    const added = session.state.messages.entries.slice(count);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({ kind: "system", tone: "visit-lover", text: "Любовница пришла к тебе в гости" });
+  });
+
   test("выгнать игрока: уходит запрос на голосование", async() => {
     const { network, session, first } = await setup();
     session.start(first);
@@ -164,7 +177,7 @@ describe("RoomSession", () => {
     session.act(target.playerObjectId);
     const added = session.state.messages.entries.slice(count);
     expect(added).toHaveLength(1);
-    expect(added[0]).toMatchObject({ kind: "system", tone: "visit-mafia", text: `Мафия пришла в гости к [${target.username}]` });
+    expect(added[0]).toMatchObject({ kind: "system", tone: "visit-mafia", text: `Ты пришёл(-ла) к [${target.username}]` });
   });
 
   test("сообщения: при смене фазы заменяются, если включена очистка; иначе дополняются", async() => {

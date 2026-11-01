@@ -22,7 +22,7 @@ export function demoEntries(): ChatEntry[] {
     { id: 11, kind: "kill", text: "", user: boris, tone: "danger" },
     { id: 12, kind: "message", text: "Пока всем", user: boris, tone: "dead", nickTone: "dead", label: "последнее сообщение" },
     { id: 13, kind: "system", text: "Игрок сдался", tone: "danger" },
-    { id: 14, kind: "system", text: "Доктор пришёл в гости к [Аня]", tone: "visit-doctor" },
-    { id: 15, kind: "system", text: "Любовница пришла в гости к [Боря]", tone: "visit-lover" }
+    { id: 14, kind: "system", text: "Доктор пришёл к тебе в гости", tone: "visit-doctor" },
+    { id: 15, kind: "system", text: "Ты пришёл(-ла) к [Боря]", tone: "visit-lover" }
   ];
 }

@@ -270,12 +270,12 @@ export function ThemeEditor({ theme, assets, dialogs }: { theme: ThemeManager, a
 			<TextRow pickers={pickers} token="chat-text" title="Обычное сообщение" text="Текст обычного сообщения" background="chat-text-bg" />
 			<TextRow pickers={pickers} token="chat-dead" title="Последнее слово" text="Текст последнего слова" background="chat-dead-bg" />
 			<TextRow pickers={pickers} token="chat-night" title="Сообщение убитого игрока" text="Текст сообщения убитого игрока" background="chat-night-bg" />
-			<TextRow pickers={pickers} token="chat-visit-doctor" title="Доктор пришёл к тебе в гости" text="Доктор пришёл в гости к [Никнэйм]" background="chat-visit-doctor-bg" />
-			<TextRow pickers={pickers} token="chat-visit-lover" title="Любовница пришла к тебе в гости" text="Любовница пришла в гости к [Никнэйм]" background="chat-visit-lover-bg" />
-			<TextRow pickers={pickers} token="chat-visit-sheriff" title="Шериф пришёл к тебе в гости" text="Шериф пришёл в гости к [Никнэйм]" background="chat-visit-sheriff-bg" />
-			<TextRow pickers={pickers} token="chat-visit-barman" title="Бармен пришёл к тебе в гости" text="Бармен пришёл в гости к [Никнэйм]" background="chat-visit-barman-bg" />
-			<TextRow pickers={pickers} token="chat-visit-informer" title="Информатор пришёл к тебе в гости" text="Информатор пришёл в гости к [Никнэйм]" background="chat-visit-informer-bg" />
-			<TextRow pickers={pickers} token="chat-visit-mafia" title="Мафия пришла к тебе в гости" text="Мафия пришла в гости к [Никнэйм]" background="chat-visit-mafia-bg" />
+			<TextRow pickers={pickers} token="chat-visit-doctor" title="Доктор пришёл к тебе в гости" text="Доктор пришёл к тебе в гости" background="chat-visit-doctor-bg" />
+			<TextRow pickers={pickers} token="chat-visit-lover" title="Любовница пришла к тебе в гости" text="Любовница пришла к тебе в гости" background="chat-visit-lover-bg" />
+			<TextRow pickers={pickers} token="chat-visit-sheriff" title="Шериф пришёл к тебе в гости" text="Шериф пришёл к тебе в гости" background="chat-visit-sheriff-bg" />
+			<TextRow pickers={pickers} token="chat-visit-barman" title="Бармен пришёл к тебе в гости" text="Бармен пришёл к тебе в гости" background="chat-visit-barman-bg" />
+			<TextRow pickers={pickers} token="chat-visit-informer" title="Информатор пришёл к тебе в гости" text="Информатор пришёл к тебе в гости" background="chat-visit-informer-bg" />
+			<TextRow pickers={pickers} token="chat-visit-mafia" title="Мафия пришла к тебе в гости" text="Мафия пришла к тебе в гости" background="chat-visit-mafia-bg" />
 
 			<details>
 				<summary>{"Все цвета по отдельности"}</summary>

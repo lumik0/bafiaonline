@@ -76,8 +76,15 @@ const VISITORS: Partial<Record<Role, { key: VisitRole, name: string, verb: strin
 export function visitEntry(role: number | undefined, target: { username: string }, self: boolean): ChatEntry | undefined {
   const visitor = VISITORS[role as Role];
   if(!visitor) return undefined;
-  const where = self ? "к себе" : `к ${nick(target.username)}`;
-  return { id: nextId++, kind: "system", text: `${visitor.name} ${visitor.verb} в гости ${where}`, tone: `visit-${visitor.key}` };
+  // игрок и так знает свою роль, поэтому «Ты», а не название роли
+  return { id: nextId++, kind: "system", text: `Ты пришёл(-ла) к ${self ? "себе" : nick(target.username)}`, tone: `visit-${visitor.key}` };
+}
+
+/** к тебе пришла роль (сервер отметил её на тебе): «Доктор пришёл к тебе в гости» */
+export function visitedEntry(role: number): ChatEntry | undefined {
+  const visitor = VISITORS[role as Role];
+  if(!visitor) return undefined;
+  return { id: nextId++, kind: "system", text: `${visitor.name} ${visitor.verb} к тебе в гости`, tone: `visit-${visitor.key}` };
 }
 
 /** сообщение чата комнаты → строка для ChatView */

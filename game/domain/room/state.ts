@@ -90,6 +90,8 @@ export class RoomState extends Events<{ change: () => void }> {
   loaded = false;
   /** кто победил: известно из итогового сообщения игры */
   winner?: "mafia" | "peaceful" | "draw";
+  /** к тебе «пришли» новые роли (сервер добавил их в `affectedByRoles`): вызывается сразу при обновлении */
+  onVisited?: (roles: number[]) => void;
   /** роли других игроков от сервера; помним отдельно, пакет может прийти раньше стола */
   private known = new Map<string, number>();
 
@@ -147,7 +149,11 @@ export class RoomState extends Events<{ change: () => void }> {
       const player = this.playerBy(update.playerObjectId);
       if(!player) continue;
       if(update.alive !== undefined) player.alive = update.alive;
-      if(update.affectedByRoles) player.affectedByRoles = update.affectedByRoles;
+      if(update.affectedByRoles) {
+        const added = update.affectedByRoles.filter(role => !player.affectedByRoles.includes(role));
+        player.affectedByRoles = update.affectedByRoles;
+        if(added.length && player.playerObjectId == this.myPlayerObjectId) this.onVisited?.(added);
+      }
       if(update.isDayActionUsed !== undefined) player.isDayActionUsed = update.isDayActionUsed;
       if(update.isNightActionAlternative !== undefined) player.isNightActionAlternative = update.isNightActionAlternative;
       if(update.isNightActionUsed !== undefined) player.isNightActionUsed = update.isNightActionUsed;
