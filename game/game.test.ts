@@ -3,6 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Assets } from "@common/assets";
 import { versionNumber } from "@common/version";
+import type { SocketLike } from "@common/net/connection";
 import { createFakeNetwork, type FakeSocket } from "@common/net/testing";
 import { createStorage, MemoryFileStore, type Account } from "@common/storage";
 import { md5salt } from "@common/utils/md5";
@@ -37,12 +38,14 @@ async function launch(account?: Partial<Account>, respond: typeof server = serve
   const manager = new WindowManager({ viewport: () => ({ width: 1000, height: 700 }), closeDelay: 0 });
   const files = new MemoryFileStore();
   const storage = createStorage(files);
+  // окно согласия сервера Бафии в обычных тестах не нужно, а сокет сервера Бафии молчит и не выходит в сеть
+  await files.write("/game/settings.json", JSON.stringify({ bafia: { asked: true } }));
   const window = manager.open({ title: "Бафия", ...windowOptions });
   document.body.append(window.content);
 
   const game = await startGame(
     { window, manager, storage, assets: new Assets(files, { createUrl: () => "blob:test" }), theme: new ThemeManager({ style: { setProperty() {}, removeProperty() {} } }), notifications, account: account as Account },
-    { createSocket: () => network.createSocket(), slowConnectionAfter: 50, spawnWorker: spawnInProcess }
+    { createSocket: () => network.createSocket(), createBafiaSocket: () => ({ onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} } as unknown as SocketLike), slowConnectionAfter: 50, spawnWorker: spawnInProcess }
   );
   await tick(10);
   const text = () => window.content.textContent ?? "";

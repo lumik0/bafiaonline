@@ -30,11 +30,18 @@ export const BAFIA_LIMITS = {
   gifBytes: 3 * 1024 * 1024,
   gifPending: 10,
   gifPerDay: 20,
-  gifTitle: 80
+  gifTitle: 80,
+  /** аватарка (только премиум): размер файла, сколько раз в сутки можно менять, длинная сторона после сжатия статичной (px) */
+  avatarBytes: 1024 * 1024,
+  avatarPerDay: 10,
+  avatarSide: 256
 } as const;
 
 /** файл лежит на сервере Бафии; `url` - путь `/g/номер` */
 export const GIF_FILE_PATH = /^\/g\/[a-z0-9]{6,12}$/;
+
+/** аватарка лежит на сервере Бафии; путь `/a/номер` */
+export const AVATAR_FILE_PATH = /^\/a\/[a-z0-9]{6,12}$/;
 
 /** цвета значка премиума: название → цвет (сервер присылает только название) */
 export const PREMIUM_COLORS = {
@@ -71,6 +78,11 @@ export function isGifUrl(value: string): boolean {
   }
 }
 
+/** с какого устройства играют (грубо, для статистики): ничего, кроме этого списка, сервер не принимает */
+export const PLATFORMS = ["ios", "android", "windows", "macos", "linux", "other"] as const;
+export type Platform = typeof PLATFORMS[number];
+export const isPlatform = (value: unknown): value is Platform => typeof value == "string" && (PLATFORMS as readonly string[]).includes(value);
+
 /** результат партии: победил ли игрок; `undefined`, если неизвестно */
 export interface PlayedEvent { won?: boolean }
 
@@ -81,7 +93,7 @@ export type ClientMessage =
   /** войти в сеть: ключ клиента и версия протокола */
   | { t: "hello", n: number, key: string, version: number }
   /** «Я играю под этим ником»: появляется в списке «в Бафии» до закрытия соединения */
-  | { t: "presence", n: number, id: string, nick: string }
+  | { t: "presence", n: number, id: string, nick: string, platform?: Platform, version?: string }
   /** кто из этих игроков сейчас в Бафии */
   | { t: "who", n: number, ids: string[] }
   /** сыграна партия */
@@ -98,6 +110,10 @@ export type ClientMessage =
   | { t: "gifUpload", n: number, title: string, data: string }
   /** цвет значка премиума (только с премиумом) */
   | { t: "style", n: number, color: string }
+  /** своя аватарка (только с премиумом): gif, webp или png в base64; видна другим игрокам Бафии сразу */
+  | { t: "avatarSet", n: number, data: string }
+  /** убрать свою аватарку */
+  | { t: "avatarClear", n: number }
   /** статус премиума и мои загрузки */
   | { t: "premium", n: number }
   /** активировать код премиума (выдаётся за донат) на этой установке */
@@ -122,9 +138,11 @@ export interface NickRecord { nick: string, first: number, last: number }
 
 export type ServerMessage =
   /** на `hello` сервер может добавить ключ Giphy: поиск гифок игрок делает сам, из своего браузера */
-  | { t: "ok", n: number, gifKey?: string, premium?: number }
+  /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
+  | { t: "ok", n: number, gifKey?: string, premium?: number, avatar?: string }
   | { t: "error", n: number, reason: string }
-  | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string> }
+  /** `avatars` - пути аватарок игроков с премиумом (id → `/a/номер`) */
+  | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string>, avatars?: Record<string, string> }
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
   /** `url` нет, если такой гифки в каталоге нет */
   | { t: "gif", n: number, id: string, url?: string, title?: string }
@@ -159,7 +177,8 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
   try { value = JSON.parse(raw); } catch { return undefined; }
   if(!isRecord(value) || typeof value.n != "number" || !Number.isSafeInteger(value.n)) return undefined;
   const n = value.n;
-  if(value.t != "histPut" && value.t != "gifUpload" && raw.length > BAFIA_LIMITS.message) return undefined;
+  if(value.t != "histPut" && value.t != "gifUpload" && value.t != "avatarSet" && raw.length > BAFIA_LIMITS.message) return undefined;
+  if(value.t == "avatarSet" && raw.length > Math.ceil(BAFIA_LIMITS.avatarBytes * 4 / 3) + 1000) return undefined;
   if(value.t == "histPut" && raw.length > BAFIA_LIMITS.premiumHistory + 200) return undefined;
 
   switch(value.t) {
@@ -168,7 +187,7 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
         ? { t: "hello", n, key: value.key, version: value.version } : undefined;
     case "presence": {
       const self = player({ id: value.id, nick: value.nick });
-      return self && { t: "presence", n, ...self };
+      return self && { t: "presence", n, ...self, platform: isPlatform(value.platform) ? value.platform : undefined, version: typeof value.version == "string" && /^[A-Za-z0-9._ -]{1,20}$/.test(value.version) ? value.version : undefined };
     }
     case "who": {
       const list = ids(value.ids);
@@ -188,6 +207,9 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
         ? { t: "gifUpload", n, title: value.title, data: value.data } : undefined;
     case "style":
       return isPremiumColor(value.color) ? { t: "style", n, color: value.color } : undefined;
+    case "avatarSet":
+      return typeof value.data == "string" && value.data.length > 20 && /^[A-Za-z0-9+/=]+$/.test(value.data) ? { t: "avatarSet", n, data: value.data } : undefined;
+    case "avatarClear": return { t: "avatarClear", n };
     case "premium": return { t: "premium", n };
     case "mine": return { t: "mine", n };
     case "redeem":

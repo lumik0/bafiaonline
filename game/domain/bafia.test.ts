@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { SocketLike } from "@common/net/connection";
 import Events from "@common/utils/emitter";
+import { BAFIA_LIMITS } from "@common/bafia/protocol";
+import { versionNumber } from "@common/version";
 import { Bafia, BafiaLink, newKey } from "./bafia";
 
 /** сокет, который отвечает как сервер Бафии: «ok» на всё, а «who» возвращает заданных игроков */
@@ -19,7 +21,8 @@ function serverSocket(online: string[], log: Record<string, unknown>[]) {
           : message.t == "histGet" ? { t: "hist", n: message.n, id: message.id, data: message.id == "abcdefghij12" ? JSON.stringify({ messages: [{ x: 1 }, 5], playersData: { p1: { role: 1 }, p2: 3 }, title: "Игра", evil: "x" }) : undefined }
           : message.t == "hello" ? { t: "ok", n: message.n, gifKey: "GKEY" }
           : message.t == "style" ? { t: "ok", n: message.n }
-          : message.t == "who" ? { t: "online", n: message.n, ids: message.ids.filter((id: string) => online.includes(id)), premium: message.ids.filter((id: string) => id == "pp"), colors: message.ids.includes("pp") ? { pp: "blue", bad: "нет" } : {} }
+          : message.t == "avatarSet" ? (message.data == "AAAAAAAAAAAAAAAAAAAAAAAA" ? { t: "error", n: message.n, reason: "premium" } : { t: "ok", n: message.n, avatar: "/a/newavatar" })
+          : message.t == "who" ? { t: "online", n: message.n, ids: message.ids.filter((id: string) => online.includes(id)), premium: message.ids.filter((id: string) => id == "pp"), colors: message.ids.includes("pp") ? { pp: "blue", bad: "нет" } : {}, avatars: message.ids.includes("pp") ? { pp: "/a/abcdef12", p9: "http://evil.example.com/x.gif" } : {} }
           : message.t == "gif" ? { t: "gif", n: message.n, id: message.id, url: message.id == "evil" ? "https://evil.example.com/a.gif" : message.id == "cat" ? "https://media.giphy.com/cat.gif" : undefined, title: "Кот" }
           : message.t == "nicks" ? { t: "nicks", n: message.n, id: message.id, names: [{ nick: "Старый", first: 1, last: 2 }] }
           : { t: "ok", n: message.n };
@@ -164,6 +167,29 @@ describe("BafiaLink", () => {
     link.stop();
   });
 
+  test("аватарки: чужие приходят вместе с «кто в Бафии» (чужой адрес отбрасывается), своя ставится и убирается", async() => {
+    const log: Record<string, unknown>[] = [];
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: serverSocket(["pp", "p9"], log).create });
+    link.savedCode = "BAF-GOOD-CODE";
+    link.start();
+    await tick();
+
+    await link.watch([{ id: "pp", nick: "Премиум" }, { id: "p9", nick: "Обычный" }]);
+    expect(link.premiumAvatars.get("pp")).toBe("/a/abcdef12");
+    expect(link.premiumAvatars.has("p9")).toBe(false);
+
+    expect(await link.setAvatar(new Uint8Array([71, 73, 70, 56, 57, 97, 1]))).toEqual({ ok: true });
+    expect(log.at(-1)).toMatchObject({ t: "avatarSet", data: "R0lGODlhAQ==" });
+    expect(link.myAvatar).toBe("/a/newavatar");
+    expect(await link.setAvatar(new Uint8Array(BAFIA_LIMITS.avatarBytes + 1))).toEqual({ error: "too-big" });
+    expect(await link.setAvatar(new Uint8Array(18))).toEqual({ error: "premium" });
+
+    expect(await link.clearAvatar()).toBe(true);
+    expect(log.at(-1)).toMatchObject({ t: "avatarClear" });
+    expect(link.myAvatar).toBeUndefined();
+    link.stop();
+  });
+
   test("сервер молчит или недоступен: запросы заканчиваются пустым результатом, а не ошибкой", async() => {
     const silent = (): SocketLike => {
       const socket = { onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} } as unknown as SocketLike;
@@ -194,24 +220,76 @@ describe("Bafia", () => {
     return { bafia, settings, user, log, server, data };
   }
 
-  test("по умолчанию выключено и ничего не отправляет; включение создаёт ключ и называет ник", async() => {
+  test("без согласия работает только «кто играет» (ник, id, партии, id видимых игроков); с согласием добавляются ники других, гифки и история ников", async() => {
     const { bafia, user, log, server, data } = setup();
+    // ключ создаётся сам, но пока игрок не назван, на сервер ничего не уходит
     await tick();
-    expect(server.sockets).toHaveLength(0);
-
-    bafia.setEnabled(true);
     expect(data.bafia.key).toHaveLength(48);
+    expect(data.bafia.enabled).toBe(false);
+
     user.playerObjectId = "p1";
     user.username = "Euaek";
     user.emit("change");
     await tick();
+    expect(server.sockets).toHaveLength(1);
     expect(log.map(message => message.t)).toEqual(["hello", "presence"]);
+    expect(log[1]).toMatchObject({ id: "p1", nick: "Euaek", platform: expect.stringMatching(/^(ios|android|windows|macos|linux|other)$/), version: versionNumber });
+
+    log.length = 0;
+    bafia.watch([{ id: "p2", nick: "Друг" }]);
+    bafia.played(true);
+    await tick();
+    expect(log.map(message => message.t)).toEqual(["who", "played"]);   // ников других игроков (seen) нет
+    expect(log[0]).toEqual({ n: expect.any(Number), t: "who", ids: ["p2"] });
+
+    // остальное без согласия не работает и ничего не отправляет
+    log.length = 0;
+    expect(await bafia.nicks("p2")).toBeUndefined();
+    expect(await bafia.gif("cat")).toBeUndefined();
+    expect(await bafia.gifs("", "bafia")).toBeUndefined();
+    expect(await bafia.setAvatar(new Uint8Array(30))).toEqual({ error: "offline" });
+    expect(log).toEqual([]);
+
+    bafia.setEnabled(true);
+    log.length = 0;
+    bafia.watch([{ id: "p3", nick: "Третий" }]);
+    await tick();
+    expect(log.map(message => message.t)).toEqual(["seen", "who"]);
+    expect(await bafia.nicks("p2")).toEqual([{ nick: "Старый", first: 1, last: 2 }]);
 
     bafia.setEnabled(false);
     log.length = 0;
-    bafia.played(true);
+    expect(await bafia.nicks("p2")).toBeUndefined();
+    bafia.played(false);
     await tick();
-    expect(log).toEqual([]);
+    expect(log.map(message => message.t)).toEqual(["played"]);
+    bafia.dispose();
+  });
+
+  test("адрес аватарки: чужая только у игрока с премиумом из Бафии, своя только пока у меня премиум, без включения нет ничего", async() => {
+    const data = { bafia: { enabled: true, asked: true, key: "k".repeat(24), code: "BAF-GOOD-CODE", color: "gold" } };
+    const settings = new class extends Events<{ change: () => void }> {
+      data = data;
+      update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
+    }();
+    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+    const bafia = new Bafia({ settings, user, url: "wss://bafia.example.com", createSocket: serverSocket(["pp", "p9"], []).create });
+    await tick();
+
+    expect(bafia.avatar("pp")).toBeUndefined();   // ещё не спрашивали, кто в Бафии
+    bafia.watch([{ id: "pp", nick: "Премиум" }, { id: "p9", nick: "Обычный" }]);
+    await tick();
+    expect(bafia.avatar("pp")).toBe("https://bafia.example.com/a/abcdef12");
+    expect(bafia.avatar("p9")).toBeUndefined();
+
+    expect(bafia.myAvatarUrl).toBeUndefined();
+    expect(await bafia.setAvatar(new Uint8Array([71, 73, 70, 56, 57, 97, 1]))).toEqual({ ok: true });
+    expect(bafia.myAvatarUrl).toBe("https://bafia.example.com/a/newavatar");
+    expect(await bafia.clearAvatar()).toBe(true);
+    expect(bafia.myAvatarUrl).toBeUndefined();
+
+    bafia.setEnabled(false);
+    expect(bafia.avatar("pp")).toBeUndefined();
     bafia.dispose();
   });
 

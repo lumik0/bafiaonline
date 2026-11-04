@@ -4,13 +4,15 @@ import { Avatar } from "./Avatar.tsrx";
 import { nickStyle, photoRing } from "../domain/decorations";
 
 /** игроки в чате: рамка над сообщениями, ники столбцами; ник - упоминание */
-export function PlayersPanel({ users, myName, hideName, assets, mention, profile, inBafia, badgeColor }: {
+export function PlayersPanel({ users, myName, hideName, assets, mention, profile, inBafia, badgeColor, avatar }: {
 	users: () => ChatUser[], myName: () => string, hideName: () => boolean, assets: Assets,
 	mention: (username: string) => void, profile: (playerObjectId: string) => void
 	/** играет ли этот игрок в Бафии (по данным сервера Бафии, если включён) */
 	inBafia?: (playerObjectId: string) => boolean,
 	/** цвет значка игрока с премиумом; нет - обычный значок */
-	badgeColor?: (playerObjectId: string) => string | undefined
+	badgeColor?: (playerObjectId: string) => string | undefined,
+	/** адрес gif-аватарки игрока с премиумом */
+	avatar?: (playerObjectId: string) => string | undefined
 }) @{
 	<>
 		<style>
@@ -24,7 +26,7 @@ export function PlayersPanel({ users, myName, hideName, assets, mention, profile
 		<div class="players">
 			@for (const user of users()) {
 				<div class="player">
-					<div onClick={() => profile(user.playerObjectId ?? "")}><Avatar photo={() => user.photo ?? ""} ring={() => photoRing(user.decorations)} assets={assets} size={25} /></div>
+					<div onClick={() => profile(user.playerObjectId ?? "")}><Avatar photo={() => user.photo ?? ""} gif={() => avatar?.(user.playerObjectId ?? "")} ring={() => photoRing(user.decorations)} assets={assets} size={25} /></div>
 					<span class={hideName() && user.username == myName() ? "nick blur" : "nick"} data-keep style={nickStyle(user.decorations)} onClick={() => mention(user.username)}>{user.username}<span class="vip">{user.vip ?? ""}</span>{inBafia?.(user.playerObjectId ?? "") ? <span class="bafia" style={badgeColor?.(user.playerObjectId ?? "") ? { background: badgeColor(user.playerObjectId ?? "") } : undefined} title={badgeColor?.(user.playerObjectId ?? "") ? "Играет в Бафии, премиум" : "Играет в Бафии"}>{"Б"}</span> : null}</span>
 				</div>
 			}

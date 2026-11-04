@@ -121,7 +121,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   });
   let asking = false;
   const askBafia = async() => {
-    if(asking || ctx.bafia.asked || true || !user.playerObjectId || !user.username) return;
+    if(asking || ctx.bafia.asked || !user.playerObjectId || !user.username) return;
     asking = true;
     ctx.bafia.setEnabled(await dialogs.confirm(BAFIA_CONSENT, { title: "СЕРВЕР БАФИИ", yes: "Согласен", no: "Не согласен" }));
   };
@@ -201,7 +201,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const screens: Screens<Routes> = {
     loading: () => Loading({ text: loadingText, assets: host.assets, down: serverDown }),
     authorization: ({ params }) => Authorization({ email: params.email, error: params.error, submit: signIn, forgot: (email: string) => void resetPassword(ctx, email) }),
-    menu: () => Menu({ user, assets: host.assets, settings, actions }),
+    menu: () => Menu({ user, assets: host.assets, settings, actions, bafia: ctx.bafia }),
     settings: () => Settings({ ctx }),
     theme: () => ThemePage({ ctx }),
     friends: () => FriendsScreen({ ctx }),

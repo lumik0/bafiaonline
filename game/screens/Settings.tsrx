@@ -57,6 +57,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			"Премиум даёт:\n" +
 			"• загрузку своих гифок и стикеров: после проверки они появятся в каталоге Бафии у всех;\n" +
 			"• цветной значок «Б» и рамку вокруг твоего ника у других игроков Бафии, цвет выбираешь сам;\n" +
+			"• GIF-аватарку: её видят другие игроки Бафии (если они разрешили гифки и аватарки);\n" +
 			`• отправленные игры хранятся ${BAFIA_LIMITS.premiumHistoryDays} дней вместо ${BAFIA_LIMITS.historyDays}, их можно отправить больше и крупнее.\n\n` +
 			"На саму игру премиум не влияет: у всех она одинаковая.\n\n" +
 			"Оплата в Telegram-боте звёздами ⭐. Бот пришлёт код, его нужно ввести здесь же («Ввести код»).",
@@ -72,6 +73,27 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 		const result = await ctx.bafia.redeem(code);
 		if("until" in result) await ctx.dialogs.alert(`Премиум действует до ${new Date(result.until).toLocaleDateString("ru-RU")}.\n\nСохрани код: ${code.trim().toUpperCase()}\nЕсли потеряешь данные браузера, введи его снова, и премиум вернётся.`, { title: "Готово" });
 		else await ctx.dialogs.alert(codeErrors[result.error], { title: "Не получилось" });
+	};
+
+	let avatarChooser!: HTMLInputElement;
+	const myAvatar = fromEvents(ctx.bafia, "change", () => ctx.bafia.myAvatarUrl);
+	const avatarErrors = {
+		offline: "Сервер Бафии сейчас недоступен.",
+		premium: "Аватарка доступна только с премиумом.",
+		"too-big": "Файл больше 1 МБ. Выбери поменьше.",
+		"bad-format": "Нужен GIF, WebP или PNG.",
+		quota: "Слишком часто меняешь аватарку. Попробуй завтра."
+	};
+	/** выбранный файл уходит на сервер как есть: анимация сохраняется, её видят другие игроки Бафии */
+	const pickAvatar = async (input: HTMLInputElement) => {
+		const file = input.files?.[0];
+		input.value = "";
+		if(!file) return;
+		const result = await ctx.bafia.setAvatar(new Uint8Array(await file.arrayBuffer()));
+		if("error" in result) await ctx.dialogs.alert(avatarErrors[result.error], { title: "Не получилось" });
+	};
+	const removeAvatar = async () => {
+		if(!await ctx.bafia.clearAvatar()) await ctx.dialogs.alert(avatarErrors.offline, { title: "Не получилось" });
 	};
 
 	/** отправка данных только с согласия */
@@ -93,6 +115,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			.swatch { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
 			.swatch.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface); }
 			input[type=text] { width: 80px; }
+			.avatarPreview { border-radius: 50%; object-fit: cover; }
 		</style>
 		<div class="page">
 			<AppBar title="Настройки" onBack={() => ctx.nav.pop()} />
@@ -144,9 +167,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 				// <SettingRow label="Номера игроков в чате комнаты">
 				// 	<input type="checkbox" checked={data().game.showIndexPlChat} onChange={(event) => ctx.settings.update(settings => { settings.game.showIndexPlChat = event.currentTarget.checked; })} />
 				// </SettingRow>
-				// <SettingRow label="Сервер Бафии">
-				// 	<input type="checkbox" checked={bafiaOn()} onChange={(event) => void toggleBafia(event.currentTarget)} />
-				// </SettingRow>
+				<SettingRow label="Гифки, история ников и аватарки (сервер Бафии)">
+					<input type="checkbox" checked={bafiaOn()} onChange={(event) => void toggleBafia(event.currentTarget)} />
+				</SettingRow>
 				@if (bafiaOn()) {
 					<SettingRow label={premium() ? "Премиум до " + new Date(premium()!).toLocaleDateString("ru-RU") : "Премиум"}>
 						<button onClick={() => void buyPremium()}>{premium() ? "Продлить" : "Купить"}</button>
@@ -154,6 +177,17 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 					</SettingRow>
 				}
 				@if (bafiaOn() && premium()) {
+					<>
+					<SettingRow label="GIF-аватарка">
+						@if (myAvatar()) {
+							<img class="avatarPreview" src={myAvatar()} width="34" height="34" alt="" />
+						}
+						<button onClick={() => avatarChooser.click()}>{myAvatar() ? "Заменить" : "Загрузить"}</button>
+						@if (myAvatar()) {
+							<button onClick={() => void removeAvatar()}>{"Убрать"}</button>
+						}
+						<input ref={avatarChooser} type="file" accept="image/gif,image/webp,image/png" hidden onChange={(event) => void pickAvatar(event.currentTarget)} />
+					</SettingRow>
 					<SettingRow label="Цвет значка">
 						<div class="swatches">
 							@for (const [name, hex] of Object.entries(PREMIUM_COLORS)) {
@@ -161,6 +195,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 							}
 						</div>
 					</SettingRow>
+					</>
 				}
 				<SettingRow label="Заявки в друзья во время игры (опыт)">
 					<input type="checkbox" checked={data().game.pollRequests} onChange={(event) => ctx.settings.update(settings => { settings.game.pollRequests = event.currentTarget.checked; })} />

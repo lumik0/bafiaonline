@@ -77,6 +77,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	// премиум Бафии: спрашиваем сервер, в Бафии ли этот игрок и какой у него значок (если сервер включён)
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
 	const premiumColor = () => { bafiaVersion(); return ctx.bafia.premiumColor(player.playerObjectId ?? playerObjectId); };
+	const gifAvatar = () => { bafiaVersion(); return ctx.bafia.avatar(player.playerObjectId ?? playerObjectId); };
 	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "" }]));
 	const friendship = typeof profile.friendship == "string" ? profile.friendship : undefined;
 	const flag = profile.friendshipFlag;
@@ -167,8 +168,8 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 					<span class="chip" title="Рейтинг соревновательного режима"><b class="trophy"><img src={images().trophy} width="15" alt="" /></b>{player.matchMakingScore ?? 0}</span>
 					// <span class="chip" title="Рейтинг"><b class="trophy">{"🏆"}</b>{player.matchMakingScore ?? 0}</span>
 				</div>
-				<div class="photo" onClick={() => void ctx.dialogs.manager.open({ title: player.username, render: () => AvatarView({ photo: player.photo, assets: ctx.assets }) })}>
-					<Avatar photo={() => player.photo ?? ""} ring={() => photoRing(decorations)} animation={() => animationOf(decorations, DecorationType.PhotoBorderAnimation)} assets={ctx.assets} size={110} />
+				<div class="photo" onClick={() => void ctx.dialogs.manager.open({ title: player.username, render: () => AvatarView({ photo: player.photo, assets: ctx.assets, gif: gifAvatar() }) })}>
+					<Avatar photo={() => player.photo ?? ""} gif={gifAvatar} ring={() => photoRing(decorations)} animation={() => animationOf(decorations, DecorationType.PhotoBorderAnimation)} assets={ctx.assets} size={110} />
 					<div class={player.isOnline ? "online on" : "online"}></div>
 				</div>
 				<div class="right">

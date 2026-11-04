@@ -28,14 +28,17 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 /** игрок с премиумом: у него значок и рамка вокруг ника в его цвете, у остальных обычный вид */
 test("премиум Бафии: цветной значок в списке игроков, значок и рамка у ника в чате", async() => {
   const assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
-  const bafia = Object.assign(new Events<{ change: () => void }>(), { premiumColor: (id: string) => id == "p1" ? "#3E63DD" : undefined, enabled: true });
+  const bafia = Object.assign(new Events<{ change: () => void }>(), { premiumColor: (id: string) => id == "p1" ? "#3E63DD" : undefined, avatar: (id: string) => id == "p1" ? "https://bafia.example.com/a/abc12345" : undefined, enabled: true });
   const root = document.body.appendChild(document.createElement("div"));
   const users = [{ username: "Звезда", playerObjectId: "p1" }, { username: "Обычный", playerObjectId: "p2" }];
 
   const dispose = ui.mount(() => PlayersPanel({
     users: () => users, myName: () => "я", hideName: () => false, assets, mention: () => {}, profile: () => {},
-    inBafia: () => true, badgeColor: (id: string) => bafia.premiumColor(id)
+    inBafia: () => true, badgeColor: (id: string) => bafia.premiumColor(id), avatar: (id: string) => bafia.avatar(id)
   }) as never, root);
+  // gif-аватарка у игрока с премиумом, у остальных обычное фото
+  const photos = [...root.querySelectorAll<HTMLImageElement>("img.avatar")];
+  expect(photos.map(photo => photo.getAttribute("src")?.includes("/a/abc12345"))).toEqual([true, false]);
   const badges = [...root.querySelectorAll<HTMLElement>(".bafia")];
   expect(badges).toHaveLength(2);
   expect(badges[0]!.style.background).toMatch(/#3E63DD|rgb\(62, 99, 221\)/i);
@@ -47,6 +50,7 @@ test("премиум Бафии: цветной значок в списке и�
     entries: () => entries, myName: () => "я", hideName: () => false, assets, send: () => {}, bafia: bafia as never, readonly: true
   } as never) as never, root);
   await tick();
+  expect([...root.querySelectorAll<HTMLImageElement>("img.avatar")].map(photo => photo.getAttribute("src")?.includes("/a/abc12345"))).toEqual([true, false]);
   const nicks = [...root.querySelectorAll<HTMLElement>(".nick")];
   expect(nicks[0]!.style.border).toMatch(/#3E63DD|rgb\(62, 99, 221\)/i);
   expect(nicks[0]!.querySelector(".pbadge")).not.toBeNull();

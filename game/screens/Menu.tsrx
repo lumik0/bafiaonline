@@ -3,6 +3,7 @@ import type { Assets } from "@common/assets";
 import { formatNumber } from "@common/utils/format";
 import type { SettingsStore } from "../domain/settings";
 import type { User } from "../domain/user";
+import type { Bafia } from "../domain/bafia";
 import { AppBar } from "../ui/AppBar.tsrx";
 import { animationOf, DecorationType, nickStyle, photoRing } from "../domain/decorations";
 import { Avatar } from "../ui/Avatar.tsrx";
@@ -13,7 +14,9 @@ import type { MenuActions } from "./menu-actions";
 const rankOf = (level: number) => Math.min(8, Math.max(1, Math.round(level / 2)));
 
 // это дашборд. но лучше меню
-export function Menu({ user, assets, settings, actions }: { user: User, assets: Assets, settings: SettingsStore, actions: MenuActions }) @{
+export function Menu({ user, assets, settings, actions, bafia }: { user: User, assets: Assets, settings: SettingsStore, actions: MenuActions, bafia?: Bafia }) @{
+	// своя gif-аватарка (премиум Бафии)
+	const myGif = bafia ? fromEvents(bafia, "change", () => bafia.myAvatarUrl) : () => undefined;
 	const me = fromEvents(user, "change", () => ({
 		username: user.username, photo: user.photo, decorations: user.decorations, level: user.level, experience: user.experience,
 		next: user.nextLevelExperience, gold: user.goldCoins, silver: user.silverCoins, rating: user.matchMakingScore,
@@ -103,7 +106,7 @@ export function Menu({ user, assets, settings, actions }: { user: User, assets: 
 
 				<div class="hero">
 					<div class="photo">
-						<Avatar photo={() => me().photo} ring={() => photoRing(me().decorations)} animation={() => animationOf(me().decorations, DecorationType.PhotoBorderAnimation)} assets={assets} size={120} />
+						<Avatar photo={() => me().photo} gif={myGif} ring={() => photoRing(me().decorations)} animation={() => animationOf(me().decorations, DecorationType.PhotoBorderAnimation)} assets={assets} size={120} />
 						<button class="camera" onClick={actions.changePhoto} aria-label="Сменить фото"><Icon name="edit" size={16} /></button>
 					</div>
 					<div class="namerow">

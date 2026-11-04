@@ -168,7 +168,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 				<div class="body">
 					<div class="left">
 						<div class="info">{view().info}</div>
-						<PlayersPanel users={lobby} myName={myName} hideName={hideName} assets={ctx.assets} mention={mention} profile={(id: string) => ctx.openProfile(id)} inBafia={(id: string) => bafiaOnline().has(id)} badgeColor={(id: string) => { bafiaPremium(); return ctx.bafia.premiumColor(id); }} />
+						<PlayersPanel users={lobby} myName={myName} hideName={hideName} assets={ctx.assets} mention={mention} profile={(id: string) => ctx.openProfile(id)} inBafia={(id: string) => bafiaOnline().has(id)} badgeColor={(id: string) => { bafiaPremium(); return ctx.bafia.premiumColor(id); }} avatar={(id: string) => { bafiaPremium(); return ctx.bafia.avatar(id); }} />
 						<div class="chatbox"><ChatView ctx={ctx} bafia={ctx.bafia} entries={entries} myName={myName} hideName={hideName} assets={ctx.assets} send={sendMessage} onAvatar={(id: string) => ctx.openProfile(id)} controller={controller} expand={expand} nickPrefix={nickPrefix} readonly={session.replay} externalInput={isMobile()} /></div>
 					</div>
 				</div>

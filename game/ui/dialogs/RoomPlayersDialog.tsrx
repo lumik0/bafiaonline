@@ -1,4 +1,4 @@
-import { createSignal, onMount } from "@common/ui";
+import { createSignal, fromEvents, onMount } from "@common/ui";
 import { Avatar } from "../Avatar.tsrx";
 import { enterRoom } from "../../domain/rooms/enter";
 import type { RoomItem } from "../../domain/rooms/room";
@@ -9,6 +9,8 @@ type Player = { playerObjectId?: string, username?: string, photo?: string, aliv
 /** кто сейчас в комнате (не заходя в неё) */
 export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room: RoomItem, close: () => void }) @{
 	const [players, setPlayers] = createSignal<Player[] | undefined>(undefined);
+	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
+	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? ctx.bafia.avatar(id) : undefined; };
 
 	onMount(async () => {
 		try {
@@ -33,7 +35,7 @@ export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room
 			} @else {
 				@for (const player of players()!) {
 					<div class="player">
-						<div onClick={() => ctx.openProfile(player.playerObjectId ?? "")}><Avatar photo={() => player.photo ?? ""} assets={ctx.assets} size={30} /></div>
+						<div onClick={() => ctx.openProfile(player.playerObjectId ?? "")}><Avatar photo={() => player.photo ?? ""} gif={() => gifAvatar(player.playerObjectId)} assets={ctx.assets} size={30} /></div>
 						<span class="name" data-keep>{player.username ?? ""}</span>
 						<span class="alive" style={{ color: player.alive ? "#186400" : "#940000" }}>{player.alive ? "Жив" : "Умер"}</span>
 					</div>
