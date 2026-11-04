@@ -1,7 +1,7 @@
 import { fromEvents } from "@common/ui";
 import { longPress } from "@common/ui/long-press";
 import { formatDateTime } from "@common/utils/format";
-import { HISTORY_NAME_MAX, HISTORY_NOTE_MAX, outcomeOf, recordTitle, type HistoryRecord, type Outcome } from "../domain/history";
+import { HISTORY_NAME_MAX, HISTORY_NOTE_MAX, outcomeOf, ownRecords, recordTitle, type HistoryRecord, type Outcome } from "../domain/history";
 import { sessionDeps } from "../domain/room/deps";
 import { RoomSession } from "../domain/room/session";
 import { roomRank, sortRoles } from "../domain/rooms/room";
@@ -13,7 +13,9 @@ const OUTCOMES: Record<Outcome, string> = { win: "Победа", lose: "Пора
 
 /** сыгранные игры: открыть для просмотра (стол, роли, переписка) или удалить */
 export function HistoryScreen({ ctx }: { ctx: GameContext }) @{
-	const records = fromEvents(ctx.history, "change", () => [...ctx.history.data.rooms]);
+	// у каждого аккаунта своя история: чужие игры с этого устройства не показываются
+	const viewer = () => ({ userObjectId: ctx.user.userObjectId, playerObjectId: ctx.user.playerObjectId });
+	const records = fromEvents(ctx.history, "change", () => ownRecords(ctx.history.data.rooms, viewer()));
 	const saving = fromEvents(ctx.settings, "change", () => ctx.settings.data.game.saveHistory);
 	const images = fromEvents(ctx.assets, "change", () => ({
 		roles: Object.fromEntries(ROLE_IDS.map(id => [id, ctx.assets.url(`textures/roles/${id}.png`)])) as Record<number, string>,

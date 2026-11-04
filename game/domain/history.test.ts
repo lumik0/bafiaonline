@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { noteHint, recordTitle, sanitizeRecord, type HistoryRecord } from "./history";
+import { belongsTo, HISTORY_LIMIT, noteHint, ownRecords, recordTitle, sanitizeRecord, sharedForm, withRecord, type HistoryRecord } from "./history";
 
 const valid = { messages: [{ a: 1 }], playersData: { p1: { role: 1 } }, modelType: 1, title: "Игра", maxPlayers: 8, minPlayers: 5, minLevel: 1, isVipEnabled: false, selectedRoles: [1, 2], gameDayTime: 60, createdAt: 5 };
 
@@ -43,6 +43,49 @@ describe("noteHint", () => {
 
   test("описание есть и при ненастоящем названии: название игры от описания не зависит", () => {
     expect(recordTitle(record("только описание"))).toBe("Игра");
+  });
+});
+
+describe("история у каждого аккаунта своя", () => {
+  const base = sanitizeRecord(valid) as HistoryRecord;
+  const record = (extra: Partial<HistoryRecord>): HistoryRecord => ({ ...base, ...extra });
+  const alice = { userObjectId: "acc-a", playerObjectId: "pa" }, bob = { userObjectId: "acc-b", playerObjectId: "pb" };
+
+  test("у новых записей есть владелец: чужие игры не показываются; у старых общих записей владелец узнаётся по игроку за столом", () => {
+    const rooms = [
+      record({ owner: "acc-a", title: "Алисы" }),
+      record({ owner: "acc-b", title: "Боба" }),
+      record({ owner: undefined, playersData: { pa: { role: 1 }, px: { role: 2 } }, title: "Старая с Алисой" }),
+      record({ owner: undefined, playersData: { px: { role: 2 } }, title: "Старая без обоих" })
+    ];
+    expect(ownRecords(rooms, alice).map(r => r.title)).toEqual(["Алисы", "Старая с Алисой"]);
+    expect(ownRecords(rooms, bob).map(r => r.title)).toEqual(["Боба"]);
+    expect(belongsTo(rooms[2]!, { userObjectId: "acc-a", playerObjectId: "" })).toBe(false);   // игрок неизвестен: старую запись не угадать
+  });
+
+  test("запись, присланная другому игроку, без привязки к аккаунту; ник и игрок владельца остаются", () => {
+    const shared = sharedForm(record({ owner: "acc-a", me: { playerObjectId: "pa", username: "Алиса" } }));
+    expect(shared.owner).toBeUndefined();
+    expect(shared.me).toEqual({ playerObjectId: "pa", username: "Алиса" });
+    expect(JSON.stringify(shared)).not.toContain("acc-a");
+  });
+
+  test("чужая запись очищается: me берётся только нужного вида, owner из неё никогда не приходит", () => {
+    const clean = sanitizeRecord({ ...valid, owner: "чужой-аккаунт", me: { playerObjectId: "pz", username: "Z".repeat(100) } })!;
+    expect(clean.owner).toBeUndefined();
+    expect(clean.me).toEqual({ playerObjectId: "pz", username: "Z".repeat(32) });
+    expect(sanitizeRecord({ ...valid, me: { playerObjectId: 5, username: "x" } })!.me).toBeUndefined();
+    expect(sanitizeRecord({ ...valid, me: "строка" })!.me).toBeUndefined();
+  });
+
+  test("предел в 100 игр считается у каждого аккаунта отдельно: игры одного не вытесняют игры другого", () => {
+    let rooms: HistoryRecord[] = [];
+    for(let i = 0; i < HISTORY_LIMIT; i++) rooms = withRecord(rooms, record({ owner: "acc-b", createdAt: i }));
+    for(let i = 0; i < HISTORY_LIMIT + 5; i++) rooms = withRecord(rooms, record({ owner: "acc-a", createdAt: 1000 + i }));
+    expect(rooms.filter(r => r.owner == "acc-b")).toHaveLength(HISTORY_LIMIT);
+    expect(rooms.filter(r => r.owner == "acc-a")).toHaveLength(HISTORY_LIMIT);
+    expect(rooms[0]!.createdAt).toBe(1000 + HISTORY_LIMIT + 4);        // новая игра первой
+    expect(rooms.filter(r => r.owner == "acc-a").at(-1)!.createdAt).toBe(1005);   // самые старые Алисы ушли, а не Боба
   });
 });
 

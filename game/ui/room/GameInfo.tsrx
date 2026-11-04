@@ -7,7 +7,7 @@ import type { GameContext } from "../../context";
 
 const ALL_ROLES = Object.values(Role).filter((value): value is Role => typeof value == "number");
 
-/** верхняя панель игры: ваша роль, на кого повлияли роли, счёт команд, таймер, «Сдаться» */
+/** верхняя панель игры: твоя роль, на кого повлияли роли, счёт команд, таймер, «Сдаться» */
 export function GameInfo({ ctx, session }: { ctx: GameContext, session: RoomSession }) @{
 	const info = fromEvents(session, "change", () => {
 		const state = session.state;
@@ -21,10 +21,11 @@ export function GameInfo({ ctx, session }: { ctx: GameContext, session: RoomSess
 		roles: Object.fromEntries(ALL_ROLES.map(role => [role, ctx.assets.url(`textures/roles/${role}.png`)])) as Record<number, string>,
 		dead: ctx.assets.url("textures/roles/dead.png")
 	}));
-	const myName = fromEvents(ctx.user, "change", () => ctx.user.username);
+	// в просмотре чужой игры подпись под ролью - ник того, кто её играл
+	const myName = fromEvents(ctx.user, "change", () => session.playerName(ctx.user.username));
 	const hidden = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername);
 	const showIndex = fromEvents(ctx.settings, "change", () => ctx.settings.data.game.showIndexPl);
-	const showRole = () => void ctx.dialogs.manager.open({ title: "ВАША РОЛЬ", render: close => YourRoleDialog({ ctx, role: info().role as Role, close }) });
+	const showRole = () => void ctx.dialogs.manager.open({ title: "ТВОЯ РОЛЬ", render: close => YourRoleDialog({ ctx, role: info().role as Role, close }) });
 	const timerColors = { normal: "var(--text-dark)", warning: "orange", danger: "red", critical: "darkred" };
 
 	<>
@@ -49,7 +50,7 @@ export function GameInfo({ ctx, session }: { ctx: GameContext, session: RoomSess
 		</style>
 		<div class="info">
 			<div class="me">
-				<span>{"Ваша роль"}</span>
+				<span>{"Твоя роль"}</span>
 				// <span>{roleNames[info().role as Role] ?? ""}</span>
 				<div class="picture" onClick={showRole}>
 					<img src={images().roles[info().role]} alt="" />

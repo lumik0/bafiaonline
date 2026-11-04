@@ -1,6 +1,7 @@
 import { fromEvents } from "@common/ui";
 import type { Assets } from "@common/assets";
 import { formatNumber } from "@common/utils/format";
+import { version } from "@common/version";
 import type { SettingsStore } from "../domain/settings";
 import type { User } from "../domain/user";
 import type { Bafia } from "../domain/bafia";
@@ -39,6 +40,8 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 	<>
 		<style>
 			.menu { position: relative; display: flex; flex-direction: column; height: 100%; overflow: auto; }
+			/* версия в левом нижнем углу: игроки присылают скриншоты, и по ним видно, на какой версии играют */
+			.version { position: absolute; left: 12px; bottom: 2px; font-size: 11px; line-height: 12px; opacity: .55; pointer-events: none; }
 			.content { position: relative; flex: 1; display: flex; flex-direction: column; padding: 10px 12px 14px; gap: 10px; min-height: 480px; }
 
 			.level { display: flex; align-items: center; gap: 8px; }
@@ -147,6 +150,7 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 					</div>
 				</div>
 
+				<div class="version" data-keep>{version}</div>
 				<div class="bottom">
 					<div class="small">
 						<button onClick={actions.ratings}>{"Рейтинги"}</button>

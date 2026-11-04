@@ -42,7 +42,7 @@ describe("регистрация", () => {
 });
 
 describe("игра", () => {
-  test("порядок за столом, ваша роль, обновления меняют только присланные поля", () => {
+  test("порядок за столом, твоя роль, обновления меняют только присланные поля", () => {
     const state = startGame(Role.Sheriff);
     expect(state.phase).toBe("game");
     expect(state.title).toBe("Тест");

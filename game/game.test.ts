@@ -75,6 +75,7 @@ describe("игра", () => {
     expect(text()).toContain("99 700");
     expect(text()).toContain("10 000");
     expect(window.title).toBe(`Бафия ${versionNumber} - Euaek`);
+    expect(window.content.querySelector(".version")?.textContent).toBe(`Beta ${versionNumber}`);   // версия в углу меню: видна на скриншотах
   });
 
   test("неверный пароль: экран входа с причиной", async() => {
@@ -573,6 +574,11 @@ describe("игра", () => {
 
     expect(game.ctx.nav.top?.name).toBe("room");
     expect(text()).toContain("Игроки в комнате: 2 [5/8]");          // заголовок с числом игроков
+    // роли в шапке: все видны (на компьютере) и занимают свободную ширину; на телефоне была бы ровно одна строка
+    const roleBar = window.content.querySelector<HTMLElement>(".bar .right .roles")!;
+    expect(roleBar).not.toBeNull();
+    expect(roleBar.classList.contains("phone")).toBe(false);
+    expect(roleBar.querySelectorAll("img")).toHaveLength(1);        // в тестовой комнате одна роль
     expect(text()).toContain("Регистрация");
     expect(text()).toContain("ждём");
     expect(window.content.querySelectorAll(".players .player")).toHaveLength(2);
@@ -666,6 +672,8 @@ describe("игра", () => {
     game.ctx.history.update(history => {
       history.rooms = [{ messages: [], playersData: {}, modelType: 0, title: "Комната Васи", maxPlayers: 8, minPlayers: 5, minLevel: 1, isVipEnabled: false, selectedRoles: [], gameDayTime: 2, createdAt: 1700000000000 }];
     });
+    // записи принадлежат этому аккаунту (у каждого аккаунта своя история)
+    game.ctx.history.update(history => { history.rooms = history.rooms.map(record => ({ ...record, owner: game.ctx.user.userObjectId })); });
     click("История игр");
     await tick(350);
 
@@ -699,6 +707,53 @@ describe("игра", () => {
     expect(game.ctx.crash()).toBeUndefined();
   });
 
+  test("история: у каждого аккаунта своя; чужие записи не видны, старая общая запись с вашим игроком видна", async() => {
+    const { click, text, game } = await launch({ email: "a@b.c", password: "правильный" });
+    await tick(10);
+    const record = (title: string, extra: object) => ({ messages: [], playersData: {}, modelType: 0, title, maxPlayers: 8, minPlayers: 5, minLevel: 1, isVipEnabled: false, selectedRoles: [], gameDayTime: 2, createdAt: 1700000000000, ...extra });
+    game.ctx.history.update(history => {
+      history.rooms = [
+        record("Моя новая", { owner: game.ctx.user.userObjectId }),
+        record("Чужого аккаунта", { owner: "другой-аккаунт" }),
+        record("Старая с моим игроком", { playersData: { [game.ctx.user.playerObjectId]: { role: 1 } } }),
+        record("Старая без меня", { playersData: { stranger: { role: 1 } } })
+      ] as never;
+    });
+    click("История игр");
+    await tick(350);
+
+    expect(text()).toContain("История игр (2)");
+    expect(text()).toContain("Моя новая");
+    expect(text()).toContain("Старая с моим игроком");
+    expect(text()).not.toContain("Чужого аккаунта");
+    expect(text()).not.toContain("Старая без меня");
+    expect(game.ctx.history.data.rooms).toHaveLength(4);        // чужие записи остаются в файле, просто не показываются
+  });
+
+  test("просмотр чужой игры: под «Твоя роль» ник того, кто её играл, а не зрителя", async() => {
+    const { window, click, text, game } = await launch({ email: "a@b.c", password: "правильный" });
+    await tick(10);
+    const players = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`p${i + 1}`, { playerObjectId: `p${i + 1}`, username: i == 0 ? "Euaek" : `Игрок${i + 1}`, index: i, alive: true, role: i < 2 ? 4 : 1 }]));
+    const record = { messages: [], playersStat: { ty: "ps", ma: 2, m: 2, ca: 6, c: 1 }, playersData: players, modelType: 0, title: "Прислана", maxPlayers: 8, minPlayers: 5, minLevel: 1, isVipEnabled: false, selectedRoles: [], gameDayTime: 2, createdAt: 1700000000000, owner: game.ctx.user.userObjectId };
+    game.ctx.history.update(history => { history.rooms = [{ ...record, title: "Моя" }, { ...record, title: "Чужая", me: { playerObjectId: "p5", username: "Игрок5" } }] as never; });
+    click("История игр");
+    await tick(350);
+
+    const records = [...window.content.querySelectorAll<HTMLElement>(".game")];
+    records.find(item => item.textContent?.includes("Чужая"))!.click();     // игра, которую играл Игрок5
+    await tick(350);
+    expect(window.content.querySelector(".me")?.textContent).toContain("Игрок5");
+    expect(window.content.querySelector(".me")?.textContent).not.toContain("Euaek");
+
+    window.content.querySelector<HTMLElement>("button[aria-label=Назад]")!.click();
+    await tick(350);
+    [...window.content.querySelectorAll<HTMLElement>(".game")].find(item => item.textContent?.includes("Моя"))!.click();
+    await tick(350);
+    expect(window.content.querySelector(".me")?.textContent).toContain("Euaek");   // своя игра: я - это я
+    expect(text()).toContain("Euaek");
+    expect(game.ctx.crash()).toBeUndefined();
+  });
+
   test("история: список с исходом, просмотр игры без поля ввода, удаление с подтверждением", async() => {
     const { window, click, text, game } = await launch({ email: "a@b.c", password: "правильный" });
     await tick(10);
@@ -710,6 +765,8 @@ describe("игра", () => {
       ];
     });
 
+    // записи принадлежат этому аккаунту (у каждого аккаунта своя история)
+    game.ctx.history.update(history => { history.rooms = history.rooms.map(record => ({ ...record, owner: game.ctx.user.userObjectId })); });
     click("История игр");
     await tick(350);
     expect(text()).toContain("История игр (2)");

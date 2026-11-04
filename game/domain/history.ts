@@ -21,6 +21,10 @@ export interface HistoryRecord {
   /** своё название и заметка к игре: задаёт игрок, старая версия их не знает */
   name?: string
   note?: string
+  /** чья это игра: игрок и его ник. Нужно при просмотре чужой игры, чтобы «твоя роль» и ник были его, а не зрителя */
+  me?: { playerObjectId: string, username: string }
+  /** аккаунт на этом устройстве, чья это запись (`userObjectId`): у каждого аккаунта своя история. Остаётся только здесь, при отправке другим убирается */
+  owner?: string
 }
 
 export interface HistoryFile {
@@ -52,8 +56,40 @@ export function noteHint(record: HistoryRecord): string {
   return text ? " - " + (text.length > 70 ? text.slice(0, 69) + "…" : text) : "";
 }
 
-/** новая игра - первой в списке; хранится не больше 100 последних, чтобы файл не рос бесконечно */
-export const withRecord = (rooms: readonly HistoryRecord[], record: HistoryRecord): HistoryRecord[] => [record, ...rooms].slice(0, HISTORY_LIMIT);
+/**
+ * новая игра - первой в списке; хранится не больше 100 последних у каждого аккаунта, чтобы файл не рос бесконечно
+ * (записи без владельца, оставшиеся от старой общей истории, считаются одной группой)
+ */
+export function withRecord(rooms: readonly HistoryRecord[], record: HistoryRecord): HistoryRecord[] {
+  const counts = new Map<string, number>();
+  return [record, ...rooms].filter(item => {
+    const key = item.owner ?? "";
+    const count = (counts.get(key) ?? 0) + 1;
+    counts.set(key, count);
+    return count <= HISTORY_LIMIT;
+  });
+}
+
+/** кто смотрит историю: аккаунт и его игрок (по нему узнаются записи прежней общей истории) */
+export interface HistoryViewer { userObjectId: string, playerObjectId: string }
+
+/**
+ * чья игра эта запись для данного аккаунта. У новых записей есть владелец; у старых (история была общей для всех аккаунтов
+ * на устройстве) её узнаём по игроку: если ваш игрок сидел за столом, игра ваша
+ */
+export function belongsTo(record: HistoryRecord, viewer: HistoryViewer): boolean {
+  if(record.owner) return record.owner == viewer.userObjectId;
+  return !!viewer.playerObjectId && !!record.playersData && viewer.playerObjectId in record.playersData;
+}
+
+/** записи этого аккаунта: у каждого аккаунта на устройстве своя история */
+export const ownRecords = (rooms: readonly HistoryRecord[], viewer: HistoryViewer): HistoryRecord[] => rooms.filter(record => belongsTo(record, viewer));
+
+/** запись для отправки другому игроку: без привязки к аккаунту на этом устройстве */
+export function sharedForm(record: HistoryRecord): HistoryRecord {
+  const { owner: _owner, ...shared } = record;
+  return shared;
+}
 
 export type Outcome = "win" | "lose" | "draw";
 
@@ -96,6 +132,8 @@ export function sanitizeRecord(raw: unknown): HistoryRecord | undefined {
     isMM: raw.isMM === true,
     createdAt: num(raw.createdAt, Date.now()),
     name: typeof raw.name == "string" && raw.name.trim() ? raw.name.trim().slice(0, HISTORY_NAME_MAX) : undefined,
-    note: typeof raw.note == "string" && raw.note.trim() ? raw.note.trim().slice(0, HISTORY_NOTE_MAX) : undefined
+    note: typeof raw.note == "string" && raw.note.trim() ? raw.note.trim().slice(0, HISTORY_NOTE_MAX) : undefined,
+    me: isObject(raw.me) && typeof raw.me.playerObjectId == "string" && typeof raw.me.username == "string" && raw.me.playerObjectId.length <= 64
+      ? { playerObjectId: raw.me.playerObjectId, username: raw.me.username.slice(0, 32) } : undefined
   };
 }

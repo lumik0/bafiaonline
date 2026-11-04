@@ -30,7 +30,8 @@ export type ClientEvents = PacketEvents & {
   close: (willReconnect: boolean) => void
 };
 
-const SECRET_FIELDS = new Set(["token", "password"]);
+// в журнал (его присылают в отчётах и на скриншотах) не попадают ни токен и пароль, ни почта
+const SECRET_FIELDS = new Set(["token", "password", "email"]);
 
 function redact(value: unknown): unknown {
   if(Array.isArray(value)) return value.map(redact);

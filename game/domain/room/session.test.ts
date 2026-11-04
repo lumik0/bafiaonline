@@ -267,6 +267,39 @@ describe("RoomSession", () => {
     expect((await historyDocument(off.files).read()).rooms).toHaveLength(0);
   });
 
+  test("запись истории помнит, чья игра (игрок и ник) и из какого аккаунта; просмотр чужой игры идёт от лица её владельца", async() => {
+    const { network, session, first, deps } = await setup();
+    const own = { ...deps, myUsername: "Игрок1", accountId: "acc-1" };
+    const mine = new RoomSession(own, roomSettings("r1", first));
+    mine.start(first);
+    network.last.receive({ ty: "rst", rst: { gs: { s: 3, d: 2 }, pls: roster(8), data: roster(8).map((p, i) => ({ puo: p.pu.puo, a: true, r: i < 2 ? 4 : 1 })), ms: [] } });
+    network.last.receive({ ty: "gs", gs: { s: 4, t: 0 } });
+    await tick();
+
+    const record = deps.history.data.rooms[0]!;
+    expect(record.me).toEqual({ playerObjectId: "p1", username: "Игрок1" });
+    expect(record.owner).toBe("acc-1");
+    session.leave();
+
+    // игру прислали другому игроку: он сам p5 с ником Зритель, но «я» в просмотре - тот, кто её играл
+    const viewer = { ...deps, myPlayerObjectId: "p5", myUsername: "Зритель", accountId: "acc-2" };
+    const replay = RoomSession.fromHistory(viewer, JSON.parse(JSON.stringify(record)) as HistoryRecord, "shared:x");
+    expect(replay.ownerName).toBe("Игрок1");
+    expect(replay.state.myPlayerObjectId).toBe("p1");
+    expect(replay.state.me?.username).toBe("Игрок1");
+    expect(replay.playerName("Зритель")).toBe("Игрок1");
+
+    // у записи без этих полей (старая версия) «я» остаётся зрителем, как раньше
+    const legacy = { ...JSON.parse(JSON.stringify(record)), me: undefined, owner: undefined } as HistoryRecord;
+    const old = RoomSession.fromHistory(viewer, legacy, "history:old");
+    expect(old.ownerName).toBeUndefined();
+    expect(old.state.myPlayerObjectId).toBe("p5");
+    expect(old.playerName("Зритель")).toBe("Игрок5");           // он сидел за столом под этим ником
+
+    // в живой игре ник всегда свой
+    expect(mine.playerName("Игрок1")).toBe("Игрок1");
+  });
+
   test("выход отправляет leaveRoom и отписывается; двойной аккаунт сообщается", async() => {
     const { network, session, first } = await setup();
     session.start(first);

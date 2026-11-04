@@ -16,6 +16,9 @@ export interface SessionDeps {
   history: DocumentStore<HistoryFile>
   settings: DocumentStore<GameSettings>
   myPlayerObjectId: string
+  /** ваш ник и аккаунт (`userObjectId`): попадают в запись истории, чтобы игру можно было смотреть как вашу и показывать только вам */
+  myUsername?: string
+  accountId?: string
 }
 
 /** голосование за исключение игрока, идущее сейчас */
@@ -47,6 +50,8 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   private left = false;
   /** просмотр сохранённой игры: сети нет, ходить и писать нельзя */
   readonly replay: boolean;
+  /** в просмотре: ник того, чья это игра (из записи); «твоя роль» и ник рядом с ней показываются его, а не зрителя */
+  ownerName?: string;
 
   constructor(private deps: SessionDeps, settings: RoomSettings, replay = false) {
     super();
@@ -64,10 +69,12 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
 
   /** просмотр игры из истории: состояние собирается из записи, сеть не нужна */
   static fromHistory(deps: SessionDeps, record: HistoryRecord, id: string): RoomSession {
-    const session = new RoomSession(deps, {
+    // «я» в просмотре - тот, чья игра (если запись это помнит), а не тот, кто смотрит: ему могли прислать чужую игру
+    const session = new RoomSession({ ...deps, myPlayerObjectId: record.me?.playerObjectId ?? deps.myPlayerObjectId }, {
       id, modelType: record.modelType ?? 0, title: record.title ?? "Игра", minPlayers: record.minPlayers ?? 1, maxPlayers: record.maxPlayers ?? 8,
       minLevel: record.minLevel ?? 1, vip: !!record.isVipEnabled, roles: record.selectedRoles ?? []
     }, true);
+    session.ownerName = record.me?.username || undefined;
     session.state.restore(record);
     for(const wire of record.messages ?? []) {
       try {
@@ -80,6 +87,11 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   }
 
   get roomId() { return this.state.settings.id; }
+
+  /** ник игрока, от лица которого смотрим на стол: свой в игре, а в просмотре - того, чья игра */
+  playerName(own: string): string {
+    return this.replay ? this.state.me?.username ?? this.ownerName ?? own : own;
+  }
 
   /** `first` - ответ сервера на вход: в нём уже может быть состояние комнаты */
   start(first?: ServerMessage) {
@@ -265,7 +277,8 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     const record: HistoryRecord = {
       messages: this.rawMessages, playersStat: this.lastStat, playersData: this.snapshotPlayers(), modelType: settings.modelType, title: settings.title,
       maxPlayers: settings.maxPlayers, minPlayers: settings.minPlayers, minLevel: settings.minLevel, isVipEnabled: settings.vip,
-      selectedRoles: settings.roles, gameDayTime: this.state.dayTime, createdAt: Date.now()
+      selectedRoles: settings.roles, gameDayTime: this.state.dayTime, createdAt: Date.now(),
+      me: { playerObjectId: this.deps.myPlayerObjectId, username: this.state.me?.username ?? this.deps.myUsername ?? "" }, owner: this.deps.accountId || undefined
     };
     this.record = record;
     this.deps.history.update(history => { history.rooms = withRecord(history.rooms, record); });

@@ -1,4 +1,4 @@
-import { sanitizeRecord, type HistoryRecord } from "./history";
+import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectPlatform } from "./platform";
 import { isPremiumColor, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
@@ -239,7 +239,8 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
 
   /** выложить игру на 30 дней: номер для ссылки `[hist:номер]`, `undefined` если не вышло */
   async shareHistory(record: HistoryRecord): Promise<{ id: string } | { error: "offline" | "quota" | "too-big" }> {
-    const data = JSON.stringify(record);
+    // привязка к аккаунту на этом устройстве другим не нужна
+    const data = JSON.stringify(sharedForm(record));
     const premium = !!this.premiumUntil && this.premiumUntil > Date.now();
     if(data.length > (premium ? BAFIA_LIMITS.premiumHistory : BAFIA_LIMITS.history)) return { error: "too-big" };
     if(!this.ready) return { error: "offline" };

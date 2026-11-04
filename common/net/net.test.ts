@@ -182,6 +182,24 @@ describe("ServerClient", () => {
     expect(JSON.stringify(traffic)).not.toContain("secret");
   });
 
+  test("в журнале (traffic) нет почты и пароля, даже вложенных: ни в отправленных, ни в полученных пакетах", async() => {
+    const { network, client } = setup();
+    client.connect();
+    await tick();
+    const traffic: unknown[] = [];
+    client.on("traffic", t => traffic.push(t));
+
+    client.send("signInWithPassword", { email: "secret@mail.example", password: "hash123", captcha: "", source: "browser", deviceId: "dev" });
+    network.last.receive({ ty: "r1", user: { email: "other@mail.example", token: "token-value-777" } });
+    const text = JSON.stringify(traffic);
+    expect(text).not.toContain("secret@mail.example");
+    expect(text).not.toContain("other@mail.example");
+    expect(text).not.toContain("hash123");
+    expect(text).not.toContain("token-value-777");
+    expect(text).toContain("signInWithPassword");          // сам пакет в журнале остаётся
+    expect(text).toContain('"email":"***"');
+  });
+
   test("подписка по имени пакета, незнакомые и битые пакеты не ломают приём", async() => {
     const { network, client } = setup();
     client.connect();

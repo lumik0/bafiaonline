@@ -33,7 +33,8 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	}));
 	const entries = fromEvents(session, "change", () => state.messages.entries);
 	const lobby = fromEvents(session, "change", (): ChatUser[] => state.lobby.map(player => ({ username: player.username, playerObjectId: player.playerObjectId, photo: player.photo, vip: player.vip })));
-	const myName = fromEvents(ctx.user, "change", () => ctx.user.username);
+	// в просмотре чужой игры «я» - тот, кто её играл
+	const myName = fromEvents(ctx.user, "change", () => session.playerName(ctx.user.username));
 	const hideName = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername);
 	const layout = fromEvents(ctx.settings, "change", () => ({ width: ctx.settings.data.game.widthPL, zoom: ctx.settings.data.game.zoomPL }));
 	const images = fromEvents(ctx.assets, "change", () => ({
@@ -158,9 +159,10 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			<AppBar
 				title={view().title}
 				keepCase
+				stretch
 				subtitle={view().playersLine}
 				onBack={() => void back()}
-				right={<><RoleIcons roles={view().roles} images={images().roles} onClick={showRoles} />{hasSettings() ? <button class="gear" onClick={showSettings} aria-label="Настройки комнаты"><Icon name="gear" size={24} /></button> : null}</>}
+				right={<><RoleIcons roles={view().roles} images={images().roles} onClick={showRoles} phone={isMobile()} />{hasSettings() ? <button class="gear" onClick={showSettings} aria-label="Настройки комнаты"><Icon name="gear" size={24} /></button> : null}</>}
 			/>
 			@if (!view().loaded) {
 				<div class="loading"><img src={images().loading} alt="" /></div>
@@ -195,14 +197,18 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 }
 
 /** роли комнаты в шапке; роли, которых в этой игре нет, бледнее */
-function RoleIcons({ roles, images, onClick }: { roles: { role: number, count: number }[], images: Record<number, string>, onClick: () => void }) @{
+function RoleIcons({ roles, images, onClick, phone }: { roles: { role: number, count: number }[], images: Record<number, string>, onClick: () => void, phone: boolean }) @{
 	<>
 		<style>
-			.roles { display: grid; grid-template-columns: repeat(5, 25px); gap: 2px; align-items: center; cursor: pointer; }
-			.roles img { width: 25px; height: 35px; object-fit: contain; }
+			/* на компьютере видны все роли и занимают всю свободную ширину шапки (если не хватило места, переносятся) */
+			.roles { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 2px; cursor: pointer; }
+			.roles img { flex: none; width: 25px; height: 35px; object-fit: contain; }
 			.roles img.none { opacity: .5; }
+			/* на телефоне ровно одна строка: иконки сжимаются, пока не поместятся все */
+			.roles.phone { flex-wrap: nowrap; }
+			.roles.phone img { flex: 0 1 25px; min-width: 10px; width: auto; }
 		</style>
-		<div class="roles" onClick={onClick}>
+		<div class={phone ? "roles phone" : "roles"} onClick={onClick}>
 			@for (const item of roles) {
 				<img class={item.count == 0 ? "none" : ""} src={images[item.role]} alt="" />
 			}

@@ -2,7 +2,7 @@ import { roleNames, type Role } from "../../domain/enums";
 import { roleDescriptions } from "../../domain/rules";
 import type { GameContext } from "../../context";
 
-/** «Ваша роль»: картинка, название и что эта роль умеет */
+/** «Твоя роль»: картинка, название и что эта роль умеет */
 export function YourRoleDialog({ ctx, role, close }: { ctx: GameContext, role: Role, close: () => void }) @{
 	const image = ctx.assets.url(`textures/roles/${role}.png`);
 

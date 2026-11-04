@@ -1,7 +1,7 @@
 import { fromEvents, onCleanup, onMount } from "@common/ui";
 import { PrivateChat, toEntries } from "../domain/chat/private";
 import type { ChatEntry } from "../domain/chat/message";
-import { noteHint, outcomeOf, recordTitle } from "../domain/history";
+import { noteHint, outcomeOf, ownRecords, recordTitle } from "../domain/history";
 import { sessionDeps } from "../domain/room/deps";
 import { RoomSession } from "../domain/room/session";
 import { formatDateTime } from "@common/utils/format";
@@ -29,7 +29,7 @@ export function PrivateChatScreen({ ctx, friendshipId, playerObjectId, username,
 	const resultWord = { win: "победа", lose: "поражение", draw: "ничья" } as const;
 	/** отправить игру из истории: выкладывается на сервер Бафии на 30 дней, в сообщение идёт ссылка */
 	const sendHistory = async () => {
-		const rooms = ctx.history.data.rooms.slice(0, 12);
+		const rooms = ownRecords(ctx.history.data.rooms, { userObjectId: ctx.user.userObjectId, playerObjectId: ctx.user.playerObjectId }).slice(0, 12);
 		if(!rooms.length) return ctx.dialogs.alert("В истории пока нет игр.", { title: "История" });
 		const choice = await ctx.dialogs.choose(undefined, {
 			title: "КАКУЮ ИГРУ ОТПРАВИТЬ",
