@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { clampPosition, resizeBounds } from "./geometry";
-import { WindowManager } from "./manager";
+import { visibleBox, visibleSize, WindowManager } from "./manager";
 
 const viewport = { width: 1000, height: 700 };
 const create = (options: ConstructorParameters<typeof WindowManager>[0] = {}) =>
@@ -164,3 +164,32 @@ describe("WindowManager", () => {
     expect(manager.active).toBe(normal);
   });
 });
+
+describe("видимая область", () => {
+  test("с открытой клавиатурой берётся visualViewport (он меньше окна), без него - размер окна; масштаб делит размер", () => {
+    expect(visibleSize({ innerWidth: 390, innerHeight: 844 })).toEqual({ width: 390, height: 844 });
+    expect(visibleSize({ innerWidth: 390, innerHeight: 844, visualViewport: null })).toEqual({ width: 390, height: 844 });
+    // клавиатура iPhone закрыла нижние 336 px: окно браузера прежнее, видимая область меньше
+    expect(visibleSize({ innerWidth: 390, innerHeight: 844, visualViewport: { width: 390, height: 508, offsetTop: 0, offsetLeft: 0 } })).toEqual({ width: 390, height: 508 });
+    expect(visibleSize({ innerWidth: 1000, innerHeight: 800 }, 2)).toEqual({ width: 500, height: 400 });
+  });
+
+  test("рабочий стол занимает видимую область: с клавиатурой становится ниже и смещается вслед за страницей, без visualViewport - всё окно", () => {
+    expect(visibleBox({ innerWidth: 390, innerHeight: 844 })).toEqual({ left: 0, top: 0, width: 390, height: 844 });
+    // клавиатура закрыла нижнюю часть, а Safari сдвинул видимую область на 60 px вниз
+    expect(visibleBox({ innerWidth: 390, innerHeight: 844, visualViewport: { width: 390, height: 508, offsetTop: 60, offsetLeft: 0 } })).toEqual({ left: 0, top: 60, width: 390, height: 508 });
+  });
+
+  test("менеджер без своего viewport берёт видимую область из window", () => {
+    // глобальный window общий для всех тестов: подменяем и возвращаем в точности как было (в том числе «не было вовсе»)
+    const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+    Object.defineProperty(globalThis, "window", { value: { innerWidth: 390, innerHeight: 844, visualViewport: { width: 390, height: 508, offsetTop: 0, offsetLeft: 0 } }, configurable: true, writable: true });
+    try {
+      expect(new WindowManager().viewport()).toEqual({ width: 390, height: 508 });
+    } finally {
+      if(original) Object.defineProperty(globalThis, "window", original);
+      else delete (globalThis as { window?: unknown }).window;
+    }
+  });
+});
+

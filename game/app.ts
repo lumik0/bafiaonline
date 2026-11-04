@@ -237,6 +237,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   // связь пропала, интернета нет, сервер молчит - игрок должен это видеть, а не смотреть на замерший таймер
   const monitor = new ConnectionMonitor({
     client, notifier: host.notifications, network: window,
+    reconnect: () => client.connection.reset(),
     inGame: () => {
       const session = nav.top?.name == "room" ? (nav.top.params as { session?: RoomSession }).session : undefined;
       // после конца игры (статус 4) таймер не идёт: тишина не означает обрыв
@@ -251,7 +252,13 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     return session && !session.replay && session.state.status != 4 ? session : undefined;
   };
   auth.keepSubscription = () => !!activeSession();
-  auth.on("signedIn", (_account, reconnected) => { if(reconnected) activeSession()?.rejoin(); });
+  ctx.rooms.isActive = () => nav.top?.name == "rooms";
+  auth.on("signedIn", (_account, reconnected) => {
+    if(!reconnected) return;
+    activeSession()?.rejoin();
+    // после переподключения подписка на список комнат пропала (вход загрузил дашборд): на экране списка запрашиваем его заново
+    if(nav.top?.name == "rooms") ctx.rooms.refresh();
+  });
 
   user.on("change", () => { if(user.username) host.window.setTitle(`Бафия ${versionNumber} - ${user.username}`); });
 

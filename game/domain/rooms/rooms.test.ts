@@ -120,13 +120,13 @@ describe("фильтр комнат", () => {
   });
 });
 
-async function setup() {
+async function setup(retryAfter?: number) {
   const network = createFakeNetwork();
   const client = new ServerClient(new Connection({ url: "ws://test", createSocket: () => network.createSocket(), delay: instantDelay }));
   client.session = { userObjectId: "uo1", token: "t" };
   client.connect();
   await tick();
-  return { network, client, list: new RoomsList(client) };
+  return { network, client, list: new RoomsList(client, retryAfter) };
 }
 
 describe("RoomsList", () => {
@@ -150,6 +150,43 @@ describe("RoomsList", () => {
     list.close();
     network.last.receive({ ty: "add", rr: { o: "z", tt: "после закрытия" } });
     expect(list.rooms.map(r => r.id)).not.toContain("z");
+  });
+
+  describe("список не зависает", () => {
+    const requests = (network: Awaited<ReturnType<typeof setup>>["network"]) => network.last.sent.filter(packet => packet.ty == "acrl").length;
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    test("ответа нет - запрос повторяется до трёх раз и на этом заканчивается", async() => {
+      const { network, list } = await setup(10);
+      list.open();
+      await wait(80);
+      expect(requests(network)).toBe(4);              // первый и три повтора
+      await wait(40);
+      expect(requests(network)).toBe(4);
+      list.close();
+    });
+
+    test("список пришёл - повторов нет; экран закрыт или игрок уже в комнате - тоже", async() => {
+      const loaded = await setup(10);
+      loaded.list.open();
+      loaded.network.last.receive({ ty: "rs", rs: [{ o: "a", tt: "Первая", s: 0 }] });
+      await wait(40);
+      expect(requests(loaded.network)).toBe(1);
+      loaded.list.close();
+
+      const inRoom = await setup(10);
+      inRoom.list.isActive = () => false;             // игрок вошёл в комнату: запрос переключил бы подписку и остановил игру
+      inRoom.list.open();
+      await wait(40);
+      expect(requests(inRoom.network)).toBe(1);
+      inRoom.list.close();
+
+      const closed = await setup(10);
+      closed.list.open();
+      closed.list.close();
+      await wait(40);
+      expect(requests(closed.network)).toBe(1);
+    });
   });
 
   test("вход: пароль уходит хешем, ответы сервера превращаются в понятные результаты", async() => {

@@ -5,7 +5,7 @@ import { createStorage, MemoryFileStore } from "@common/storage";
 import { Friends } from "../friends";
 import { SettingsStore } from "../settings";
 import { GlobalChat } from "./global";
-import { PrivateChat } from "./private";
+import { PrivateChat, toEntries, type PrivateMessage } from "./private";
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -105,3 +105,39 @@ describe("Friends", () => {
     expect(await friends.search("Най")).toEqual([{ playerObjectId: "p4", username: "Найден", photo: undefined, isOnline: false, newMessages: 0, incoming: false }]);
   });
 });
+
+describe("строки личной переписки", () => {
+  const me = { playerObjectId: "me", username: "Я" }, peer = { playerObjectId: "p1", username: "Друг" };
+  const message = (id: number, from: string, read = true): PrivateMessage => ({ id, from, text: "текст " + id, created: 1000 + id, read });
+
+  test("строки одних и тех же сообщений остаются теми же объектами: список не перерисовывается целиком на каждое событие", () => {
+    const messages = [message(1, "p1"), message(2, "me"), message(3, "p1")];
+    const first = toEntries(messages, new Map(), me, peer);
+    expect(first.list.map(entry => [entry.id, entry.user?.username, entry.unread])).toEqual([[1, "Друг", false], [2, "Я", false], [3, "Друг", false]]);
+
+    // событие «печатает…»: те же сообщения - те же строки
+    const again = toEntries(messages, first.known, me, peer);
+    expect(again.list.every((entry, i) => entry === first.list[i])).toBe(true);
+
+    // пришло ещё одно: старые строки на месте, новая добавилась
+    const more = toEntries([...messages, message(4, "p1")], again.known, me, peer);
+    expect(more.list.slice(0, 3).every((entry, i) => entry === first.list[i])).toBe(true);
+    expect(more.list).toHaveLength(4);
+  });
+
+  test("меняется только та строка, у которой изменилось «прочитано»; удалённые сообщения уходят из кэша", () => {
+    const unread = [message(1, "me", false), message(2, "me", false), message(3, "p1")];
+    const first = toEntries(unread, new Map(), me, peer);
+    expect(first.list[0]!.unread).toBe(true);
+
+    const readFirst = toEntries([{ ...unread[0]!, read: true }, unread[1]!, unread[2]!], first.known, me, peer);
+    expect(readFirst.list[0]).not.toBe(first.list[0]);
+    expect(readFirst.list[0]!.unread).toBe(false);
+    expect(readFirst.list[1]).toBe(first.list[1]);
+    expect(readFirst.list[2]).toBe(first.list[2]);
+
+    const trimmed = toEntries([unread[2]!], readFirst.known, me, peer);
+    expect([...trimmed.known.keys()]).toEqual([3]);
+  });
+});
+

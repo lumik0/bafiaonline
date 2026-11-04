@@ -1,7 +1,7 @@
 import { fromEvents, onCleanup, onMount } from "@common/ui";
-import { PrivateChat } from "../domain/chat/private";
+import { PrivateChat, toEntries } from "../domain/chat/private";
 import type { ChatEntry } from "../domain/chat/message";
-import { outcomeOf, recordTitle, type HistoryRecord } from "../domain/history";
+import { noteHint, outcomeOf, recordTitle } from "../domain/history";
 import { sessionDeps } from "../domain/room/deps";
 import { RoomSession } from "../domain/room/session";
 import { formatDateTime } from "@common/utils/format";
@@ -16,16 +16,14 @@ export function PrivateChatScreen({ ctx, friendshipId, playerObjectId, username,
 	const hideName = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername);
 	const background = fromEvents(ctx.assets, "change", () => ctx.assets.url("textures/backgrounds/day3.png"));
 
-	/** сообщения собеседника и ваши - в виде строк чата; ваше непрочитанное подсвечено */
-	const entries = fromEvents(chat, "change", (): ChatEntry[] => chat.messages.map(message => {
-		const mine = message.from == ctx.user.playerObjectId;
-		return {
-			id: message.id, kind: "message", text: message.text, created: message.created, unread: mine && !message.read,
-			user: mine
-				? { playerObjectId: ctx.user.playerObjectId, username: ctx.user.username, photo: ctx.user.photo }
-				: { playerObjectId, username, photo }
-		};
-	}));
+	/** сообщения собеседника и ваши - в виде строк чата; ваше непрочитанное подсвечено, неизменившиеся строки остаются теми же объектами */
+	let known = new Map<number, ChatEntry>();
+	const entries = fromEvents(chat, "change", (): ChatEntry[] => {
+		const me = { playerObjectId: ctx.user.playerObjectId, username: ctx.user.username, photo: ctx.user.photo };
+		const result = toEntries(chat.messages, known, me, { playerObjectId, username, photo });
+		known = result.known;
+		return result.list;
+	});
 	const note = fromEvents(chat, "change", () => chat.typing ? username + " печатает…" : "");
 
 	const resultWord = { win: "победа", lose: "поражение", draw: "ничья" } as const;
@@ -35,7 +33,7 @@ export function PrivateChatScreen({ ctx, friendshipId, playerObjectId, username,
 		if(!rooms.length) return ctx.dialogs.alert("В истории пока нет игр.", { title: "История" });
 		const choice = await ctx.dialogs.choose(undefined, {
 			title: "КАКУЮ ИГРУ ОТПРАВИТЬ",
-			labels: rooms.map(record => { const outcome = outcomeOf(record, ctx.user.playerObjectId); return recordTitle(record) + " · " + formatDateTime(record.createdAt) + (outcome ? " · " + resultWord[outcome] : ""); })
+			labels: rooms.map(record => { const outcome = outcomeOf(record, ctx.user.playerObjectId); return recordTitle(record) + " · " + formatDateTime(record.createdAt) + (outcome ? " · " + resultWord[outcome] : "") + noteHint(record); })
 		});
 		if(choice === undefined) return;
 		if(!await ctx.dialogs.confirm("В игре есть ники и сообщения всех игроков комнаты. Она будет храниться на сервере Бафии 30 дней, посмотреть её сможет тот, кому придёт ссылка.", { title: "ОТПРАВИТЬ ИГРУ", yes: "Отправить" })) return;

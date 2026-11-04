@@ -11,6 +11,11 @@ export interface MonitorDeps {
   now?: () => number
   /** через сколько мс тишины в игре считаем, что связи нет, хотя сокет ещё «открыт» */
   staleAfter?: number
+  /**
+   * заново открыть соединение: сокет мог тихо умереть (телефон уснул, сменилась сеть) или сервер перестал слать данные в эту подписку.
+   * Вызывается при тишине в игре; паузы между попытками растут (8, 16, 32, 60 секунд), пока не пойдут пакеты
+   */
+  reconnect?: () => void
   schedule?: (callback: () => void, ms: number) => unknown
   cancel?: (handle: unknown) => void
 }
@@ -28,6 +33,8 @@ export class ConnectionMonitor {
   private stale = false;
   private attempts = 0;
   private lastMessage: number;
+  private lastReconnect = -Infinity;
+  private reconnects = 0;
   private handles: { remove(): void }[] = [];
   private timer?: unknown;
   private cleanup: (() => void)[] = [];
@@ -61,6 +68,7 @@ export class ConnectionMonitor {
       }),
       client.on("message", () => {
         this.lastMessage = this.now();
+        this.reconnects = 0;
         if(this.stale) this.recovered();
       })
     );
@@ -87,14 +95,23 @@ export class ConnectionMonitor {
 
   /** сокет открыт, игра идёт, а данных нет дольше обычного */
   private check() {
-    const { client, notifier, inGame, staleAfter = 8000 } = this.deps;
-    if(this.stale || this.down || client.connection.state != "open" || !inGame()) return;
-    if(this.now() - this.lastMessage < staleAfter) return;
-    this.stale = true;
-    notifier.show({
-      key: KEY, kind: "warning", timeout: 0, title: "Нет данных от сервера",
-      text: "Таймер мог остановиться: возможно, пропал интернет. Ждём ответа…"
-    });
+    const { client, notifier, inGame, reconnect, staleAfter = 8000 } = this.deps;
+    if(this.down || client.connection.state != "open" || !inGame()) return;
+    const now = this.now();
+    if(now - this.lastMessage < staleAfter) return;
+    if(!this.stale) {
+      this.stale = true;
+      notifier.show({
+        key: KEY, kind: "warning", timeout: 0, title: "Нет данных от сервера",
+        text: reconnect ? "Таймер мог остановиться: возможно, пропал интернет. Переподключаюсь…" : "Таймер мог остановиться: возможно, пропал интернет. Ждём ответа…"
+      });
+    }
+    // новое соединение входит заново и садится за стол; если и оно молчит, пробуем реже, чтобы не зациклиться
+    if(reconnect && now - this.lastReconnect >= Math.min(60_000, staleAfter * 2 ** this.reconnects)) {
+      this.lastReconnect = now;
+      this.reconnects++;
+      reconnect();
+    }
   }
 
   stop() {

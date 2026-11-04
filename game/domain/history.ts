@@ -46,6 +46,12 @@ export const HISTORY_NOTE_MAX = 200;
 /** как игра называется в списке: своё название, а если его нет - название комнаты */
 export const recordTitle = (record: HistoryRecord) => record.name?.trim() || record.title || "Игра";
 
+/** описание игры одной строкой для списка выбора (до 70 знаков); пусто, если описания нет. С разделителем впереди, чтобы дописывать к названию */
+export function noteHint(record: HistoryRecord): string {
+  const text = record.note?.replace(/\s+/g, " ").trim();
+  return text ? " - " + (text.length > 70 ? text.slice(0, 69) + "…" : text) : "";
+}
+
 /** новая игра - первой в списке; хранится не больше 100 последних, чтобы файл не рос бесконечно */
 export const withRecord = (rooms: readonly HistoryRecord[], record: HistoryRecord): HistoryRecord[] => [record, ...rooms].slice(0, HISTORY_LIMIT);
 

@@ -56,7 +56,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 		if(color) return { color, title: "Играет в Бафии, премиум" };
 		return bafia.online.has(id) ? { color: "var(--accent)", title: "Играет в Бафии" } : undefined;
 	};
-	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.avatar(id) : undefined; };
+	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.avatar(id, true) : undefined; };
 	const emoji = fromEvents(assets, "change", () => Object.fromEntries(EMOJI.map(name => [name, assets.url(`textures/emoji/${name}.png`)])) as Record<string, string>);
 
 	let previous: Row[] = [];
@@ -68,9 +68,18 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	// к новым сообщениям прокручиваем, только если читатель и так внизу: старую переписку не сбиваем
 	let stick = true;
 	const onScroll = () => { stick = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop < 75; };
+	const toBottom = () => { if(stick && scroller) scroller.scrollTop = scroller.scrollHeight; };
 	createEffect(() => {
 		entries();
-		queueMicrotask(() => { if(stick && scroller) scroller.scrollTo({ top: scroller.scrollHeight }); });
+		queueMicrotask(toBottom);
+	});
+	// высота списка меняется от экранной клавиатуры, высота строк - от загрузки картинок (гифки, аватарки, смайлики):
+	// читатель, который был внизу, остаётся внизу
+	onMount(() => {
+		const observer = typeof ResizeObserver != "undefined" ? new ResizeObserver(toBottom) : undefined;
+		observer?.observe(scroller);
+		scroller.addEventListener("load", toBottom, true);
+		onCleanup(() => { observer?.disconnect(); scroller.removeEventListener("load", toBottom, true); });
 	});
 
 	const lineToken = (entry: ChatEntry) => entry.tone ? toneToken(entry.tone) : colorToken(entry.type);

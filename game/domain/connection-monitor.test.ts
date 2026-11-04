@@ -3,7 +3,7 @@ import type { NotificationOptions } from "@common/ui/notifications/center";
 import Events from "@common/utils/emitter";
 import { ConnectionMonitor } from "./connection-monitor";
 
-function setup(inGame = true) {
+function setup(inGame = true, withReconnect = false) {
   const client = Object.assign(new Events<{ open: () => void, close: (willReconnect: boolean) => void, message: () => void }>(), { connection: { state: "open" } });
   const shown: NotificationOptions[] = [];
   const dismissed: string[] = [];
@@ -11,14 +11,16 @@ function setup(inGame = true) {
   let time = 0;
   let tick = () => {};
   const state = { inGame };
+  const reconnects: number[] = [];
   const monitor = new ConnectionMonitor({
     client: client as never, network, inGame: () => state.inGame, now: () => time,
     notifier: { show: o => { shown.push(o); }, dismiss: key => { dismissed.push(key); } },
-    schedule: callback => { tick = callback; return 1; }, cancel: () => {}
+    schedule: callback => { tick = callback; return 1; }, cancel: () => {},
+    reconnect: withReconnect ? () => { reconnects.push(time); } : undefined
   });
   monitor.start();
   return {
-    client, shown, dismissed, network, monitor, state,
+    client, shown, dismissed, network, monitor, state, reconnects,
     advance: (ms: number) => { time += ms; tick(); },
     last: () => shown.at(-1)!
   };
@@ -91,4 +93,52 @@ describe("уведомления о связи", () => {
     client.emit("close", true);
     expect(shown).toEqual([]);
   });
+
+  test("тишина в игре: сразу переподключается, при молчании и дальше пробует реже (16, 32, 60 секунд), а пакет сбрасывает счёт", () => {
+    const { client, advance, reconnects, shown, last } = setup(true, true);
+    client.emit("open");
+
+    advance(8000);
+    expect(reconnects).toEqual([8000]);
+    expect(last()).toMatchObject({ title: "Нет данных от сервера" });
+    expect(last().text).toContain("Переподключаюсь");
+
+    advance(14_000);                                  // 14 секунд после первой попытки: рано (пауза 16)
+    expect(reconnects).toHaveLength(1);
+    advance(2000);
+    expect(reconnects).toEqual([8000, 24000]);
+    advance(30_000);                                  // пауза 32: ещё рано
+    expect(reconnects).toHaveLength(2);
+    advance(2000);
+    expect(reconnects).toEqual([8000, 24000, 56000]);
+    advance(58_000);                                  // дальше потолок 60 секунд
+    expect(reconnects).toHaveLength(3);
+    advance(2000);
+    expect(reconnects).toEqual([8000, 24000, 56000, 116000]);
+
+    // пошли пакеты: счёт паузы начинается заново, а уведомление уходит
+    client.emit("message");
+    expect(last()).toMatchObject({ title: "Связь восстановлена" });
+    const before = reconnects.length;
+    advance(8000);
+    expect(reconnects).toHaveLength(before + 1);
+    expect(shown.length).toBeGreaterThan(2);
+  });
+
+  test("переподключение само не вызывается: вне игры, пока сокет закрыт (оно и так идёт), и если дело в обрыве", () => {
+    const { client, advance, reconnects, state } = setup(false, true);
+    client.emit("open");
+    advance(60_000);                                  // вне игры тишина нормальна
+    expect(reconnects).toEqual([]);
+
+    state.inGame = true;
+    client.emit("close", true);                       // сокет закрылся сам: переподключение уже идёт
+    advance(60_000);
+    expect(reconnects).toEqual([]);
+
+    client.emit("open");
+    advance(8000);
+    expect(reconnects).toHaveLength(1);
+  });
 });
+

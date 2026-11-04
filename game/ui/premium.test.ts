@@ -184,3 +184,33 @@ test("гифка в сообщении: звёздочка добавляет в
   dispose();
   root.remove();
 });
+
+test("чат: кто был внизу, остаётся внизу, когда загрузилась картинка или поменялась высота списка; кто листал вверх, остаётся на месте", async() => {
+  const assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
+  const root = document.body.appendChild(document.createElement("div"));
+  const entries = [{ id: 1, kind: "message" as const, text: "привет :sm1:", user: { username: "Звезда", playerObjectId: "p1" } }];
+  const dispose = ui.mount(() => ChatView({ entries: () => entries, myName: () => "я", hideName: () => false, assets, send: () => {}, readonly: true } as never) as never, root);
+  await tick();
+  const list = root.querySelector<HTMLElement>(".messages")!;
+  let height = 1000;
+  Object.defineProperty(list, "scrollHeight", { get: () => height, configurable: true });
+  Object.defineProperty(list, "clientHeight", { value: 300, configurable: true });
+  const image = list.querySelector("img")!;
+
+  // читатель внизу: картинка выросла, список дотянулся до низа
+  list.scrollTop = 700;
+  list.dispatchEvent(new Event("scroll"));
+  height = 1300;
+  image.dispatchEvent(new Event("load"));
+  expect(list.scrollTop).toBe(1300);
+
+  // читатель ушёл читать старое: ничего не двигаем
+  list.scrollTop = 100;
+  list.dispatchEvent(new Event("scroll"));
+  height = 1700;
+  image.dispatchEvent(new Event("load"));
+  expect(list.scrollTop).toBe(100);
+  dispose();
+  root.remove();
+});
+

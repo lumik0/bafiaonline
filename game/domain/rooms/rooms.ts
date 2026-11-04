@@ -42,8 +42,14 @@ export class RoomsList extends Events<{ change: () => void }> {
   private byId = new Map<string, RoomItem>();
   private handles: Handle[] = [];
   loaded = false;
+  /**
+   * можно ли сейчас просить список: запрос переключает подписку клиента, поэтому в комнате его слать нельзя (игра и таймер встанут).
+   * Пока не задано, считается, что можно
+   */
+  isActive?: () => boolean;
+  private retry?: ReturnType<typeof setTimeout>;
 
-  constructor(private client: ServerClient) {
+  constructor(private client: ServerClient, private retryAfter = 5000) {
     super();
   }
 
@@ -79,6 +85,17 @@ export class RoomsList extends Events<{ change: () => void }> {
       }))
     );
     this.client.send("addClientToRoomsList");
+    this.watchLoad(0);
+  }
+
+  /** ответ на запрос мог потеряться (связь моргнула при запуске): без него экран висит на «Загрузка…», поэтому спрашиваем ещё до трёх раз */
+  private watchLoad(attempt: number) {
+    clearTimeout(this.retry);
+    this.retry = setTimeout(() => {
+      if(this.loaded || !this.handles.length || attempt >= 3 || !(this.isActive?.() ?? true)) return;
+      try { this.client.send("addClientToRoomsList"); } catch { /* связи нет: повторим в следующий раз */ }
+      this.watchLoad(attempt + 1);
+    }, this.retryAfter);
   }
 
   /** заново запросить список (кнопка «Обновить», переподключение) */
@@ -124,6 +141,7 @@ export class RoomsList extends Events<{ change: () => void }> {
   }
 
   close() {
+    clearTimeout(this.retry);
     for(const handle of this.handles) handle.remove();
     this.handles = [];
   }

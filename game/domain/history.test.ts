@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { recordTitle, sanitizeRecord } from "./history";
+import { noteHint, recordTitle, sanitizeRecord, type HistoryRecord } from "./history";
 
 const valid = { messages: [{ a: 1 }], playersData: { p1: { role: 1 } }, modelType: 1, title: "Игра", maxPlayers: 8, minPlayers: 5, minLevel: 1, isVipEnabled: false, selectedRoles: [1, 2], gameDayTime: 60, createdAt: 5 };
 
@@ -29,3 +29,20 @@ describe("sanitizeRecord", () => {
     expect(recordTitle({ ...record!, name: undefined, title: "" })).toBe("Игра");
   });
 });
+
+describe("noteHint", () => {
+  const record = (note?: string) => ({ ...(sanitizeRecord(valid) as HistoryRecord), note });
+
+  test("описание идёт в список выбора через дефис одной строкой, длинное обрезается, без описания пусто", () => {
+    expect(noteHint(record())).toBe("");
+    expect(noteHint(record("   "))).toBe("");
+    expect(noteHint(record("Сильная игра\n  за чёрных"))).toBe(" - Сильная игра за чёрных");
+    const long = noteHint(record("я".repeat(100)));
+    expect(long).toBe(" - " + "я".repeat(69) + "…");
+  });
+
+  test("описание есть и при ненастоящем названии: название игры от описания не зависит", () => {
+    expect(recordTitle(record("только описание"))).toBe("Игра");
+  });
+});
+

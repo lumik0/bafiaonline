@@ -171,7 +171,7 @@ export class WindowManager extends Events<WindowManagerEvents> {
   }
 
   viewport(): Size {
-    return this.options.viewport?.() ?? { width: window.innerWidth / this.scale, height: window.innerHeight / this.scale };
+    return this.options.viewport?.() ?? visibleSize(window, this.scale);
   }
 
   get windows(): readonly WindowHandle[] { return this.list; }
@@ -284,4 +284,26 @@ export class WindowManager extends Events<WindowManagerEvents> {
       else window.setBounds({ ...window.bounds, ...clampPosition(window.bounds, viewport) });
     }
   }
+}
+
+/** то, что нужно от `window` для размера видимой области */
+export interface ViewportSource {
+  innerWidth: number
+  innerHeight: number
+  visualViewport?: { width: number, height: number, offsetTop: number, offsetLeft: number } | null
+}
+
+/**
+ * видимая область экрана в пикселях окна игры (с учётом масштаба). На телефоне экранная клавиатура уменьшает только
+ * `visualViewport`, а `innerHeight` остаётся прежним: если ориентироваться на него, браузер сдвигает страницу вверх,
+ * чтобы показать поле ввода, и интерфейс «отлетает»
+ */
+export function visibleBox(source: ViewportSource): { left: number, top: number, width: number, height: number } {
+  const viewport = source.visualViewport;
+  return { left: viewport?.offsetLeft ?? 0, top: viewport?.offsetTop ?? 0, width: viewport?.width ?? source.innerWidth, height: viewport?.height ?? source.innerHeight };
+}
+
+export function visibleSize(source: ViewportSource, scale = 1): Size {
+  const viewport = source.visualViewport;
+  return { width: (viewport?.width ?? source.innerWidth) / scale, height: (viewport?.height ?? source.innerHeight) / scale };
 }

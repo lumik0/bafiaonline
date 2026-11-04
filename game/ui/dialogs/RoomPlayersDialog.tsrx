@@ -10,7 +10,7 @@ type Player = { playerObjectId?: string, username?: string, photo?: string, aliv
 export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room: RoomItem, close: () => void }) @{
 	const [players, setPlayers] = createSignal<Player[] | undefined>(undefined);
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
-	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? ctx.bafia.avatar(id) : undefined; };
+	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? ctx.bafia.avatar(id, true) : undefined; };
 
 	onMount(async () => {
 		try {

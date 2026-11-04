@@ -2,7 +2,7 @@ import type { ServerClient } from "@common/net";
 import type { ServerData } from "@common/protocol";
 import Events from "@common/utils/emitter";
 import type { SettingsStore } from "../settings";
-import { applyBarmanEffect } from "./message";
+import { applyBarmanEffect, type ChatEntry, type ChatUser } from "./message";
 
 type Raw = ServerData<"privateChatMessage">["message"];
 type Handle = { remove(): void };
@@ -21,6 +21,25 @@ let nextId = 1;
 const toMessage = (raw: Raw): PrivateMessage => ({ id: nextId++, from: raw.playerObjectId ?? "", text: raw.text ?? "", created: raw.created, read: !!raw.accepted });
 
 const MAX = 150;
+
+/**
+ * сообщения переписки в виде строк чата. Строка для сообщения создаётся один раз и остаётся тем же объектом, пока не изменилась
+ * (меняется только «прочитано»): иначе на каждое событие, даже «печатает…», список перерисовывался бы целиком,
+ * а это сбрасывает прокрутку и обрывает свайп на телефоне. Возвращает строки и новый кэш для следующего вызова
+ */
+export function toEntries(messages: readonly PrivateMessage[], known: ReadonlyMap<number, ChatEntry>, me: ChatUser, peer: ChatUser): { list: ChatEntry[], known: Map<number, ChatEntry> } {
+  const next = new Map<number, ChatEntry>();
+  const list = messages.map(message => {
+    const mine = message.from == me.playerObjectId;
+    const unread = mine && !message.read;
+    const old = known.get(message.id);
+    if(old && old.unread === unread) { next.set(message.id, old); return old; }
+    const entry: ChatEntry = { id: message.id, kind: "message", text: message.text, created: message.created, unread, user: mine ? me : peer };
+    next.set(message.id, entry);
+    return entry;
+  });
+  return { list, known: next };
+}
 
 /** личная переписка с другом */
 export class PrivateChat extends Events<{ change: () => void }> {

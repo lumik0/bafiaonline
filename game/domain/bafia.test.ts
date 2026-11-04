@@ -358,6 +358,7 @@ describe("Bafia", () => {
     await tick();
     expect(bafia.avatar("pp")).toBe("https://bafia.example.com/a/abcdef12");
     expect(bafia.avatar("p9")).toBeUndefined();
+    expect(bafia.avatar("pp", true)).toBe("https://bafia.example.com/a/abcdef12/t");   // превью для чата и списков
 
     expect(bafia.myAvatarUrl).toBeUndefined();
     expect(await bafia.setAvatar(new Uint8Array([71, 73, 70, 56, 57, 97, 1]))).toEqual({ ok: true });

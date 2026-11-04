@@ -382,13 +382,14 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
     return PREMIUM_COLORS[isPremiumColor(name) ? name : "gold"];
   }
 
-  /** адрес аватарки игрока (https, файл сервера Бафии); `undefined` - аватарки нет или сервер не включён */
-  avatar(id: string): string | undefined {
+  /** адрес аватарки игрока (файл сервера Бафии); `undefined` - аватарки нет или сервер не включён. `small` - статичное превью */
+  avatar(id: string, small = false): string | undefined {
     const link = this.consented;
     if(!link) return undefined;
     const mine = id == this.deps.user.playerObjectId;
     const path = mine ? link.myAvatar : link.avatars.get(id);
-    return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path : undefined;
+    // small - маленькое статичное превью для чата и списков: десятки анимированных аватарок сразу лагают на телефоне
+    return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + (small ? "/t" : "") : undefined;
   }
   get myAvatarUrl() { return this.avatar(this.deps.user.playerObjectId); }
 
