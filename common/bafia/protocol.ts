@@ -26,13 +26,13 @@ export const BAFIA_LIMITS = {
   /** код премиума: длина записи, на скольких устройствах можно активировать */
   code: 32,
   codeDevices: 3,
-  /** загрузка гифки: размер файла, очередь проверки и лимит загрузок в сутки */
-  gifBytes: 3 * 1024 * 1024,
+  /** загрузка гифки (для всех игроков): размер файла, очередь проверки и лимит загрузок в сутки */
+  gifBytes: 16 * 1024 * 1024,
   gifPending: 10,
   gifPerDay: 20,
   gifTitle: 80,
-  /** аватарка (только премиум): размер файла, сколько раз в сутки можно менять, длинная сторона после сжатия статичной (px) */
-  avatarBytes: 1024 * 1024,
+  /** аватарка (для всех игроков): размер файла, сколько раз в сутки можно менять, длинная сторона после сжатия (px) */
+  avatarBytes: 16 * 1024 * 1024,
   avatarPerDay: 10,
   avatarSide: 256
 } as const;
@@ -90,6 +90,8 @@ export interface SeenPlayer { id: string, nick: string }
 
 /** сообщения клиента; `n` - номер запроса, ответ приходит с тем же номером */
 export type ClientMessage =
+  /** проверка связи: сервер сразу отвечает `ok` (браузер сам пинг-кадры слать не умеет) */
+  | { t: "ping", n: number }
   /** войти в сеть: ключ клиента и версия протокола */
   | { t: "hello", n: number, key: string, version: number }
   /** «Я играю под этим ником»: появляется в списке «в Бафии» до закрытия соединения */
@@ -110,7 +112,7 @@ export type ClientMessage =
   | { t: "gifUpload", n: number, title: string, data: string }
   /** цвет значка премиума (только с премиумом) */
   | { t: "style", n: number, color: string }
-  /** своя аватарка (только с премиумом): gif, webp или png в base64; видна другим игрокам Бафии сразу */
+  /** своя аватарка: gif, webp или png в base64; видна другим игрокам Бафии сразу */
   | { t: "avatarSet", n: number, data: string }
   /** убрать свою аватарку */
   | { t: "avatarClear", n: number }
@@ -141,7 +143,7 @@ export type ServerMessage =
   /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
   | { t: "ok", n: number, gifKey?: string, premium?: number, avatar?: string }
   | { t: "error", n: number, reason: string }
-  /** `avatars` - пути аватарок игроков с премиумом (id → `/a/номер`) */
+  /** `avatars` - пути аватарок игроков (id → `/a/номер`) */
   | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string>, avatars?: Record<string, string> }
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
   /** `url` нет, если такой гифки в каталоге нет */
@@ -182,6 +184,7 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
   if(value.t == "histPut" && raw.length > BAFIA_LIMITS.premiumHistory + 200) return undefined;
 
   switch(value.t) {
+    case "ping": return { t: "ping", n };
     case "hello":
       return text(value.key, BAFIA_LIMITS.key.max) && value.key.length >= BAFIA_LIMITS.key.min && typeof value.version == "number"
         ? { t: "hello", n, key: value.key, version: value.version } : undefined;

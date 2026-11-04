@@ -6,7 +6,7 @@ import type { Bafia } from "../domain/bafia";
 type Source = "giphy" | "bafia" | "mine";
 
 const uploadErrors = {
-	premium: "Загрузка своих гифок и стикеров доступна с премиумом: его можно купить в Telegram-боте за звёзды ⭐, код вводится в настройках игры.",
+	premium: "Сервер Бафии не принял загрузку: обнови игру.",
 	offline: "Сервер Бафии сейчас недоступен.",
 	"too-big": "Файл больше " + BAFIA_LIMITS.gifBytes / 1024 / 1024 + " МБ.",
 	"bad-format": "Подходят GIF, WebP и PNG (не больше 2000×2000).",
@@ -27,7 +27,6 @@ export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) =>
 	const [title, setTitle] = createSignal("");
 	const [status, setStatus] = createSignal("");
 	const [sending, setSending] = createSignal(false);
-	const premium = fromEvents(bafia, "change", () => bafia.premiumUntil);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let latest = 0;
 	let query = "";
@@ -91,11 +90,9 @@ export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) =>
 			<div class="tabs">
 				<button class={source() == "giphy" ? "on" : ""} onClick={() => choose("giphy")}>{"Giphy"}</button>
 				<button class={source() == "bafia" ? "on" : ""} onClick={() => choose("bafia")}>{"Бафия"}</button>
-				@if (premium()) {
-					<button class={source() == "mine" ? "on" : ""} onClick={() => choose("mine")}>{"Мои"}</button>
-				}
+				<button class={source() == "mine" ? "on" : ""} onClick={() => choose("mine")}>{"Мои"}</button>
 				@if (source() != "giphy") {
-					<button class="add" onClick={() => premium() ? chooser.click() : setStatus(uploadErrors.premium)}>{"+ Добавить"}</button>
+					<button class="add" onClick={() => chooser.click()}>{"+ Добавить"}</button>
 				}
 				<input ref={chooser} type="file" accept="image/gif,image/webp,image/png" hidden onChange={chosen} />
 			</div>

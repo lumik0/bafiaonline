@@ -24,6 +24,29 @@ describe("Connection", () => {
     expect(connection.state).toBe("open");
   });
 
+  test("reset(): тихо умершее соединение заменяется новым сразу; закрытое насовсем не оживает", async() => {
+    const { network, connection } = setup();
+    connection.reset();                      // ещё не подключались: ничего не происходит
+    expect(network.sockets).toHaveLength(0);
+
+    connection.connect();
+    await tick();
+    const closes: boolean[] = [];
+    connection.on("close", willReconnect => { closes.push(willReconnect); });
+    const dead = network.last;
+    connection.reset();
+    await tick();
+    expect(closes).toEqual([true]);
+    expect(network.sockets).toHaveLength(2);
+    expect(network.last).not.toBe(dead);
+    expect(connection.state).toBe("open");
+
+    connection.close();
+    connection.reset();
+    await tick();
+    expect(network.sockets).toHaveLength(2);
+  });
+
   test("запасные адреса: не отвечает один - пробуем следующий; после успеха начинаем с сработавшего", async() => {
     const urls = ["wss://a", "wss://b", "wss://c"];
     const asked: string[] = [];

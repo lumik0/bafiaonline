@@ -1,12 +1,13 @@
 import { sanitizeRecord, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectPlatform } from "./platform";
-import { isPremiumColor, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, isGifUrl, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { isPremiumColor, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, giphyIdOf, giphyUrl, isGifUrl, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
 import { toBase64 } from "@common/assets/pack";
 import { searchGiphy } from "./giphy";
+import { GifCache } from "./gif-cache";
 
 export interface BafiaLinkOptions {
   url: string
@@ -20,6 +21,8 @@ export interface BafiaLinkOptions {
   timeout?: number
   backoff?: number[]
   delay?: (ms: number) => Promise<void>
+  /** проверка связи раз в `interval` мс; нет ответа за `timeout` мс два раза подряд - переподключаемся (по умолчанию 30 и 5 секунд) */
+  heartbeat?: { interval?: number, timeout?: number }
 }
 
 /**
@@ -37,8 +40,8 @@ export class BafiaLink extends Events<{ change: () => void }> {
   premiumOnline = new Set<string>();
   /** цвета их значков (название из PREMIUM_COLORS) */
   premiumColors = new Map<string, string>();
-  /** пути аватарок этих игроков (id → `/a/номер`) */
-  premiumAvatars = new Map<string, string>();
+  /** пути аватарок игроков из последних ответов «кто в Бафии» (id → `/a/номер`) */
+  avatars = new Map<string, string>();
   /** путь моей аватарки; нет - аватарки нет */
   myAvatar?: string;
   /** мой выбранный цвет: отправляется серверу, когда есть премиум */
@@ -65,7 +68,32 @@ export class BafiaLink extends Events<{ change: () => void }> {
 
   start() { this.connection.connect(); }
 
+  private beatTimer?: ReturnType<typeof setInterval>;
+  private missed = 0;
+
+  /** раз в полминуты спрашиваем сервер; два молчания подряд - связь тихо умерла, подключаемся заново */
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    const { interval = 30_000, timeout = 5_000 } = this.options.heartbeat ?? {};
+    this.beatTimer = setInterval(() => void this.beat(timeout), interval);
+  }
+
+  private stopHeartbeat() {
+    if(this.beatTimer) clearInterval(this.beatTimer);
+    this.beatTimer = undefined;
+    this.missed = 0;
+  }
+
+  private async beat(timeout: number) {
+    if(!this.ready) return;
+    if(await this.request({ t: "ping" }, timeout)) { this.missed = 0; return; }
+    // за время ожидания связь могла оборваться и вернуться сама
+    if(!this.ready) return;
+    if(++this.missed >= 2) { this.missed = 0; this.connection.reset(); }
+  }
+
   stop() {
+    this.stopHeartbeat();
     this.connection.close();
     this.drop();
     this.identity = undefined;
@@ -87,6 +115,7 @@ export class BafiaLink extends Events<{ change: () => void }> {
     this.premiumUntil = hello.premium;
     this.myAvatar = hello.avatar;
     this.ready = true;
+    this.startHeartbeat();
     if(this.identity) await this.request({ t: "presence", ...this.identity });
     // премиум не найден по ключу (новая установка), а код у игрока сохранён - активируем его сами
     if(!this.premiumUntil && this.savedCode) await this.redeem(this.savedCode);   // цвет после активации уходит сам
@@ -95,6 +124,7 @@ export class BafiaLink extends Events<{ change: () => void }> {
   }
 
   private drop() {
+    this.stopHeartbeat();
     this.ready = false;
     for(const resolve of this.pending.values()) resolve(undefined);
     this.pending.clear();
@@ -129,7 +159,7 @@ export class BafiaLink extends Events<{ change: () => void }> {
     if(shareSeen) void this.request({ t: "seen", players: list });
     const answer = await this.request({ t: "who", ids: list.map(player => player.id) });
     if(answer?.t != "online") return;
-    const next = new Set(this.online), premium = new Set(this.premiumOnline), colors = new Map(this.premiumColors), avatars = new Map(this.premiumAvatars);
+    const next = new Set(this.online), premium = new Set(this.premiumOnline), colors = new Map(this.premiumColors), avatars = new Map(this.avatars);
     for(const { id } of list) {
       answer.ids.includes(id) ? next.add(id) : next.delete(id);
       answer.premium?.includes(id) ? premium.add(id) : premium.delete(id);
@@ -141,7 +171,7 @@ export class BafiaLink extends Events<{ change: () => void }> {
     this.online = next;
     this.premiumOnline = premium;
     this.premiumColors = colors;
-    this.premiumAvatars = avatars;
+    this.avatars = avatars;
     this.emit("change");
   }
 
@@ -151,6 +181,13 @@ export class BafiaLink extends Events<{ change: () => void }> {
   gif(id: string): Promise<GifItem | null | undefined> {
     const cached = this.gifCache.get(id);
     if(cached) return cached;
+    // гифка Giphy: адрес известен по номеру, сервер спрашивать незачем; берём лёгкую версию 200 px: в чате больше не показывается
+    const giphyId = giphyIdOf(id);
+    if(giphyId) {
+      const local = Promise.resolve(this.accept({ id, url: giphyUrl(giphyId, "200w"), title: "" }) ?? null);
+      this.gifCache.set(id, local);
+      return local;
+    }
     const asking = this.request({ t: "gif", id }).then((answer): GifItem | null | undefined => {
       if(answer?.t != "gif") return undefined;
       // даже если сервер пришлёт чужую ссылку, браузер её не откроет
@@ -303,6 +340,8 @@ export function newKey(): string {
  */
 export class Bafia extends Events<{ change: () => void }> {
   private link?: BafiaLink;
+  /** гифки из сообщений: скачиваются сразу, живут в памяти 5 минут */
+  readonly images = new GifCache();
   private lastWatch = { signature: "", at: 0 };
 
   constructor(private deps: BafiaDeps) {
@@ -329,12 +368,12 @@ export class Bafia extends Events<{ change: () => void }> {
     return PREMIUM_COLORS[isPremiumColor(name) ? name : "gold"];
   }
 
-  /** адрес аватарки игрока (https, файл сервера Бафии); `undefined` - аватарки нет, нет премиума или сервер не включён */
+  /** адрес аватарки игрока (https, файл сервера Бафии); `undefined` - аватарки нет или сервер не включён */
   avatar(id: string): string | undefined {
     const link = this.consented;
     if(!link) return undefined;
     const mine = id == this.deps.user.playerObjectId;
-    const path = mine ? (this.premiumUntil ? link.myAvatar : undefined) : link.premiumOnline.has(id) ? link.premiumAvatars.get(id) : undefined;
+    const path = mine ? link.myAvatar : link.avatars.get(id);
     return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path : undefined;
   }
   get myAvatarUrl() { return this.avatar(this.deps.user.playerObjectId); }
@@ -407,7 +446,7 @@ export class Bafia extends Events<{ change: () => void }> {
 
   nicks(id: string) { return this.consented?.nicks(id) ?? Promise.resolve(undefined); }
 
-  dispose() { this.link?.stop(); this.link = undefined; }
+  dispose() { this.link?.stop(); this.link = undefined; this.images.clear(); }
 }
 
 /** что уходит на сервер Бафии: показывается при первом заходе и при включении в настройках */

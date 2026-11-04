@@ -73,6 +73,25 @@ export class Connection extends Events<ConnectionEvents> {
     this.socket.send(text);
   }
 
+  /**
+   * считает соединение мёртвым (тихий обрыв без события close) и сразу подключается заново;
+   * ничего не делает, если соединения нет или оно закрыто навсегда
+   */
+  reset() {
+    if(this.stopped || (this.state != "open" && this.state != "connecting")) return;
+    const socket = this.socket;
+    this.socket = undefined;
+    this.state = "closed";
+    if(socket) {
+      detach(socket);
+      socket.close();
+    }
+    this.emit("close", true);
+    // сразу, без паузы: связь потеряна не из-за сервера, а из-за пути до него
+    this.attempt = 0;
+    void this.reconnect();
+  }
+
   /** закрывает соединение и больше не переподключается */
   close() {
     this.stopped = true;

@@ -21,7 +21,7 @@ export async function searchGiphy(key: string, query: string, http: typeof fetch
     const body = await response.json() as { data?: { id?: unknown, title?: unknown }[] };
     const items = (body.data ?? []).flatMap((gif): GifItem[] =>
       typeof gif.id == "string" && /^[A-Za-z0-9]{5,30}$/.test(gif.id)
-        ? [{ id: GIPHY_PREFIX + gif.id, url: giphyUrl(gif.id), thumb: giphyUrl(gif.id, "200w"), title: typeof gif.title == "string" ? gif.title.slice(0, 80) : "" }]
+        ? [{ id: GIPHY_PREFIX + gif.id, url: giphyUrl(gif.id, "200w"), thumb: giphyUrl(gif.id, "200w"), title: typeof gif.title == "string" ? gif.title.slice(0, 80) : "" }]
         : []
     );
     cache.set(key + "|" + normalized, { at: now(), items });

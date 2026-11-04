@@ -55,9 +55,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const buyPremium = async () => {
 		const agreed = await ctx.dialogs.confirm(
 			"Премиум даёт:\n" +
-			"• загрузку своих гифок и стикеров: после проверки они появятся в каталоге Бафии у всех;\n" +
 			"• цветной значок «Б» и рамку вокруг твоего ника у других игроков Бафии, цвет выбираешь сам;\n" +
-			"• GIF-аватарку: её видят другие игроки Бафии (если они разрешили гифки и аватарки);\n" +
 			`• отправленные игры хранятся ${BAFIA_LIMITS.premiumHistoryDays} дней вместо ${BAFIA_LIMITS.historyDays}, их можно отправить больше и крупнее.\n\n` +
 			"На саму игру премиум не влияет: у всех она одинаковая.\n\n" +
 			"Оплата в Telegram-боте звёздами ⭐. Бот пришлёт код, его нужно ввести здесь же («Ввести код»).",
@@ -68,7 +66,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 
 	/** код премиума от бота, запоминается для восстановления */
 	const enterCode = async () => {
-		const code = await ctx.dialogs.prompt({ title: "КОД ПРЕМИУМА", text: "Код присылает Telegram-бот после оплаты звёздами ⭐ (кнопка «Купить» в настройках). Премиум даёт загрузку своих гифок и стикеров, хранение отправленных игр до полугода, цветной значок с рамкой у твоего ника.", placeholder: "BAF-XXXX-XXXX-XXXX", initial: ctx.bafia.code, ok: "Активировать" });
+		const code = await ctx.dialogs.prompt({ title: "КОД ПРЕМИУМА", text: "Код присылает Telegram-бот после оплаты звёздами ⭐ (кнопка «Купить» в настройках). Премиум даёт цветной значок с рамкой у твоего ника и хранение отправленных игр до полугода.", placeholder: "BAF-XXXX-XXXX-XXXX", initial: ctx.bafia.code, ok: "Активировать" });
 		if(!code?.trim()) return;
 		const result = await ctx.bafia.redeem(code);
 		if("until" in result) await ctx.dialogs.alert(`Премиум действует до ${new Date(result.until).toLocaleDateString("ru-RU")}.\n\nСохрани код: ${code.trim().toUpperCase()}\nЕсли потеряешь данные браузера, введи его снова, и премиум вернётся.`, { title: "Готово" });
@@ -79,8 +77,8 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const myAvatar = fromEvents(ctx.bafia, "change", () => ctx.bafia.myAvatarUrl);
 	const avatarErrors = {
 		offline: "Сервер Бафии сейчас недоступен.",
-		premium: "Аватарка доступна только с премиумом.",
-		"too-big": "Файл больше 1 МБ. Выбери поменьше.",
+		premium: "Сервер Бафии не принял аватарку: обнови игру.",
+		"too-big": "Файл больше 16 МБ. Выбери поменьше.",
 		"bad-format": "Нужен GIF, WebP или PNG.",
 		quota: "Слишком часто меняешь аватарку. Попробуй завтра."
 	};
@@ -171,13 +169,11 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 					<input type="checkbox" checked={bafiaOn()} onChange={(event) => void toggleBafia(event.currentTarget)} />
 				</SettingRow>
 				@if (bafiaOn()) {
+					<>
 					<SettingRow label={premium() ? "Премиум до " + new Date(premium()!).toLocaleDateString("ru-RU") : "Премиум"}>
 						<button onClick={() => void buyPremium()}>{premium() ? "Продлить" : "Купить"}</button>
 						<button onClick={() => void enterCode()}>{"Ввести код"}</button>
 					</SettingRow>
-				}
-				@if (bafiaOn() && premium()) {
-					<>
 					<SettingRow label="GIF-аватарка">
 						@if (myAvatar()) {
 							<img class="avatarPreview" src={myAvatar()} width="34" height="34" alt="" />
@@ -188,6 +184,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 						}
 						<input ref={avatarChooser} type="file" accept="image/gif,image/webp,image/png" hidden onChange={(event) => void pickAvatar(event.currentTarget)} />
 					</SettingRow>
+					</>
+				}
+				@if (bafiaOn() && premium()) {
 					<SettingRow label="Цвет значка">
 						<div class="swatches">
 							@for (const [name, hex] of Object.entries(PREMIUM_COLORS)) {
@@ -195,7 +194,6 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 							}
 						</div>
 					</SettingRow>
-					</>
 				}
 				<SettingRow label="Заявки в друзья во время игры (опыт)">
 					<input type="checkbox" checked={data().game.pollRequests} onChange={(event) => ctx.settings.update(settings => { settings.game.pollRequests = event.currentTarget.checked; })} />

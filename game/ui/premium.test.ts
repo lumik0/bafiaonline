@@ -7,6 +7,7 @@ let ui: typeof import("@common/ui");
 let PlayersPanel: (props: Record<string, unknown>) => unknown;
 let ChatView: (props: Record<string, unknown>) => unknown;
 let GifPicker: (props: Record<string, unknown>) => unknown;
+let GifMessage: (props: Record<string, unknown>) => unknown;
 let Assets: typeof import("@common/assets").Assets;
 let MemoryFileStore: typeof import("@common/storage").MemoryFileStore;
 
@@ -18,6 +19,7 @@ beforeAll(async() => {
   ({ PlayersPanel } = await import("./PlayersPanel.tsrx") as never);
   ({ ChatView } = await import("./ChatView.tsrx") as never);
   ({ GifPicker } = await import("./GifPicker.tsrx") as never);
+  ({ GifMessage } = await import("./GifMessage.tsrx") as never);
   ({ Assets } = await import("@common/assets"));
   ({ MemoryFileStore } = await import("@common/storage"));
 });
@@ -60,7 +62,7 @@ test("премиум Бафии: цветной значок в списке и�
   root.remove();
 });
 
-test("панель гифок: без премиума кнопка «Добавить» объясняет и даёт ссылку на бота; вкладка «Мои» только у премиума", async() => {
+test("панель гифок: «Добавить» и вкладка «Мои» есть у всех, премиум не нужен", async() => {
   const calls: string[] = [];
   const bafia = Object.assign(new Events<{ change: () => void }>(), { premiumUntil: undefined as number | undefined, gifs: async(_query: string, source: string) => { calls.push(source); return []; } });
   const root = document.body.appendChild(document.createElement("div"));
@@ -68,20 +70,40 @@ test("панель гифок: без премиума кнопка «Добав
   await tick();
   expect(calls).toEqual(["giphy"]);
   const tab = (name: string) => [...root.querySelectorAll("button")].find(button => button.textContent == name);
-  expect(tab("Мои")).toBeUndefined();
+  expect(tab("Мои")).toBeDefined();
+  expect(tab("+ Добавить")).toBeUndefined();   // на вкладке Giphy свои файлы не нужны
 
   tab("Бафия")!.click();
   await tick();
   expect(calls).toEqual(["giphy", "bafia"]);
-  tab("+ Добавить")!.click();
-  await tick();
-  expect(root.querySelector(".status")?.textContent).toContain("премиумом");
-  expect(root.querySelector<HTMLAnchorElement>(".status a")?.href).toBe("https://t.me/bafiaonlineopt_bot");
-
-  bafia.premiumUntil = Date.now() + 1000;
-  bafia.emit("change");
-  await tick();
-  expect(tab("Мои")).toBeDefined();
+  expect(tab("+ Добавить")).toBeDefined();
+  expect(root.querySelector(".status")).toBeNull();
   dispose();
+  root.remove();
+});
+
+test("гифка в сообщении: пока скачивается - заглушка, потом сама гифка из кэша; нет такой гифки - пояснение", async() => {
+  let finish!: (url: string) => void;
+  const bafia = Object.assign(new Events<{ change: () => void }>(), {
+    enabled: true, ready: true,
+    gif: async(id: string) => id == "cat" ? { id, url: "https://media.giphy.com/media/cat/200w.gif", title: "Кот" } : null,
+    images: { load: () => new Promise<string>(resolve => { finish = resolve; }) }
+  });
+  const root = document.body.appendChild(document.createElement("div"));
+  const dispose = ui.mount(() => GifMessage({ bafia, id: "cat" }) as never, root);
+  await tick();
+  expect(root.querySelector(".wait")).not.toBeNull();
+  expect(root.querySelector("img")).toBeNull();
+
+  finish("blob:cat");
+  await tick();
+  expect(root.querySelector(".wait")).toBeNull();
+  expect(root.querySelector("img")?.getAttribute("src")).toBe("blob:cat");
+  dispose();
+
+  const second = ui.mount(() => GifMessage({ bafia, id: "none" }) as never, root);
+  await tick();
+  expect(root.textContent).toContain("такой гифки нет");
+  second();
   root.remove();
 });

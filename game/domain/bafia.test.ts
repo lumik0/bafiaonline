@@ -8,12 +8,15 @@ import { Bafia, BafiaLink, newKey } from "./bafia";
 /** сокет, который отвечает как сервер Бафии: «ok» на всё, а «who» возвращает заданных игроков */
 function serverSocket(online: string[], log: Record<string, unknown>[]) {
   const sockets: SocketLike[] = [];
+  /** сервер молчит на проверку связи (тихо умершее соединение) */
+  let deaf = false;
   const create = (): SocketLike => {
     const socket: SocketLike = {
       onopen: null, onmessage: null, onclose: null, onerror: null,
       send(text: string) {
         const message = JSON.parse(text);
         log.push(message);
+        if(deaf && message.t == "ping") return;
         const reply = message.t == "redeem" ? (message.code == "BAF-GOOD-CODE" ? { t: "premium", n: message.n, until: 4_000_000_000_000 } : { t: "error", n: message.n, reason: "invalid" })
           : message.t == "gifUpload" ? { t: "ok", n: message.n }
           : message.t == "gifs" ? { t: "gifs", n: message.n, items: [{ id: "own1", url: "https://media.tenor.com/a.gif", title: "Свой" }, { id: "up1", url: "/g/upload01", title: "Загруженный" }, { id: "evil", url: "http://evil.example.com/x.gif", title: "" }] }
@@ -34,7 +37,7 @@ function serverSocket(online: string[], log: Record<string, unknown>[]) {
     queueMicrotask(() => socket.onopen?.());
     return socket;
   };
-  return { create, sockets };
+  return { create, sockets, deaf: (value: boolean) => { deaf = value; } };
 }
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 5));
@@ -109,7 +112,7 @@ describe("BafiaLink", () => {
 
     expect(await link.uploadGif("Кот", bytes)).toEqual({ ok: true });
     expect(sent.find(message => message.t == "gifUpload")).toMatchObject({ title: "Кот", data: "R0lGODlhAQABAAAAAAAAAAAAAAA=" });
-    expect(await link.uploadGif("Кот", new Uint8Array(4 * 1024 * 1024))).toEqual({ error: "too-big" });
+    expect(await link.uploadGif("Кот", new Uint8Array(BAFIA_LIMITS.gifBytes + 1))).toEqual({ error: "too-big" });
     link.stop();
   });
 
@@ -175,8 +178,8 @@ describe("BafiaLink", () => {
     await tick();
 
     await link.watch([{ id: "pp", nick: "Премиум" }, { id: "p9", nick: "Обычный" }]);
-    expect(link.premiumAvatars.get("pp")).toBe("/a/abcdef12");
-    expect(link.premiumAvatars.has("p9")).toBe(false);
+    expect(link.avatars.get("pp")).toBe("/a/abcdef12");
+    expect(link.avatars.has("p9")).toBe(false);
 
     expect(await link.setAvatar(new Uint8Array([71, 73, 70, 56, 57, 97, 1]))).toEqual({ ok: true });
     expect(log.at(-1)).toMatchObject({ t: "avatarSet", data: "R0lGODlhAQ==" });
@@ -188,6 +191,45 @@ describe("BafiaLink", () => {
     expect(log.at(-1)).toMatchObject({ t: "avatarClear" });
     expect(link.myAvatar).toBeUndefined();
     link.stop();
+  });
+
+  test("гифка Giphy: адрес строится по номеру без запроса к серверу и ведёт на лёгкую версию 200 px", async() => {
+    const log: Record<string, unknown>[] = [];
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: serverSocket([], log).create });
+    link.start();
+    await tick();
+    log.length = 0;
+    expect(await link.gif("g_ICOgUNjpvO0PC")).toMatchObject({ id: "g_ICOgUNjpvO0PC", url: "https://media.giphy.com/media/ICOgUNjpvO0PC/200w.gif" });
+    expect(log).toEqual([]);
+    expect(await link.gif("g_ab")).toBeNull();   // плохой номер
+    link.stop();
+  });
+
+  test("пульс: пока сервер отвечает на ping, соединение живёт; два молчания подряд - подключаемся заново и снова здороваемся", async() => {
+    const log: Record<string, unknown>[] = [];
+    const server = serverSocket([], log);
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: server.create, heartbeat: { interval: 15, timeout: 8 }, backoff: [1], delay: async() => {} });
+    link.identify("p1", "Euaek");
+    link.start();
+    await tick();
+    expect(server.sockets).toHaveLength(1);
+
+    await new Promise(resolve => setTimeout(resolve, 60));
+    expect(log.filter(message => message.t == "ping").length).toBeGreaterThan(1);
+    expect(server.sockets).toHaveLength(1);            // отвечает: переподключений нет
+
+    server.deaf(true);
+    await new Promise(resolve => setTimeout(resolve, 70));
+    expect(server.sockets.length).toBeGreaterThanOrEqual(2);
+    server.deaf(false);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(log.filter(message => message.t == "hello").length).toBeGreaterThanOrEqual(2);
+    expect(log.filter(message => message.t == "presence").length).toBeGreaterThanOrEqual(2);
+    expect(link.isReady).toBe(true);
+    link.stop();
+    const count = server.sockets.length;
+    await new Promise(resolve => setTimeout(resolve, 40));
+    expect(server.sockets).toHaveLength(count);        // после stop() пульс не работает
   });
 
   test("сервер молчит или недоступен: запросы заканчиваются пустым результатом, а не ошибкой", async() => {
@@ -266,7 +308,7 @@ describe("Bafia", () => {
     bafia.dispose();
   });
 
-  test("адрес аватарки: чужая только у игрока с премиумом из Бафии, своя только пока у меня премиум, без включения нет ничего", async() => {
+  test("адрес аватарки: у игрока из Бафии, своя тоже; премиум не нужен; без согласия нет ничего", async() => {
     const data = { bafia: { enabled: true, asked: true, key: "k".repeat(24), code: "BAF-GOOD-CODE", color: "gold" } };
     const settings = new class extends Events<{ change: () => void }> {
       data = data;
