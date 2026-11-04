@@ -15,6 +15,7 @@ import { LauncherModel } from "./model";
 import { optionsDocument } from "./options";
 import { Desktop } from "./ui/Desktop.tsrx";
 import { Launcher } from "./ui/Launcher.tsrx";
+import { UpdateWatch } from "./update";
 import { Settings } from "./ui/Settings.tsrx";
 import { WindowManager } from "./windows/manager";
 import { mountInWindow } from "./windows/mount";
@@ -45,6 +46,25 @@ export async function startLauncher(root: HTMLElement, launchGame: GameLauncher,
   mount(() => Desktop({ manager, showDock: fromEvents(model, "change", showDock) }) as never, root);
 
   mount(() => NotificationLayer({ center: notifications }) as never, document.body.appendChild(document.createElement("div")));
+
+  // вышла новая версия: сайт обновляется выкладкой, а уже открытая страница сама не перезагружается и днями остаётся старой
+  const script = document.querySelector<HTMLScriptElement>("script[src*='play/bin/index.js']");
+  const pageUrl = location.href.split("#")[0]!;
+  const update = new UpdateWatch({
+    current: script ? new URL(script.src, location.href).searchParams.get("v") ?? undefined : undefined,
+    fetchPage: async() => {
+      const response = await fetch(pageUrl, { cache: "no-store" });
+      if(!response.ok) throw new Error(String(response.status));
+      return response.text();
+    },
+    onAvailable: () => notifications.show({
+      key: "update", source: "Бафия", kind: "info", timeout: 0, title: "Вышла новая версия",
+      text: "Нажми сюда, чтобы обновить игру. Пока не обновишь, исправления у тебя не заработают.",
+      action: () => location.reload()
+    })
+  });
+  update.start();
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState == "visible") update.visible(); });
   mount(() => EffectsLayer({ theme }) as never, document.body.appendChild(document.createElement("div")));
 
   const openTheme = () => {

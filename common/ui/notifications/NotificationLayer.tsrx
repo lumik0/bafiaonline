@@ -16,6 +16,7 @@ export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 			@media (prefers-color-scheme: dark) { .stack { --bg: rgba(48, 48, 52, .74); --text: #f5f5f7; --sub: rgba(245, 245, 247, .72); --meta: rgba(245, 245, 247, .45); --border: rgba(255, 255, 255, .14); --close-bg: rgba(70, 70, 76, .95); --close-text: rgba(255, 255, 255, .75); } }
 			.banner { position: relative; pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 11px 10px; border-radius: 14px; background: var(--bg); color: var(--text); box-shadow: 0 0 0 .5px var(--border), 0 10px 30px rgba(0, 0, 0, .25), 0 1px 4px rgba(0, 0, 0, .18); backdrop-filter: blur(30px) saturate(1.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); animation: slide-in .42s cubic-bezier(.22, 1.1, .36, 1); cursor: default; user-select: none; -webkit-user-select: none; }
 			.icon { flex: none; width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .2); }
+			.banner.action { cursor: pointer; }
 			.icon svg { width: 22px; height: 22px; display: block; }
 			.icon.info { background: linear-gradient(180deg, #5ac8fa, #0a84ff); }
 			.icon.success { background: linear-gradient(180deg, #6bdc7e, #2fb44c); }
@@ -35,7 +36,7 @@ export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 		</style>
 		<div class="stack" role="status" aria-live="polite">
 			@for (const item of items()) {
-				<div class="banner" onClick={() => center.dismissId(item.id)}>
+				<div class={item.action ? "banner action" : "banner"} onClick={() => { item.action?.(); center.dismissId(item.id); }}>
 					<button class="close" aria-label="Закрыть" onClick={(event) => { event.stopPropagation(); center.dismissId(item.id); }}>
 						<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l6 6M8 2L2 8"></path></svg>
 					</button>

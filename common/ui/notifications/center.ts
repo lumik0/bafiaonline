@@ -15,6 +15,8 @@ export interface NotificationOptions {
    * а не плодит новые
    */
   key?: string
+  /** что сделать по нажатию на плашку (например, обновить страницу); после него плашка закрывается */
+  action?: () => void
 }
 
 export interface NotificationItem extends Required<Pick<NotificationOptions, "title" | "kind" | "timeout">> {
@@ -22,6 +24,7 @@ export interface NotificationItem extends Required<Pick<NotificationOptions, "ti
   text: string
   source: string
   key?: string
+  action?: () => void
 }
 
 /** что игра и моды видят от центра уведомлений */
@@ -57,7 +60,8 @@ export class NotificationCenter extends Events<{ change: () => void }> implement
       kind: options.kind ?? "info",
       source: options.source ?? "Бафия",
       timeout: options.timeout ?? DEFAULT_TIMEOUT,
-      key: options.key
+      key: options.key,
+      action: options.action
     };
 
     const same = item.key ? this.list.findIndex(other => other.key == item.key) : -1;

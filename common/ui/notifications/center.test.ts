@@ -45,4 +45,18 @@ describe("уведомления", () => {
     expect(center.items.map(item => item.title)).toEqual(["№3", "№4", "№5", "№6", "№7"]);
     expect(center.items[0]!.text).toHaveLength(300);
   });
+
+  test("действие по нажатию сохраняется в плашке, а обновление по ключу его подменяет", () => {
+    const { center } = setup();
+    let calls = 0;
+    center.show({ key: "update", title: "Вышла новая версия", timeout: 0, action: () => { calls++; } });
+    expect(center.items[0]!.action).toBeDefined();
+    center.items[0]!.action!();
+    expect(calls).toBe(1);
+
+    center.show({ key: "update", title: "Ещё новее", timeout: 0 });
+    expect(center.items).toHaveLength(1);
+    expect(center.items[0]!.action).toBeUndefined();
+  });
 });
+
