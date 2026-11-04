@@ -37,7 +37,7 @@ function serverSocket(online: string[], log: Record<string, unknown>[]) {
     queueMicrotask(() => socket.onopen?.());
     return socket;
   };
-  return { create, sockets, deaf: (value: boolean) => { deaf = value; } };
+  return { create, sockets, deaf: (value: boolean) => { deaf = value; }, push: (message: object) => sockets.at(-1)!.onmessage?.({ data: JSON.stringify(message) }) };
 }
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 5));
@@ -230,6 +230,41 @@ describe("BafiaLink", () => {
     const count = server.sockets.length;
     await new Promise(resolve => setTimeout(resolve, 40));
     expect(server.sockets).toHaveLength(count);        // после stop() пульс не работает
+  });
+
+  test("сообщение администратора приходит само, одно за другим; пустое и слишком длинное отбрасываются", async() => {
+    const server = serverSocket([], []);
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: server.create });
+    const got: string[] = [];
+    link.on("notice", text => got.push(text));
+    link.start();
+    await tick();
+    expect(got).toEqual([]);
+
+    server.push({ t: "notice", n: 0, text: "Вышла новая версия" });
+    server.push({ t: "notice", n: 0, text: "" });
+    server.push({ t: "notice", n: 0, text: 5 });
+    server.push({ t: "notice", n: 0, text: "я".repeat(BAFIA_LIMITS.notice + 1) });
+    server.push({ t: "notice", n: 0, text: "Ещё одно" });
+    expect(got).toEqual(["Вышла новая версия", "Ещё одно"]);
+    link.stop();
+  });
+
+  test("игра получает сообщение администратора событием notice от Bafia", async() => {
+    const data = { bafia: { enabled: false, asked: true, key: "k".repeat(24), code: "", color: "gold", favorites: [] } };
+    const settings = new class extends Events<{ change: () => void }> {
+      data = data;
+      update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
+    }();
+    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+    const server = serverSocket([], []);
+    const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: server.create });
+    const shown: string[] = [];
+    bafia.on("notice", text => shown.push(text));
+    await tick();
+    server.push({ t: "notice", n: 0, text: "Обновись" });
+    expect(shown).toEqual(["Обновись"]);                  // согласие на остальное не нужно
+    bafia.dispose();
   });
 
   test("сервер молчит или недоступен: запросы заканчиваются пустым результатом, а не ошибкой", async() => {

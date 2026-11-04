@@ -55,6 +55,16 @@ async function launch(account?: Partial<Account>, respond: typeof server = serve
 }
 
 describe("игра", () => {
+  test("сообщение от администратора показывается баннером, не мешая игре", async() => {
+    const { game } = await launch({ name: "Euaek", email: "a@b.c", password: "правильный" });
+    await tick(10);
+    game.ctx.bafia.emit("notice", "Вышла новая версия, обнови страницу (Ctrl+F5)");
+    const banner = notifications.items.find(item => item.key == "bafia-notice");
+    expect(banner).toMatchObject({ title: "Сообщение от Бафии", text: "Вышла новая версия, обнови страницу (Ctrl+F5)", kind: "info" });
+    expect(game.ctx.dialogs.manager.isOpen).toBe(false);
+    notifications.dismiss("bafia-notice");
+  });
+
   test("аккаунт с паролем: входит сам и показывает меню с данными игрока", async() => {
     const { game, window, text } = await launch({ name: "Euaek", email: "a@b.c", password: "правильный" });
     await tick(10);

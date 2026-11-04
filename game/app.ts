@@ -227,6 +227,8 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const unbindBack = isMobile() ? bindBrowserBack(ctx) : undefined;
 
   // личные сообщения и заявки в друзья: баннер, если игрок не в личном чате
+  // сообщение от администратора (например, «вышла новая версия, обнови страницу»): баннер, который не мешает игре
+  ctx.bafia.on("notice", text => host.notifications.show({ key: "bafia-notice", title: "Сообщение от Бафии", text, kind: "info", timeout: 40_000 }));
   const alerts = new MessageAlerts({ client, user, notifier: host.notifications, chatOpen: () => nav.top?.name == "privateChat", canPoll: () => nav.top?.name == "menu", requestsOutsideMenu: () => settings.data.game.pollRequests });
   alerts.start();
   // вернулись в меню: значки заявок и сообщений обновляем сразу, а не ждём таймера

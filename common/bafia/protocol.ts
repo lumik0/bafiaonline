@@ -34,7 +34,9 @@ export const BAFIA_LIMITS = {
   /** аватарка (для всех игроков): размер файла, сколько раз в сутки можно менять, длинная сторона после сжатия (px) */
   avatarBytes: 16 * 1024 * 1024,
   avatarPerDay: 10,
-  avatarSide: 256
+  avatarSide: 256,
+  /** сообщение всем игрокам от администратора: длина текста */
+  notice: 300
 } as const;
 
 /** файл лежит на сервере Бафии; `url` - путь `/g/номер` */
@@ -142,6 +144,8 @@ export type ServerMessage =
   /** на `hello` сервер может добавить ключ Giphy: поиск гифок игрок делает сам, из своего браузера */
   /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
   | { t: "ok", n: number, gifKey?: string, premium?: number, avatar?: string }
+  /** одноразовое сообщение администратора всем, кто сейчас в сети (приходит само, `n` всегда 0); позже зашедшие его не получают */
+  | { t: "notice", n: 0, text: string }
   | { t: "error", n: number, reason: string }
   /** `avatars` - пути аватарок игроков (id → `/a/номер`) */
   | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string>, avatars?: Record<string, string> }

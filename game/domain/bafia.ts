@@ -29,7 +29,7 @@ export interface BafiaLinkOptions {
  * связь с сервером Бафии; при ошибке или молчании просто пустой результат
  * уходят только ник, публичный id, случайный ключ установки и счётчики партий
  */
-export class BafiaLink extends Events<{ change: () => void }> {
+export class BafiaLink extends Events<{ change: () => void, notice: (text: string) => void }> {
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
@@ -123,6 +123,11 @@ export class BafiaLink extends Events<{ change: () => void }> {
     this.emit("change");
   }
 
+  /** сообщение администратора: только настоящее (непустой текст нужной длины) */
+  private announce(text: unknown) {
+    if(typeof text == "string" && text.length > 0 && text.length <= BAFIA_LIMITS.notice) this.emit("notice", text);
+  }
+
   private drop() {
     this.stopHeartbeat();
     this.ready = false;
@@ -134,6 +139,8 @@ export class BafiaLink extends Events<{ change: () => void }> {
     let message: ServerMessage;
     try { message = JSON.parse(text); } catch { return; }
     if(typeof message?.n != "number") return;
+    // сообщение администратора приходит само, без запроса
+    if(message.t == "notice") return this.announce(message.text);
     this.pending.get(message.n)?.(message);
   }
 
@@ -345,7 +352,7 @@ export function newKey(): string {
  * сервер Бафии для окна игры. Всегда работает «кто играет» и значок премиума (твой ник и id, число партий, id видимых игроков),
  * остальное (ники других игроков, гифки, игры, аватарки) - только с согласием в настройках
  */
-export class Bafia extends Events<{ change: () => void }> {
+export class Bafia extends Events<{ change: () => void, notice: (text: string) => void }> {
   private link?: BafiaLink;
   /** гифки из сообщений: скачиваются сразу, живут в памяти 5 минут */
   readonly images = new GifCache();
@@ -415,6 +422,8 @@ export class Bafia extends Events<{ change: () => void }> {
       link.savedCode = this.deps.settings.data.bafia.code || undefined;
       link.color = this.deps.settings.data.bafia.color;
       link.on("change", () => this.emit("change"));
+      // одноразовое сообщение администратора: игра показывает его баннером
+      link.on("notice", text => this.emit("notice", text));
       link.start();
     }
     const { playerObjectId, username } = this.deps.user;
