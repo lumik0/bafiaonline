@@ -1,7 +1,7 @@
 import { sanitizeRecord, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectPlatform } from "./platform";
-import { isPremiumColor, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, giphyIdOf, giphyUrl, isGifUrl, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { isPremiumColor, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -317,8 +317,15 @@ export class BafiaLink extends Events<{ change: () => void }> {
   }
 }
 
+/** избранная гифка: номер (`g_…` из Giphy или номер каталога Бафии) и название для поиска */
+export interface FavoriteGif { id: string, title: string }
+/** сколько гифок можно хранить в избранном */
+export const FAVORITES_MAX = 200;
+
+export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[] }
+
 export interface BafiaDeps {
-  settings: { data: { bafia: { enabled: boolean, asked: boolean, key: string, code: string, color: string } }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: { enabled: boolean, asked: boolean, key: string, code: string, color: string } }) => void): unknown }
+  settings: { data: { bafia: BafiaSettings }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
   user: { playerObjectId: string, username: string, on(event: "change", listener: () => void): unknown }
   url: string
   createSocket?: BafiaLinkOptions["createSocket"]
@@ -434,7 +441,42 @@ export class Bafia extends Events<{ change: () => void }> {
   // дальше всё только с согласием: без него сервер ничего не спрашиваем и не отправляем
   private get consented() { return this.enabled ? this.link : undefined; }
   gif(id: string) { return this.consented?.gif(id) ?? Promise.resolve(undefined); }
-  gifs(query: string, source: "bafia" | "giphy" | "mine") { return this.consented?.gifs(query, source) ?? Promise.resolve(undefined); }
+  gifs(query: string, source: "bafia" | "giphy" | "mine" | "favorites") {
+    return source == "favorites" ? this.favoriteItems(query) : this.consented?.gifs(query, source) ?? Promise.resolve(undefined);
+  }
+
+  /** избранные гифки (новые первыми); лишнего в сохранённых данных не бывает: битые записи отбрасываются */
+  get favorites(): readonly FavoriteGif[] {
+    const list = this.deps.settings.data.bafia.favorites;
+    return Array.isArray(list) ? list.filter(item => typeof item?.id == "string" && GIF_ID.test(item.id) && typeof item.title == "string") : [];
+  }
+  isFavorite(id: string) { return this.favorites.some(item => item.id == id); }
+
+  /** добавить в избранное или убрать; возвращает, в избранном ли гифка теперь */
+  toggleFavorite(id: string, title = ""): boolean {
+    if(!GIF_ID.test(id)) return false;
+    const had = this.isFavorite(id);
+    this.deps.settings.update(data => {
+      const rest = this.favorites.filter(item => item.id != id);
+      data.bafia.favorites = had ? rest : [{ id, title: title.slice(0, BAFIA_LIMITS.gifTitle) }, ...rest].slice(0, FAVORITES_MAX);
+    });
+    this.emit("change");
+    return !had;
+  }
+
+  /** избранное как обычный список гифок: адреса берутся из каталога, по названию можно искать; исчезнувшие из каталога пропускаются */
+  private async favoriteItems(query: string): Promise<GifItem[] | undefined> {
+    if(!this.enabled) return undefined;
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const list = this.favorites.filter(item => words.every(word => item.title.toLowerCase().includes(word)));
+    const found = await Promise.all(list.map(async item => {
+      const gif = await this.gif(item.id);
+      return gif ? { ...gif, title: gif.title || item.title } : undefined;
+    }));
+    const items = found.flatMap(gif => gif ? [gif] : []);
+    // сервер каталога ещё недоступен, а показать нечего: пусть панель повторит запрос, когда связь появится
+    return !items.length && list.length && !this.ready ? undefined : items;
+  }
   setAvatar(bytes: Uint8Array) { return this.consented?.setAvatar(bytes) ?? Promise.resolve({ error: "offline" } as const); }
   clearAvatar() { return this.consented?.clearAvatar() ?? Promise.resolve(false); }
   uploadGif(title: string, bytes: Uint8Array) { return this.consented?.uploadGif(title, bytes) ?? Promise.resolve({ error: "offline" } as const); }

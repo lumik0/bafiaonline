@@ -23,7 +23,9 @@ export const defaultGameSettings = (mobile: boolean) => ({
     /** код премиума: по нему премиум возвращается после потери данных сервера */
     code: "",
     /** цвет значка премиума (название из PREMIUM_COLORS) */
-    color: "gold"
+    color: "gold",
+    /** избранные гифки (новые первыми): номер и название, по названию ищут во вкладке «Избранное» */
+    favorites: [] as { id: string, title: string }[]
   },
   window: {
     zoom: 1

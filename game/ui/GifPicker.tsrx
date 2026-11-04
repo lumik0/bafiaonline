@@ -3,7 +3,7 @@ import { BAFIA_LIMITS, type GifItem } from "@common/bafia/protocol";
 import { PREMIUM_BOT_URL } from "@common/constants";
 import type { Bafia } from "../domain/bafia";
 
-type Source = "giphy" | "bafia" | "mine";
+type Source = "giphy" | "bafia" | "mine" | "favorites";
 
 const uploadErrors = {
 	premium: "Сервер Бафии не принял загрузку: обнови игру.",
@@ -15,11 +15,13 @@ const uploadErrors = {
 };
 
 /**
- * выбор гифки: Giphy, каталог Бафии и «Мои» (свои загрузки, у премиума)
- * нажатие шлёт `[gif:номер]`; загрузка - только с премиумом, после проверки
+ * выбор гифки: избранное, Giphy, каталог Бафии и «Мои» (свои загрузки)
+ * нажатие шлёт `[gif:номер]`, звёздочка добавляет в избранное; своя гифка попадает в каталог после проверки
  */
 export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) => void }) @{
-	const [source, setSource] = createSignal<Source>("giphy");
+	// есть избранное - открываемся на нём: ради него и ищем не заново каждый раз
+	const [source, setSource] = createSignal<Source>(bafia.favorites.length ? "favorites" : "giphy");
+	const favorite = fromEvents(bafia, "change", () => new Set(bafia.favorites.map(item => item.id)));
 	const [items, setItems] = createSignal<GifItem[] | undefined>(undefined);
 	const [loading, setLoading] = createSignal(true);
 	// загрузка своей гифки: выбранный файл, название и ход дела
@@ -79,6 +81,9 @@ export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) =>
 			.tabs button.on { opacity: 1; font-weight: 700; }
 			.tabs .add { margin-left: auto; opacity: 1; }
 			.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; max-height: 190px; overflow-y: auto; }
+			.cell { position: relative; }
+			.star { position: absolute; top: 2px; right: 2px; padding: 0 5px; line-height: 1.5; border-radius: 999px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 14px; }
+			.star.on { color: #ffd54a; }
 			.grid img { width: 100%; height: 72px; object-fit: cover; border-radius: 6px; cursor: pointer; background: rgba(128, 128, 128, .25); }
 			.credit { font-size: 11px; opacity: .7; text-align: right; }
 			.credit a, .status a { color: inherit; }
@@ -88,6 +93,7 @@ export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) =>
 		</style>
 		<div class="picker">
 			<div class="tabs">
+				<button class={source() == "favorites" ? "on" : ""} onClick={() => choose("favorites")}>{"★ Избранное"}</button>
 				<button class={source() == "giphy" ? "on" : ""} onClick={() => choose("giphy")}>{"Giphy"}</button>
 				<button class={source() == "bafia" ? "on" : ""} onClick={() => choose("bafia")}>{"Бафия"}</button>
 				<button class={source() == "mine" ? "on" : ""} onClick={() => choose("mine")}>{"Мои"}</button>
@@ -114,12 +120,17 @@ export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) =>
 					}
 				</div>
 			}
-			<input type="text" placeholder={source() == "giphy" ? "Поиск в Giphy" : source() == "bafia" ? "Поиск по гифкам Бафии" : "Поиск среди моих"} maxlength="40" onInput={(event) => { clearTimeout(timer); query = event.currentTarget.value; timer = setTimeout(search, 300); }} />
+			<input type="text" placeholder={source() == "giphy" ? "Поиск в Giphy" : source() == "bafia" ? "Поиск по гифкам Бафии" : source() == "favorites" ? "Поиск в избранном" : "Поиск среди моих"} maxlength="40" onInput={(event) => { clearTimeout(timer); query = event.currentTarget.value; timer = setTimeout(search, 300); }} />
 			@if (items() && items()!.length) {
 				<>
 					<div class="grid">
 						@for (const gif of items()!) {
-							<img src={gif.thumb ?? gif.url} alt={gif.title} title={gif.title + (gif.status == "pending" ? " (на проверке, отправить пока нельзя)" : "")} style={gif.status == "pending" ? { opacity: ".5" } : undefined} loading="lazy" referrerpolicy="no-referrer" onClick={() => { if(gif.status != "pending") pick(gif.id); }} />
+							<div class="cell">
+								<img src={gif.thumb ?? gif.url} alt={gif.title} title={gif.title + (gif.status == "pending" ? " (на проверке, отправить пока нельзя)" : "")} style={gif.status == "pending" ? { opacity: ".5" } : undefined} loading="lazy" referrerpolicy="no-referrer" onClick={() => { if(gif.status != "pending") pick(gif.id); }} />
+								@if (gif.status != "pending") {
+									<button class={favorite().has(gif.id) ? "star on" : "star"} title={favorite().has(gif.id) ? "Убрать из избранного" : "В избранное"} onClick={() => { const now = bafia.toggleFavorite(gif.id, gif.title); if(!now && source() == "favorites") setItems(items()!.filter(other => other.id != gif.id)); }}>{favorite().has(gif.id) ? "★" : "☆"}</button>
+								}
+							</div>
 						}
 					</div>
 					@if (source() == "giphy") {
@@ -129,7 +140,7 @@ export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) =>
 					}
 				</>
 			} @else {
-				<div class="empty">{loading() ? "Загрузка…" : items() ? (source() == "giphy" ? "Ничего не нашлось" : source() == "mine" ? "Ты ещё ничего не загружал: кнопка «+ Добавить»" : "Пока пусто") : source() == "giphy" ? "Поиск Giphy сейчас недоступен" : "Сервер Бафии сейчас недоступен"}</div>
+				<div class="empty">{loading() ? "Загрузка…" : items() ? (source() == "giphy" ? "Ничего не нашлось" : source() == "mine" ? "Ты ещё ничего не загружал: кнопка «+ Добавить»" : source() == "favorites" ? "Пока пусто: нажми ☆ на гифке, чтобы сохранить её" : "Пока пусто") : source() == "giphy" ? "Поиск Giphy сейчас недоступен" : "Сервер Бафии сейчас недоступен"}</div>
 			}
 		</div>
 	</>

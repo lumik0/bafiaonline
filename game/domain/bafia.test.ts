@@ -3,7 +3,7 @@ import type { SocketLike } from "@common/net/connection";
 import Events from "@common/utils/emitter";
 import { BAFIA_LIMITS } from "@common/bafia/protocol";
 import { versionNumber } from "@common/version";
-import { Bafia, BafiaLink, newKey } from "./bafia";
+import { Bafia, BafiaLink, FAVORITES_MAX, newKey } from "./bafia";
 
 /** сокет, который отвечает как сервер Бафии: «ok» на всё, а «who» возвращает заданных игроков */
 function serverSocket(online: string[], log: Record<string, unknown>[]) {
@@ -250,7 +250,7 @@ describe("BafiaLink", () => {
 
 describe("Bafia", () => {
   function setup() {
-    const data = { bafia: { enabled: false, asked: false, key: "", code: "", color: "gold" } };
+    const data = { bafia: { enabled: false, asked: false, key: "", code: "", color: "gold", favorites: [] } };
     const settings = new class extends Events<{ change: () => void }> {
       data = data;
       update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
@@ -309,7 +309,7 @@ describe("Bafia", () => {
   });
 
   test("адрес аватарки: у игрока из Бафии, своя тоже; премиум не нужен; без согласия нет ничего", async() => {
-    const data = { bafia: { enabled: true, asked: true, key: "k".repeat(24), code: "BAF-GOOD-CODE", color: "gold" } };
+    const data = { bafia: { enabled: true, asked: true, key: "k".repeat(24), code: "BAF-GOOD-CODE", color: "gold", favorites: [] } };
     const settings = new class extends Events<{ change: () => void }> {
       data = data;
       update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
@@ -333,6 +333,63 @@ describe("Bafia", () => {
     bafia.setEnabled(false);
     expect(bafia.avatar("pp")).toBeUndefined();
     bafia.dispose();
+  });
+
+  describe("избранные гифки", () => {
+    function favoritesSetup(enabled = true) {
+      const data = { bafia: { enabled, asked: true, key: "k".repeat(24), code: "", color: "gold", favorites: [] as { id: string, title: string }[] } };
+      const settings = new class extends Events<{ change: () => void }> {
+        data = data;
+        update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
+      }();
+      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+      const log: Record<string, unknown>[] = [];
+      const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: serverSocket([], log).create });
+      return { bafia, data, log };
+    }
+
+    test("добавить и убрать: новые первыми, повтор убирает, лишнее и битые номера отбрасываются, список ограничен", async() => {
+      const { bafia, data } = favoritesSetup();
+      const changes: number[] = [];
+      bafia.on("change", () => changes.push(1));
+      expect(bafia.toggleFavorite("g_aaaaa", "Кот")).toBe(true);
+      expect(bafia.toggleFavorite("abc123", "Пёс")).toBe(true);
+      expect(bafia.favorites.map(item => item.id)).toEqual(["abc123", "g_aaaaa"]);
+      expect(bafia.isFavorite("g_aaaaa")).toBe(true);
+      expect(bafia.toggleFavorite("g_aaaaa")).toBe(false);
+      expect(bafia.favorites.map(item => item.id)).toEqual(["abc123"]);
+      expect(changes.length).toBeGreaterThanOrEqual(3);
+      expect(bafia.toggleFavorite("плохой номер!", "x")).toBe(false);
+      expect(data.bafia.favorites).toHaveLength(1);
+
+      for(let i = 0; i < FAVORITES_MAX + 20; i++) bafia.toggleFavorite("n" + i);
+      expect(bafia.favorites).toHaveLength(FAVORITES_MAX);
+      expect(bafia.favorites[0]!.id).toBe("n" + (FAVORITES_MAX + 19));   // самые новые остались
+
+      // повреждённые данные из файла настроек не ломают список
+      data.bafia.favorites = [{ id: "ok1234", title: "норм" }, { id: 5 as never, title: "x" }, null as never, { id: "bad id", title: "x" }];
+      expect(bafia.favorites.map(item => item.id)).toEqual(["ok1234"]);
+    });
+
+    test("вкладка «Избранное»: гифки Giphy собираются без сервера, исчезнувшие из каталога пропускаются, по названию можно искать, без согласия пусто", async() => {
+      const { bafia, data, log } = favoritesSetup();
+      await tick();
+      bafia.toggleFavorite("cat", "Кот в шляпе");        // в каталоге сервера есть (в тестовом сервере кот отвечает)
+      bafia.toggleFavorite("gone", "Пропала");            // каталог о такой не знает
+      bafia.toggleFavorite("g_ICOgUNjpvO0PC", "Привет");
+      log.length = 0;
+      const all = await bafia.gifs("", "favorites");
+      expect(all?.map(item => item.id)).toEqual(["g_ICOgUNjpvO0PC", "cat"]);
+      expect(all?.[0]!.url).toBe("https://media.giphy.com/media/ICOgUNjpvO0PC/200w.gif");
+      expect(all?.[0]!.title).toBe("Привет");             // название берётся из сохранённого
+      expect(log.some(message => message.t == "gif" && message.id == "g_ICOgUNjpvO0PC")).toBe(false);
+
+      expect((await bafia.gifs("шляп", "favorites"))?.map(item => item.id)).toEqual(["cat"]);
+      expect(await bafia.gifs("нет такого", "favorites")).toEqual([]);
+
+      data.bafia.enabled = false;
+      expect(await bafia.gifs("", "favorites")).toBeUndefined();
+    });
   });
 
   test("ключи случайные", () => {

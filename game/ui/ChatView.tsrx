@@ -48,6 +48,14 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	// премиум Бафии: значок и рамка ника в его цвете
 	const bafiaVersion = bafia ? fromEvents(bafia, "change", () => ({})) : () => 0;
 	const premiumColor = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.premiumColor(id) : undefined; };
+	// значок «Б»: у премиума цветной, у остальных игроков Бафии обычного цвета (как в списке игроков)
+	const badgeOf = (id: string | undefined) => {
+		bafiaVersion();
+		if(!id || !bafia) return undefined;
+		const color = bafia.premiumColor(id);
+		if(color) return { color, title: "Играет в Бафии, премиум" };
+		return bafia.online.has(id) ? { color: "var(--accent)", title: "Играет в Бафии" } : undefined;
+	};
 	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.avatar(id) : undefined; };
 	const emoji = fromEvents(assets, "change", () => Object.fromEntries(EMOJI.map(name => [name, assets.url(`textures/emoji/${name}.png`)])) as Record<string, string>);
 
@@ -99,7 +107,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 							<div onClick={() => onAvatar?.(row.group.user.playerObjectId ?? "")}><Avatar photo={() => row.group.user.photo ?? ""} gif={() => gifAvatar(row.group.user.playerObjectId)} asset={() => row.group.user.asset} ring={() => photoRing(row.group.user.decorations)} animation={() => animationOf(row.group.user.decorations, DecorationType.PhotoBorderAnimation)} assets={assets} size={35} /></div>
 							<div class="column">
 								<span class={hideName() && row.group.user.username == myName() ? "nick blur" : "nick"} data-keep style={{ ...nickStyle(row.group.user.decorations), ...premiumFrame(premiumColor(row.group.user.playerObjectId)), ...(row.group.entries[0]?.nickTone ? { color: "var(--" + toneToken(row.group.entries[0].nickTone) + ")" } : {}) }} onClick={() => controller?.mention?.(row.group.user.username)}>
-									{animationOf(row.group.user.decorations, DecorationType.UsernameAnimation) ? <Lottie animation={() => animationOf(row.group.user.decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" /> : null}{nickPrefix?.(row.group.user.username) ? <span class="index">{nickPrefix(row.group.user.username)}</span> : null}{row.group.user.username}{premiumColor(row.group.user.playerObjectId) ? <PremiumBadge color={premiumColor(row.group.user.playerObjectId)!} /> : null}<span class="vip">{row.group.user.vip ?? ""}</span>{row.group.entries[0]?.label ? <span class="label">{" · " + row.group.entries[0].label}</span> : null}
+									{animationOf(row.group.user.decorations, DecorationType.UsernameAnimation) ? <Lottie animation={() => animationOf(row.group.user.decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" /> : null}{nickPrefix?.(row.group.user.username) ? <span class="index">{nickPrefix(row.group.user.username)}</span> : null}{row.group.user.username}{badgeOf(row.group.user.playerObjectId) ? <PremiumBadge color={badgeOf(row.group.user.playerObjectId)!.color} title={badgeOf(row.group.user.playerObjectId)!.title} /> : null}<span class="vip">{row.group.user.vip ?? ""}</span>{row.group.entries[0]?.label ? <span class="label">{" · " + row.group.entries[0].label}</span> : null}
 								</span>
 								@for (const entry of row.group.entries) {
 									<span class={entry.unread ? "text unread" : "text"} data-keep style={{ color: lineColor(entry), ...(entry.unread ? {} : { background: lineBackground(entry) }) }}>
