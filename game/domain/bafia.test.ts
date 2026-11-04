@@ -386,7 +386,7 @@ describe("Bafia", () => {
     log.length = 0;
     bafia.watch([{ id: "p3", nick: "Третий" }]);
     await tick();
-    expect(log.map(message => message.t)).toEqual(["seen", "who"]);
+    expect(log.map(message => message.t)).toEqual(["seen", "who", "marks"]);
     expect(await bafia.nicks("p2")).toEqual([{ nick: "Старый", first: 1, last: 2 }]);
 
     bafia.setEnabled(false);

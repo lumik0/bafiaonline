@@ -6,6 +6,7 @@ import { nickStyle, photoRing } from "../domain/decorations";
 import { Avatar } from "../ui/Avatar.tsrx";
 import type { GameContext } from "../context";
 import { enterRoom } from "../domain/rooms/enter";
+import { Marks } from "../ui/Marks.tsrx";
 
 type Tab = "friends" | "requests" | "search";
 
@@ -28,6 +29,8 @@ export function FriendsScreen({ ctx }: { ctx: GameContext }) @{
 		setLoading(true);
 		try {
 			setItems(next == "friends" ? await ctx.friends.friends() : next == "requests" ? await ctx.friends.requests() : await ctx.friends.search(search));
+			// значки «Позор» и «БАН» нужны и тем, кого нет в сети
+			ctx.bafia.watchNicks(items().map(item => item.username));
 		} catch {
 			setFailed("Не удалось загрузить список");
 		}
@@ -102,7 +105,7 @@ export function FriendsScreen({ ctx }: { ctx: GameContext }) @{
 								<div class={item.isOnline ? "online on" : "online"}></div>
 							</div>
 							<div class="info">
-								<span class="name"><span data-keep style={nickStyle(item.decorations)}>{item.username}</span></span>
+								<span class="name"><span data-keep style={nickStyle(item.decorations)}>{item.username}</span><Marks bafia={ctx.bafia} nick={() => item.username} /></span>
 								<span class="status">{status(item)}</span>
 							</div>
 							<div class="actions" onClick={(event) => event.stopPropagation()}>

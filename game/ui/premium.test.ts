@@ -30,7 +30,8 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 /** игрок с премиумом: у него значок и рамка вокруг ника в его цвете, у остальных обычный вид */
 test("премиум Бафии: цветной значок в списке игроков, значок и рамка у ника в чате", async() => {
   const assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
-  const bafia = Object.assign(new Events<{ change: () => void }>(), { premiumColor: (id: string) => id == "p1" ? "#3E63DD" : undefined, online: new Set(["p1", "p2"]), avatar: (id: string) => id == "p1" ? "https://bafia.example.com/a/abc12345" : undefined, enabled: true });
+  const bafia = Object.assign(new Events<{ change: () => void }>(), { premiumColor: (id: string) => id == "p1" ? "#3E63DD" : undefined, online: new Set(["p1", "p2"]), avatar: (id: string) => id == "p1" ? "https://bafia.example.com/a/abc12345" : undefined, enabled: true,
+    shamePoints: (nick: string) => nick == "Чужой" ? 3 : undefined, banUntil: (nick: string) => nick == "Обычный" ? Date.now() + 3_600_000 : undefined });
   const root = document.body.appendChild(document.createElement("div"));
   const users = [{ username: "Звезда", playerObjectId: "p1" }, { username: "Обычный", playerObjectId: "p2" }];
 
@@ -53,6 +54,9 @@ test("премиум Бафии: цветной значок в списке и�
   } as never) as never, root);
   await tick();
   expect([...root.querySelectorAll<HTMLImageElement>("img.avatar")].map(photo => photo.getAttribute("src")?.includes("/a/abc12345"))).toEqual([true, false, false]);
+  // значки нарушителей: «БАН» у игрока в бане, «Позор» у набравшего очки, у остальных нет
+  const marked = [...root.querySelectorAll<HTMLElement>(".nick")].map(nick => [...nick.querySelectorAll(".mark")].map(mark => mark.textContent));
+  expect(marked).toEqual([[], ["БАН"], ["Позор"]]);
   const nicks = [...root.querySelectorAll<HTMLElement>(".nick")];
   expect(nicks[0]!.style.border).toMatch(/#3E63DD|rgb\(62, 99, 221\)/i);
   expect(nicks[0]!.querySelector(".pbadge")).not.toBeNull();

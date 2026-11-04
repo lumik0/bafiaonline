@@ -96,6 +96,11 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const client = new ServerClient(new Connection({ url: options.url ?? serverOverride() ?? SERVER_URLS, createSocket: options.createSocket }));
   const user = new User();
   const auth = new Auth(client, host.storage.accounts, user);
+  // игрока не пустили в игру (бан): сервер Бафии показывает значок «БАН», пока он не закончится; ник и id берём из сохранённого аккаунта
+  auth.on("blocked", async (email, seconds) => {
+    const account = (await host.storage.accounts.list()).find(item => item.email == email);
+    if(account?.name && account.playerUserId) ctx.bafia.reportBan(account.playerUserId, account.name, seconds);
+  });
   const nav = new Navigator<Routes>();
   const dialogs = createDialogs(new DialogManager());
   const settings = await SettingsStore.load(host.storage.settings);

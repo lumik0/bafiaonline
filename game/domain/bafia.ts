@@ -1,7 +1,7 @@
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
-import { detectPlatform } from "./platform";
-import { isPremiumColor, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { detectBrowser, detectPlatform, detectSite } from "./platform";
+import { isPremiumColor, nickKey, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -34,7 +34,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
-  private identity?: SeenPlayer & { platform?: Platform, version?: string };
+  private identity?: SeenPlayer & { platform?: Platform, version?: string, browser?: Browser, site?: string };
   /** до какого времени (мс) действует премиум на этой установке */
   premiumUntil?: number;
   /** игроки из последних ответов «кто в Бафии», у которых премиум */
@@ -118,11 +118,20 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.emit("change");
   }
 
+  private banReport?: { id: string, nick: string, seconds: number };
+
+  /** игра не пустила этого игрока (бан): сервер Бафии покажет всем значок «БАН» до конца срока. При входе без бана значок снимается сам */
+  reportBan(id: string, nick: string, seconds: number) {
+    this.banReport = { id, nick, seconds };
+    if(this.ready) void this.request({ t: "banned", id, nick, seconds });
+  }
+
   /** «Я играю под этим ником»: сервер запоминает до разрыва связи, при переподключении повторяется само */
-  identify(id: string, nick: string, platform?: Platform, version?: string) {
-    if(this.identity?.id == id && this.identity.nick == nick && this.identity.platform == platform && this.identity.version == version) return;
-    this.identity = { id, nick, platform, version };
-    if(this.ready) void this.request({ t: "presence", id, nick, platform, version });
+  identify(id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string) {
+    const old = this.identity;
+    if(old?.id == id && old.nick == nick && old.platform == platform && old.version == version && old.browser == browser && old.site == site) return;
+    this.identity = { id, nick, platform, version, browser, site };
+    if(this.ready) void this.request({ t: "presence", id, nick, platform, version, browser, site });
   }
 
   private async greet() {
@@ -142,6 +151,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.ready = true;
     this.startHeartbeat();
     if(this.identity) await this.request({ t: "presence", ...this.identity });
+    else if(this.banReport) await this.request({ t: "banned", ...this.banReport });
     // премиум не найден по ключу (новая установка), а код у игрока сохранён - активируем его сами
     if(!this.premiumUntil && this.savedCode) await this.redeem(this.savedCode);   // цвет после активации уходит сам
     else await this.sendColor();
@@ -204,6 +214,31 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.premiumOnline = premium;
     this.premiumColors = colors;
     this.avatars = avatars;
+    this.emit("change");
+  }
+
+  /** очки «Позора» у ников, которым положен значок (ключ - `nickKey`) */
+  shameMarks = new Map<string, number>();
+  /** до какого времени (мс) у ника бан (ключ - `nickKey`) */
+  banMarks = new Map<string, number>();
+
+  /**
+   * значки «Позор» и «БАН» для этих ников (игроки могут быть и не в сети: друзья, чат, профиль). Ответ сервера заменяет
+   * известное об этих никах: кого сняли или разбанили, у того значок пропадает
+   */
+  async marks(nicks: string[]) {
+    const list = [...new Set(nicks.filter(Boolean))].slice(0, BAFIA_LIMITS.players);
+    if(!this.ready || !list.length) return;
+    const answer = await this.request({ t: "marks", nicks: list });
+    if(answer?.t != "marks") return;
+    const shame = new Map(this.shameMarks), bans = new Map(this.banMarks);
+    for(const nick of list) {
+      const key = nickKey(nick), points = answer.shame?.[key], until = answer.bans?.[key];
+      typeof points == "number" && points > 0 ? shame.set(key, points) : shame.delete(key);
+      typeof until == "number" && Number.isFinite(until) ? bans.set(key, until) : bans.delete(key);
+    }
+    this.shameMarks = shame;
+    this.banMarks = bans;
     this.emit("change");
   }
 
@@ -365,6 +400,9 @@ export interface BafiaDeps {
   timeout?: number
   /** с какого устройства играем; по умолчанию определяется по браузеру */
   platform?: Platform
+  /** браузер и адрес сайта для статистики; по умолчанию определяются сами */
+  browser?: Browser
+  site?: string
   /** версия игры, уходит в статистику; по умолчанию текущая */
   version?: string
 }
@@ -453,13 +491,19 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
       const link = this.link = new BafiaLink({ url: this.deps.url, fileBase: this.deps.url.replace(/^ws/, "http"), key, createSocket: this.deps.createSocket, timeout: this.deps.timeout });
       link.savedCode = this.deps.settings.data.bafia.code || undefined;
       link.color = this.deps.settings.data.bafia.color;
-      link.on("change", () => this.emit("change"));
+      link.on("change", () => { this.scheduleExpiry(); this.emit("change"); });
       // одноразовое сообщение администратора: игра показывает его баннером
       link.on("notice", text => this.emit("notice", text));
       link.start();
     }
     const { playerObjectId, username } = this.deps.user;
-    if(playerObjectId && username) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber);
+    if(playerObjectId && username) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber, this.deps.browser ?? detectBrowser(), this.deps.site ?? detectSite());
+  }
+
+  /** официальный сервер не пустил игрока (бан): сообщаем серверу Бафии; игрок ещё не вошёл, поэтому ник и id берутся из сохранённого аккаунта */
+  reportBan(id: string, nick: string, seconds: number) {
+    this.sync();
+    this.link?.reportBan(id, nick, seconds);
   }
 
   /** видимые игроки: отправляем не чаще раза в 10 секунд, узнаём, кто в Бафии */
@@ -470,6 +514,45 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
     if(!this.link || (signature == this.lastWatch.signature && now - this.lastWatch.at < 10_000)) return;
     this.lastWatch = { signature, at: now };
     void this.link.watch(list, this.enabled);
+    if(this.enabled) void this.link.marks(list.map(player => player.nick));
+  }
+
+  private lastMarks = { signature: "", at: 0 };
+
+  /** значки «Позор» и «БАН» по никам (друзья, рейтинг и другие списки без id игроков); не чаще раза в полминуты для одного набора */
+  watchNicks(nicks: string[]) {
+    const list = [...new Set(nicks.filter(Boolean))];
+    const signature = list.join("|");
+    const now = Date.now();
+    if(!this.link || !this.enabled || !list.length || (signature == this.lastMarks.signature && now - this.lastMarks.at < 30_000)) return;
+    this.lastMarks = { signature, at: now };
+    void this.link.marks(list);
+  }
+
+  /** очки «Позора» у игрока, если ему положен значок (с согласия на сервер Бафии) */
+  shamePoints(nick: string): number | undefined {
+    return this.consented?.shameMarks.get(nickKey(nick));
+  }
+
+  /** до какого времени бан у игрока; нет бана или срок вышел - `undefined`. Срок проверяется по времени устройства, чтобы значок пропал вовремя */
+  banUntil(nick: string): number | undefined {
+    const until = this.consented?.banMarks.get(nickKey(nick));
+    return until !== undefined && until > Date.now() ? until : undefined;
+  }
+
+  private expiryTimer?: ReturnType<typeof setTimeout>;
+  private expiryAt = 0;
+
+  /** когда закончится ближайший бан, экраны получают событие: значок «БАН» пропадает сам, без нового запроса */
+  private scheduleExpiry() {
+    const now = Date.now();
+    const next = Math.min(Infinity, ...[...(this.link?.banMarks.values() ?? [])].filter(until => until > now));
+    if(next == this.expiryAt) return;
+    clearTimeout(this.expiryTimer);
+    this.expiryAt = next;
+    if(next == Infinity) return;
+    // setTimeout не принимает больше ~24 суток; дольше ждать и не нужно: по «change» срок пересчитается
+    this.expiryTimer = setTimeout(() => { this.expiryAt = 0; this.emit("change"); this.scheduleExpiry(); }, Math.min(next - now + 300, 2 ** 31 - 1));
   }
 
   /** ввести код премиума; при успехе код запоминается */
@@ -529,19 +612,20 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
 
   nicks(id: string) { return this.consented?.nicks(id) ?? Promise.resolve(undefined); }
 
-  dispose() { this.link?.stop(); this.link = undefined; this.images.clear(); }
+  dispose() { clearTimeout(this.expiryTimer); this.expiryAt = 0; this.link?.stop(); this.link = undefined; this.images.clear(); }
 }
 
 /** что уходит на сервер Бафии: показывается при первом заходе и при включении в настройках */
 export const BAFIA_CONSENT =
   "Всегда, чтобы было видно, кто играет в Бафии, и значок премиума:\n" +
   "• твой ник и публичный id игрока;\n" +
-  "• с какого устройства ты играешь (iOS, Android, Windows, macOS, Linux или другое, без моделей и версий);\n" +
+  "• с какого устройства ты играешь (iOS, Android, Windows, macOS, Linux или другое), в каком браузере (Chrome, Safari и так далее) и с какого сайта открыта игра, без моделей, версий и путей;\n" +
   "• сколько партий ты сыграл и выиграл;\n" +
+  "• если игра не пустила тебя при входе (бан), твой ник и сколько осталось, чтобы у других был виден значок «БАН»;\n" +
   "• id игроков, которых ты видишь (без ников), чтобы узнать, кто из них в Бафии;\n" +
   "• случайный ключ этой установки (с аккаунтом игры не связан).\n\n" +
   "Если согласишься, то ещё:\n" +
-  "• ники игроков, которых ты видишь, для истории ников;\n" +
-  "• гифки и стикеры, отправка игр из истории, аватарки игроков с премиумом.\n\n" +
+  "• ники игроков, которых ты видишь: для истории ников и значков «Позор» и «БАН» у нарушителей;\n" +
+  "• гифки и стикеры, отправка игр из истории, аватарки игроков.\n\n" +
   "Не отправляются никогда: почта, пароль, токен и сообщения. Сервер не записывает IP-адреса.\n\n" +
   "Без согласия гифки, история ников и аватарки не работают и не показываются. Изменить выбор можно в настройках.";

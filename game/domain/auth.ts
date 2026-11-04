@@ -65,7 +65,7 @@ function deviceId(): string {
   return memoryDeviceId;
 }
 
-export class Auth extends Events<{ signedIn: (account: Account, reconnected: boolean) => void, signedOut: () => void }> {
+export class Auth extends Events<{ signedIn: (account: Account, reconnected: boolean) => void, signedOut: () => void, blocked: (email: string, secondsRemaining: number) => void }> {
   private current?: Credentials;
   /** в комнате не запрашивать дашборд при входе: иначе подписка переключится и игра встанет */
   keepSubscription?: () => boolean;
@@ -114,8 +114,10 @@ export class Auth extends Events<{ signedIn: (account: Account, reconnected: boo
       case "signInError":
         return { status: "error", code: message.data.error, message: signInErrorMessage(message.data.error) };
       case "userBlocked":
+        if(message.data.secondsRemaining) this.emit("blocked", credentials.email, message.data.secondsRemaining);
         return { status: "blocked", reason: message.data.reason, secondsRemaining: message.data.secondsRemaining };
       case "userInactiveBlocked":
+        if(message.data.secondsRemaining) this.emit("blocked", credentials.email, message.data.secondsRemaining);
         return { status: "inactive", secondsRemaining: message.data.secondsRemaining };
       case "emailNotVerified":
         return { status: "emailNotVerified" };

@@ -1,5 +1,6 @@
 import { createSignal, fromEvents, onMount } from "@common/ui";
 import { Avatar } from "../Avatar.tsrx";
+import { Marks } from "../Marks.tsrx";
 import { enterRoom } from "../../domain/rooms/enter";
 import type { RoomItem } from "../../domain/rooms/room";
 import type { GameContext } from "../../context";
@@ -36,7 +37,7 @@ export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room
 				@for (const player of players()!) {
 					<div class="player">
 						<div onClick={() => ctx.openProfile(player.playerObjectId ?? "")}><Avatar photo={() => player.photo ?? ""} gif={() => gifAvatar(player.playerObjectId)} assets={ctx.assets} size={30} /></div>
-						<span class="name" data-keep>{player.username ?? ""}</span>
+						<span class="name" data-keep>{player.username ?? ""}<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} /></span>
 						<span class="alive" style={{ color: player.alive ? "#186400" : "#940000" }}>{player.alive ? "Жив" : "Умер"}</span>
 					</div>
 				} @empty {

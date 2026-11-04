@@ -1,3 +1,4 @@
+import { Marks } from "../Marks.tsrx";
 import { createSignal, fromEvents } from "@common/ui";
 import { longPress } from "@common/ui/long-press";
 import { createViewCache, type PlayerView } from "../../domain/room/views";
@@ -78,7 +79,7 @@ export function PlayersGrid({ ctx, session, mention }: { ctx: GameContext, sessi
 					@if (view.vote > 0) {
 						<div class="vote">{view.vote}</div>
 					}
-					<div class="nick" data-keep style={nickStyle(view.decorations)}>{showIndex() ? <span class="index">{(view.index + 1) + " "}</span> : null}{view.username}</div>
+					<div class="nick" data-keep style={nickStyle(view.decorations)}>{showIndex() ? <span class="index">{(view.index + 1) + " "}</span> : null}{view.username}<Marks bafia={ctx.bafia} nick={() => view.username} /></div>
 				</div>
 			}
 		</div>

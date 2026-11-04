@@ -1,4 +1,4 @@
-import { createSignal, fromEvents, onMount } from "@common/ui";
+import { createEffect, createSignal, fromEvents, onMount } from "@common/ui";
 import { formatNumber } from "@common/utils/format";
 import type { PlayerProfile } from "../domain/profile";
 import type { RoomSession } from "../domain/room/session";
@@ -6,6 +6,7 @@ import { Role, Sex } from "../domain/enums";
 import { Avatar } from "../ui/Avatar.tsrx";
 import { Lottie } from "../ui/Lottie.tsrx";
 import { PremiumBadge } from "../ui/PremiumBadge.tsrx";
+import { Marks } from "../ui/Marks.tsrx";
 import { premiumFrame } from "../domain/premium-style";
 import { AvatarView } from "../ui/dialogs/AvatarView.tsrx";
 import { animationOf, DecorationType, normalizeDecorations, nickStyle, photoRing, profileColors, readableOn } from "../domain/decorations";
@@ -79,6 +80,8 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	const premiumColor = () => { bafiaVersion(); return ctx.bafia.premiumColor(player.playerObjectId ?? playerObjectId); };
 	const gifAvatar = () => { bafiaVersion(); return ctx.bafia.avatar(player.playerObjectId ?? playerObjectId); };
 	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "" }]));
+	// ник в профиле приходит позже запроса: значки по нему запрашиваем, когда ник появился
+	createEffect(() => { if(player.username) ctx.bafia.watchNicks([player.username]); });
 	const friendship = typeof profile.friendship == "string" ? profile.friendship : undefined;
 	const flag = profile.friendshipFlag;
 	const level = player.level ?? 1;
@@ -189,6 +192,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				}
 				{player.username ?? ""}
 				{premiumColor() ? <PremiumBadge color={premiumColor()!} /> : null}
+				<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} />
 			</div>
 
 			<div class="actions">

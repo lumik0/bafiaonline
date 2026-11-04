@@ -57,7 +57,10 @@ describe("Auth", () => {
   test("блокировка и неподтверждённая почта возвращаются как результат", async() => {
     const { network, auth } = await setup();
     network.respond = (_, socket) => socket.receive({ ty: "ublk", r: "спам", tsr: 60 });
+    const reports: Array<[string, number]> = [];
+    auth.on("blocked", (email, seconds) => { reports.push([email, seconds]); });
     expect(await auth.signIn({ email: "a@b.c", password: "x" })).toEqual({ status: "blocked", reason: "спам", secondsRemaining: 60 });
+    expect(reports).toEqual([["a@b.c", 60]]);
 
     network.respond = (_, socket) => socket.receive({ ty: "env" });
     expect(await auth.signIn({ email: "a@b.c", password: "x" })).toEqual({ status: "emailNotVerified" });

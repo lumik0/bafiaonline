@@ -31,7 +31,7 @@ export function GlobalChatScreen({ ctx }: { ctx: GameContext }) @{
 		</style>
 		<div class="page" style={{ "background-image": background() ? "url(" + background() + ")" : "none" }}>
 			<AppBar title="Общий чат" onBack={() => ctx.nav.pop()} />
-			<PlayersPanel users={users} myName={myName} hideName={hideName} assets={ctx.assets} mention={(name: string) => controller.mention?.(name)} profile={openProfile} inBafia={(id: string) => bafiaOnline().has(id)} badgeColor={(id: string) => { bafiaPremium(); return ctx.bafia.premiumColor(id); }} avatar={(id: string) => { bafiaPremium(); return ctx.bafia.avatar(id, true); }} />
+			<PlayersPanel users={users} myName={myName} hideName={hideName} assets={ctx.assets} mention={(name: string) => controller.mention?.(name)} profile={openProfile} inBafia={(id: string) => bafiaOnline().has(id)} badgeColor={(id: string) => { bafiaPremium(); return ctx.bafia.premiumColor(id); }} avatar={(id: string) => { bafiaPremium(); return ctx.bafia.avatar(id, true); }} bafia={ctx.bafia} />
 			<ChatView ctx={ctx} entries={entries} myName={myName} hideName={hideName} assets={ctx.assets} send={(text: string) => { if(!ctx.mods.runCommand(text)) chat.send(text); }} onAvatar={openProfile} controller={controller} bafia={ctx.bafia} />
 		</div>
 	</>

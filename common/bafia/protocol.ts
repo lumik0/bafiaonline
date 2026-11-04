@@ -83,7 +83,17 @@ export function isGifUrl(value: string): boolean {
 /** с какого устройства играют (грубо, для статистики): ничего, кроме этого списка, сервер не принимает */
 export const PLATFORMS = ["ios", "android", "windows", "macos", "linux", "other"] as const;
 export type Platform = typeof PLATFORMS[number];
+/** в каком браузере играют (грубо, для статистики) */
+export const BROWSERS = ["chrome", "safari", "firefox", "edge", "opera", "samsung", "yandex", "other"] as const;
+export type Browser = typeof BROWSERS[number];
+export const isBrowser = (value: unknown): value is Browser => typeof value == "string" && (BROWSERS as readonly string[]).includes(value);
+/** с какой ссылки открыта игра: только адрес сайта (хост), без пути и параметров */
+export const isSite = (value: unknown): value is string => typeof value == "string" && /^[a-z0-9]([a-z0-9.-]{0,58}[a-z0-9])?(:\d{1,5})?$/.test(value);
+
 export const isPlatform = (value: unknown): value is Platform => typeof value == "string" && (PLATFORMS as readonly string[]).includes(value);
+
+/** ключ для сравнения ников: без различия регистра и лишних пробелов (в игре ник уникален, но пишут его по-разному); одинаков у клиента и сервера */
+export const nickKey = (nick: string) => nick.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 
 /** результат партии: победил ли игрок; `undefined`, если неизвестно */
 export interface PlayedEvent { won?: boolean }
@@ -97,9 +107,13 @@ export type ClientMessage =
   /** войти в сеть: ключ клиента и версия протокола */
   | { t: "hello", n: number, key: string, version: number }
   /** «Я играю под этим ником»: появляется в списке «в Бафии» до закрытия соединения */
-  | { t: "presence", n: number, id: string, nick: string, platform?: Platform, version?: string }
+  | { t: "presence", n: number, id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string }
   /** кто из этих игроков сейчас в Бафии */
   | { t: "who", n: number, ids: string[] }
+  /** значки «Позор» и «БАН» по никам (игрок может быть и не в сети): друзья, чат, комната, профиль */
+  | { t: "marks", n: number, nicks: string[] }
+  /** игра не пустила этого игрока при входе (бан): `seconds` - сколько осталось по словам официального сервера */
+  | { t: "banned", n: number, id: string, nick: string, seconds: number }
   /** сыграна партия */
   | { t: "played", n: number, won?: boolean }
   /** эти игроки замечены под такими никами (из комнат, чатов и профилей) */
@@ -149,6 +163,8 @@ export type ServerMessage =
   | { t: "error", n: number, reason: string }
   /** `avatars` - пути аватарок игроков (id → `/a/номер`) */
   | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string>, avatars?: Record<string, string> }
+  /** ключ - `nickKey` ника; `shame` - очки «Позора» у тех, кому положен значок; `bans` - до какого времени (мс) действует бан; у остальных записи нет */
+  | { t: "marks", n: number, shame?: Record<string, number>, bans?: Record<string, number> }
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
   /** `url` нет, если такой гифки в каталоге нет */
   | { t: "gif", n: number, id: string, url?: string, title?: string }
@@ -194,11 +210,20 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
         ? { t: "hello", n, key: value.key, version: value.version } : undefined;
     case "presence": {
       const self = player({ id: value.id, nick: value.nick });
-      return self && { t: "presence", n, ...self, platform: isPlatform(value.platform) ? value.platform : undefined, version: typeof value.version == "string" && /^[A-Za-z0-9._ -]{1,20}$/.test(value.version) ? value.version : undefined };
+      return self && { t: "presence", n, ...self, platform: isPlatform(value.platform) ? value.platform : undefined, browser: isBrowser(value.browser) ? value.browser : undefined, site: isSite(value.site) ? value.site : undefined, version: typeof value.version == "string" && /^[A-Za-z0-9._ -]{1,20}$/.test(value.version) ? value.version : undefined };
+    }
+    case "banned": {
+      const self = player({ id: value.id, nick: value.nick });
+      return self && typeof value.seconds == "number" && Number.isFinite(value.seconds) && value.seconds > 0 && value.seconds <= 366 * 86_400
+        ? { t: "banned", n, ...self, seconds: Math.ceil(value.seconds) } : undefined;
     }
     case "who": {
       const list = ids(value.ids);
       return list && { t: "who", n, ids: list };
+    }
+    case "marks": {
+      if(!Array.isArray(value.nicks) || value.nicks.length > BAFIA_LIMITS.players) return undefined;
+      return value.nicks.every(nick => text(nick, BAFIA_LIMITS.nick) && clean(nick)) ? { t: "marks", n, nicks: value.nicks as string[] } : undefined;
     }
     case "played":
       return value.won === undefined || typeof value.won == "boolean" ? { t: "played", n, won: value.won } : undefined;
