@@ -14,7 +14,7 @@ let MemoryFileStore: typeof import("@common/storage").MemoryFileStore;
 beforeAll(async() => {
   GlobalRegistrator.register();
   // компоненты общие для тестов, а DOM у каждого файла свой: привязываем клики к текущему
-  (await import("solid-js/web")).delegateEvents(["click", "input", "change"]);
+  (await import("solid-js/web")).delegateEvents(["click", "input", "change", "contextmenu", "pointerdown", "pointermove", "pointerup"]);
   ui = await import("@common/ui");
   ({ PlayersPanel } = await import("./PlayersPanel.tsrx") as never);
   ({ ChatView } = await import("./ChatView.tsrx") as never);
@@ -283,6 +283,83 @@ describe("чат всегда внизу", () => {
       dispose();
       root.remove();
     });
+  });
+});
+
+describe("меню сообщения", () => {
+  const entries = [{ id: 1, kind: "message" as const, text: "привет", user: { username: "Друг", playerObjectId: "p1" } }];
+  const mountChat = (onMenu?: (entry: unknown, event: Event) => void) => {
+    const assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
+    const root = document.body.appendChild(document.createElement("div"));
+    const dispose = ui.mount(() => ChatView({ entries: () => entries, myName: () => "я", hideName: () => false, assets, send: () => {}, readonly: true, onMenu } as never) as never, root);
+    return { root, dispose, message: () => root.querySelector<HTMLElement>(".text")! };
+  };
+
+  test("правая кнопка открывает меню сообщения; без onMenu (комната, общий чат) ничего не меняется", async() => {
+    const opened: string[] = [];
+    const { root, dispose, message } = mountChat(entry => void opened.push((entry as { text: string }).text));
+    await tick();
+    expect(message().classList.contains("menuable")).toBe(true);
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    message().dispatchEvent(event);
+    expect(opened).toEqual(["привет"]);
+    expect(event.defaultPrevented).toBe(true);
+    dispose(); root.remove();
+
+    const plain = mountChat();
+    await tick();
+    expect(plain.message().classList.contains("menuable")).toBe(false);
+    const plainEvent = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    plain.message().dispatchEvent(plainEvent);
+    expect(plainEvent.defaultPrevented).toBe(false);          // обычное меню браузера не трогаем
+    plain.dispose(); plain.root.remove();
+  });
+
+  test("долгое нажатие пальцем открывает меню; короткое нажатие и сдвиг пальца (прокрутка) - нет", async() => {
+    const opened: string[] = [];
+    const { root, dispose, message } = mountChat(entry => void opened.push((entry as { text: string }).text));
+    await tick();
+    const touch = (type: string, x = 5, y = 5) => message().dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { pointerType: "touch", clientX: x, clientY: y }));
+
+    touch("pointerdown"); touch("pointerup");                     // короткое нажатие
+    await new Promise(resolve => setTimeout(resolve, 700));
+    expect(opened).toEqual([]);
+
+    touch("pointerdown"); touch("pointermove", 5, 60);            // палец поехал листать
+    await new Promise(resolve => setTimeout(resolve, 700));
+    expect(opened).toEqual([]);
+
+    touch("pointerdown");                                         // держим
+    await new Promise(resolve => setTimeout(resolve, 700));
+    expect(opened).toEqual(["привет"]);
+    dispose(); root.remove();
+  });
+});
+
+describe("анимации украшений", () => {
+  test("при выключенных анимациях (экономия ресурсов) Lottie не создаётся: файл не читается и библиотека не грузится; при включённых - читается", async() => {
+    const { default: Lottie } = { default: (await import("./Lottie.tsrx") as unknown as { Lottie: (props: Record<string, unknown>) => unknown }).Lottie };
+    const { animationSource, setAnimationsOff } = await import("./animation-source");
+    const reads: string[] = [];
+    animationSource.read = async(path: string) => { reads.push(path); return "{}"; };      // готовое содержимое: в сеть за файлом не ходим
+    const warn = console.warn;
+    console.warn = () => {};
+    const spec = { path: "animations/username_animations/dots_0.json", url: "https://x/dots_0.json", speed: 1, alpha: 1 };
+    const root = document.body.appendChild(document.createElement("div"));
+
+    setAnimationsOff(true);
+    const off = ui.mount(() => Lottie({ animation: () => spec }) as never, root);
+    await tick();
+    expect(reads).toEqual([]);
+    off();
+
+    setAnimationsOff(false);
+    const on = ui.mount(() => Lottie({ animation: () => spec }) as never, root);
+    await tick();
+    expect(reads).toEqual([spec.path]);
+    on();
+    console.warn = warn;
+    root.remove();
   });
 });
 

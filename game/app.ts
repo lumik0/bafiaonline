@@ -1,7 +1,7 @@
 import { ConnectionError, Connection, RequestTimeoutError, ServerClient, type SocketLike } from "@common/net";
 import { Bafia, BAFIA_CONSENT } from "./domain/bafia";
 import { MessageAlerts } from "./domain/message-alerts";
-import { animationSource } from "./ui/animation-source";
+import { animationSource, setAnimationsOff } from "./ui/animation-source";
 import { BAFIA_SERVER_URL, SERVER_URLS } from "@common/constants";
 import { versionNumber } from "@common/version";
 import { log } from "@common/logger";
@@ -128,6 +128,14 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   };
   user.on("change", () => void askBafia());
   animationSource.read = path => host.assets.readText(path);
+  // экономия ресурсов (или «уменьшить движение» в системе): анимации украшений, праздничные эффекты и статичные превью аватарок
+  const reduceMotion = () => typeof matchMedia == "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const applyLowPower = () => {
+    setAnimationsOff(settings.data.lowPower || reduceMotion());
+    host.theme.setQuiet(settings.data.lowPower);
+  };
+  applyLowPower();
+  settings.on("change", applyLowPower);
   const ctx: GameContext = {
     host, client, auth, user, nav, dialogs, settings, mods,
     bafia: new Bafia({ settings, user, url: options.bafiaUrl ?? BAFIA_SERVER_URL, createSocket: options.createBafiaSocket }),

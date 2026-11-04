@@ -4,8 +4,9 @@ import { PREMIUM_BOT_URL } from "@common/constants";
 import { BAFIA_CONSENT } from "../domain/bafia";
 import { formatDateTime } from "@common/utils/format";
 import { isMobile } from "@common/utils/mobile";
+import { version } from "@common/version";
 import { AppBar } from "../ui/AppBar.tsrx";
-import { SettingRow } from "../ui/SettingRow.tsrx";
+import { SettingGroup, SettingRow, Toggle } from "../ui/SettingRow.tsrx";
 import { LanguageChoice } from "../ui/dialogs/LanguageChoice.tsrx";
 import { LogsView } from "../ui/dialogs/LogsView.tsrx";
 import { resetPassword } from "../ui/reset-password";
@@ -105,18 +106,26 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	};
 
 	/** отправка данных только с согласия */
-	const toggleBafia = async (box: HTMLInputElement) => {
-		if(!box.checked) return ctx.bafia.setEnabled(false);
+	const toggleBafia = async (value: boolean, input: HTMLInputElement) => {
+		if(!value) return ctx.bafia.setEnabled(false);
 		const agreed = await ctx.dialogs.confirm(BAFIA_CONSENT, { title: "СЕРВЕР БАФИИ", yes: "Согласен", no: "Не надо" });
 		if(agreed) ctx.bafia.setEnabled(true);
-		else box.checked = false;
+		else input.checked = false;
 	};
+
+	// вкладки: настройки сгруппированы по смыслу, а не одним длинным списком
+	const TABS = [["main", "Основное"], ["game", "Игра"], ["account", "Аккаунт"], ["bafia", "Бафия"], ["more", "Ещё"]] as const;
+	const [tab, setTab] = createSignal<string>("main");
+	const set = (change: (settings: typeof ctx.settings.data) => void) => ctx.settings.update(change);
 
 	<>
 		<style>
 			.page { display: flex; flex-direction: column; height: 100%; }
-			.list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px; }
-			input[type=checkbox] { zoom: 2.5; }
+			.tabs { flex: none; display: flex; gap: 6px; padding: 8px 10px 2px; overflow-x: auto; scrollbar-width: none; }
+			.tabs::-webkit-scrollbar { display: none; }
+			.tab { flex: none; padding: 7px 15px; border: none; border-radius: 999px; background: var(--surface); color: var(--text-dark); font-size: 14px; }
+			.tab.on { background: var(--accent); color: #fff; font-weight: 700; }
+			.body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 10px; }
 			.sexes { display: flex; gap: 6px; }
 			.sex.on { background: var(--accent) !important; color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
 			.swatches { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; max-width: 150px; padding: 2px 0; }
@@ -125,102 +134,155 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			input[type=text] { width: 80px; }
 			.avatarPreview { border-radius: 50%; object-fit: cover; }
 			.bafiaState { font-size: 13px; text-align: right; }
+			.zoom { display: flex; align-items: center; gap: 8px; }
+			.value { font-size: 14px; opacity: .8; }
 		</style>
 		<div class="page">
 			<AppBar title="Настройки" onBack={() => ctx.nav.pop()} />
-			<div class="list">
-				<SettingRow label="Оформление"><button onClick={() => ctx.nav.push("theme")}>{"Настроить"}</button></SettingRow>
-				<SettingRow label="Интерфейс с маленькой буквы">
-					<input type="checkbox" checked={data().lowercase} onChange={(event) => ctx.settings.update(settings => { settings.lowercase = event.currentTarget.checked; })} />
-				</SettingRow>
-				<SettingRow label="Анимация переходов между экранами">
-					<input type="checkbox" checked={data().navAnimation} onChange={(event) => ctx.settings.update(settings => { settings.navAnimation = event.currentTarget.checked; })} />
-				</SettingRow>
-				<SettingRow label="Моды"><button onClick={() => ctx.nav.push("mods")}>{"Открыть"}</button></SettingRow>
-				<SettingRow label="Пол">
-					<div class="sexes">
-						<button class={sex() === 0 ? "sex on" : "sex"} disabled={sexBusy()} onClick={() => void changeSex(0)}>{"♂ Мужской"}</button>
-						<button class={sex() === 1 ? "sex on" : "sex"} disabled={sexBusy()} onClick={() => void changeSex(1)}>{"♀ Женский"}</button>
-					</div>
-				</SettingRow>
-				<SettingRow label="Пароль"><button onClick={() => void resetPassword(ctx, ctx.host.account?.email ?? "")}>{"Сменить"}</button></SettingRow>
-				@if (registered()) {
-					<SettingRow label="Дата регистрации"><span>{formatDateTime(registered()!)}</span></SettingRow>
+			<div class="tabs" role="tablist">
+				@for (const [id, title] of TABS) {
+					<button role="tab" class={tab() == id ? "tab on" : "tab"} aria-selected={tab() == id} onClick={() => setTab(id)}>{title}</button>
 				}
-				<SettingRow label="Язык сервера">
-					<button onClick={() => void ctx.dialogs.manager.open({ title: "ЯЗЫК СЕРВЕРА", render: (close) => LanguageChoice({ ctx, close }) })}>{"Выбрать"}</button>
-				</SettingRow>
-				<SettingRow label="Масштаб">
-					<span>{(pendingZoom() ?? data().window.zoom).toFixed(1) + "×"}</span>
-					<input
-						type="range" min={zoomRange.min} max={zoomRange.max} step=".1" value={data().window.zoom}
-						onInput={(event) => setPendingZoom(Number(event.currentTarget.value))}
-						onChange={(event) => { setPendingZoom(undefined); ctx.settings.update(settings => { settings.window.zoom = Number(event.currentTarget.value); }); }}
-					/>
-				</SettingRow>
-				<SettingRow label="Опьянение с">
-					<input type="text" value={data().game.barmanEffect} onChange={(event) => ctx.settings.update(settings => { settings.game.barmanEffect = event.currentTarget.value; })} />
-				</SettingRow>
-				<SettingRow label={'Показывать сообщение «Ты умер»'}>
-					<input type="checkbox" checked={data().game.showYouDiedMessage} onChange={(event) => flag("showYouDiedMessage", event.currentTarget.checked)} />
-				</SettingRow>
-				<SettingRow label="Удалять сообщения после начала игры">
-					<input type="checkbox" checked={data().game.clearMessages} onChange={(event) => flag("clearMessages", event.currentTarget.checked)} />
-				</SettingRow>
-				<SettingRow label="Хранить историю после игры">
-					<input type="checkbox" checked={data().game.saveHistory} onChange={(event) => flag("saveHistory", event.currentTarget.checked)} />
-				</SettingRow>
-				// <SettingRow label="Номера игроков за столом">
-				// 	<input type="checkbox" checked={data().game.showIndexPl} onChange={(event) => ctx.settings.update(settings => { settings.game.showIndexPl = event.currentTarget.checked; })} />
-				// </SettingRow>
-				// <SettingRow label="Номера игроков в чате комнаты">
-				// 	<input type="checkbox" checked={data().game.showIndexPlChat} onChange={(event) => ctx.settings.update(settings => { settings.game.showIndexPlChat = event.currentTarget.checked; })} />
-				// </SettingRow>
-				<SettingRow label="Связь с сервером Бафии">
-					<span class="bafiaState" style={{ color: bafiaStatus().state == "connected" ? "#2fb44c" : bafiaStatus().state == "offline" ? "#d94452" : undefined }} data-keep>{statusText()}</span>
-				</SettingRow>
-				<SettingRow label="Гифки, история ников и аватарки (сервер Бафии)">
-					<input type="checkbox" checked={bafiaOn()} onChange={(event) => void toggleBafia(event.currentTarget)} />
-				</SettingRow>
-				@if (bafiaOn()) {
+			</div>
+			<div class="body">
+				@if (tab() == "main") {
 					<>
-					<SettingRow label={premium() ? "Премиум до " + new Date(premium()!).toLocaleDateString("ru-RU") : "Премиум"}>
-						<button onClick={() => void buyPremium()}>{premium() ? "Продлить" : "Купить"}</button>
-						<button onClick={() => void enterCode()}>{"Ввести код"}</button>
-					</SettingRow>
-					<SettingRow label="GIF-аватарка">
-						@if (myAvatar()) {
-							<img class="avatarPreview" src={myAvatar()} width="34" height="34" alt="" />
-						}
-						<button onClick={() => avatarChooser.click()}>{myAvatar() ? "Заменить" : "Загрузить"}</button>
-						@if (myAvatar()) {
-							<button onClick={() => void removeAvatar()}>{"Убрать"}</button>
-						}
-						<input ref={avatarChooser} type="file" accept="image/gif,image/webp,image/png" hidden onChange={(event) => void pickAvatar(event.currentTarget)} />
-					</SettingRow>
+						<SettingGroup title="ВНЕШНИЙ ВИД">
+							<SettingRow label="Оформление" hint="Темы, цвета, обои"><button onClick={() => ctx.nav.push("theme")}>{"Настроить"}</button></SettingRow>
+							<SettingRow label="Масштаб">
+								<div class="zoom">
+									<span class="value">{(pendingZoom() ?? data().window.zoom).toFixed(1) + "×"}</span>
+									<input
+										type="range" min={zoomRange.min} max={zoomRange.max} step=".1" value={data().window.zoom}
+										onInput={(event) => setPendingZoom(Number(event.currentTarget.value))}
+										onChange={(event) => { setPendingZoom(undefined); set(settings => { settings.window.zoom = Number(event.currentTarget.value); }); }}
+									/>
+								</div>
+							</SettingRow>
+							<SettingRow label="Интерфейс с маленькой буквы">
+								<Toggle label="Интерфейс с маленькой буквы" checked={data().lowercase} onChange={(value) => set(settings => { settings.lowercase = value; })} />
+							</SettingRow>
+							<SettingRow label="Анимация переходов" hint="Плавное открытие экранов">
+								<Toggle label="Анимация переходов между экранами" checked={data().navAnimation} onChange={(value) => set(settings => { settings.navAnimation = value; })} />
+							</SettingRow>
+						</SettingGroup>
+						<SettingGroup title="СЛАБЫЙ ТЕЛЕФОН">
+							<SettingRow label="Экономия ресурсов" hint="Без анимаций ников и рамок, праздничных эффектов и переходов: меньше нагрузка, если игра лагает">
+								<Toggle label="Экономия ресурсов" checked={data().lowPower} onChange={(value) => set(settings => { settings.lowPower = value; })} />
+							</SettingRow>
+						</SettingGroup>
+						<SettingGroup title="ПРИВАТНОСТЬ И ЯЗЫК">
+							<SettingRow label="Скрывать никнейм везде" hint="Твой ник размывается на экране, удобно для записи и скриншотов">
+								<Toggle label="Скрывать никнейм везде" checked={data().hideUsername} onChange={(value) => set(settings => { settings.hideUsername = value; })} />
+							</SettingRow>
+							<SettingRow label="Язык сервера">
+								<button onClick={() => void ctx.dialogs.manager.open({ title: "ЯЗЫК СЕРВЕРА", render: (close) => LanguageChoice({ ctx, close }) })}>{"Выбрать"}</button>
+							</SettingRow>
+						</SettingGroup>
 					</>
 				}
-				@if (bafiaOn() && premium()) {
-					<SettingRow label="Цвет значка">
-						<div class="swatches">
-							@for (const [name, hex] of Object.entries(PREMIUM_COLORS)) {
-								<button class={ctx.bafia.color == name ? "swatch on" : "swatch"} style={{ background: hex }} aria-label={name} onClick={() => ctx.bafia.setColor(name)}></button>
-							}
-						</div>
-					</SettingRow>
+				@if (tab() == "game") {
+					<>
+						<SettingGroup title="ВО ВРЕМЯ ИГРЫ">
+							<SettingRow label="Опьянение с" hint="Знак в начале сообщения: дальше текст «пьяный» (для бармена)">
+								<input type="text" value={data().game.barmanEffect} onChange={(event) => set(settings => { settings.game.barmanEffect = event.currentTarget.value; })} />
+							</SettingRow>
+							<SettingRow label={'Сообщение «Ты умер»'} hint="Показывать, когда тебя убили">
+								<Toggle label="Показывать сообщение Ты умер" checked={data().game.showYouDiedMessage} onChange={(value) => flag("showYouDiedMessage", value)} />
+							</SettingRow>
+							<SettingRow label="Очищать чат при старте игры" hint="Сообщения регистрации пропадают, когда игра началась">
+								<Toggle label="Удалять сообщения после начала игры" checked={data().game.clearMessages} onChange={(value) => flag("clearMessages", value)} />
+							</SettingRow>
+						</SettingGroup>
+						<SettingGroup title="ИСТОРИЯ">
+							<SettingRow label="Хранить историю игр" hint="Игры можно пересмотреть и отправить другу">
+								<Toggle label="Хранить историю после игры" checked={data().game.saveHistory} onChange={(value) => flag("saveHistory", value)} />
+							</SettingRow>
+						</SettingGroup>
+						<SettingGroup title="ОПЫТЫ">
+							<SettingRow label="Заявки в друзья в игре" hint="Проверять заявки, даже когда ты не в меню (экспериментально)">
+								<Toggle label="Заявки в друзья во время игры" checked={data().game.pollRequests} onChange={(value) => set(settings => { settings.game.pollRequests = value; })} />
+							</SettingRow>
+						</SettingGroup>
+					</>
 				}
-				<SettingRow label="Заявки в друзья во время игры (опыт)">
-					<input type="checkbox" checked={data().game.pollRequests} onChange={(event) => ctx.settings.update(settings => { settings.game.pollRequests = event.currentTarget.checked; })} />
-				</SettingRow>
-				<SettingRow label="Скрывать никнейм везде">
-					<input type="checkbox" checked={data().hideUsername} onChange={(event) => ctx.settings.update(settings => { settings.hideUsername = event.currentTarget.checked; })} />
-				</SettingRow>
-				<SettingRow label="Режим разработчика">
-					<input type="checkbox" checked={data().developer} onChange={(event) => ctx.settings.update(settings => { settings.developer = event.currentTarget.checked; })} />
-				</SettingRow>
-				<SettingRow label="Логи">
-					<button onClick={() => void ctx.dialogs.manager.open({ title: "ЛОГИ", wide: true, render: (close) => LogsView({ close }) })}>{"Получить"}</button>
-				</SettingRow>
+				@if (tab() == "account") {
+					<>
+						<SettingGroup title="ПРОФИЛЬ">
+							<SettingRow label="Пол">
+								<div class="sexes">
+									<button class={sex() === 0 ? "sex on" : "sex"} disabled={sexBusy()} onClick={() => void changeSex(0)}>{"♂ Мужской"}</button>
+									<button class={sex() === 1 ? "sex on" : "sex"} disabled={sexBusy()} onClick={() => void changeSex(1)}>{"♀ Женский"}</button>
+								</div>
+							</SettingRow>
+							@if (registered()) {
+								<SettingRow label="Дата регистрации"><span class="value">{formatDateTime(registered()!)}</span></SettingRow>
+							}
+						</SettingGroup>
+						<SettingGroup title="БЕЗОПАСНОСТЬ">
+							<SettingRow label="Пароль" hint="Ссылка для смены придёт на почту"><button onClick={() => void resetPassword(ctx, ctx.host.account?.email ?? "")}>{"Сменить"}</button></SettingRow>
+						</SettingGroup>
+					</>
+				}
+				@if (tab() == "bafia") {
+					<>
+						<SettingGroup title="СЕРВЕР БАФИИ">
+							<SettingRow label="Связь с сервером" hint="От неё зависят значки Б, гифки и статистика">
+								<span class="bafiaState" style={{ color: bafiaStatus().state == "connected" ? "#2fb44c" : bafiaStatus().state == "offline" ? "#d94452" : undefined }} data-keep>{statusText()}</span>
+							</SettingRow>
+							<SettingRow label="Гифки, ники и аватарки" hint="Согласие на отправку на сервер: история ников, гифки, GIF-аватарки">
+								<Toggle label="Гифки, история ников и аватарки (сервер Бафии)" checked={bafiaOn()} onChange={(value, input) => void toggleBafia(value, input)} />
+							</SettingRow>
+						</SettingGroup>
+						@if (bafiaOn()) {
+							<>
+								<SettingGroup title="АВАТАРКА">
+									<SettingRow label="GIF-аватарка" hint="Анимированная, до 16 МБ; её видят другие игроки Бафии">
+										@if (myAvatar()) {
+											<img class="avatarPreview" src={myAvatar()} width="34" height="34" alt="" />
+										}
+										<button onClick={() => avatarChooser.click()}>{myAvatar() ? "Заменить" : "Загрузить"}</button>
+										@if (myAvatar()) {
+											<button onClick={() => void removeAvatar()}>{"Убрать"}</button>
+										}
+										<input ref={avatarChooser} type="file" accept="image/gif,image/webp,image/png" hidden onChange={(event) => void pickAvatar(event.currentTarget)} />
+									</SettingRow>
+								</SettingGroup>
+								<SettingGroup title="ПРЕМИУМ">
+									<SettingRow label={premium() ? "Премиум до " + new Date(premium()!).toLocaleDateString("ru-RU") : "Премиум"} hint="Цветной значок с рамкой и история игр дольше">
+										<button onClick={() => void buyPremium()}>{premium() ? "Продлить" : "Купить"}</button>
+										<button onClick={() => void enterCode()}>{"Ввести код"}</button>
+									</SettingRow>
+									@if (premium()) {
+										<SettingRow label="Цвет значка">
+											<div class="swatches">
+												@for (const [name, hex] of Object.entries(PREMIUM_COLORS)) {
+													<button class={ctx.bafia.color == name ? "swatch on" : "swatch"} style={{ background: hex }} aria-label={name} onClick={() => ctx.bafia.setColor(name)}></button>
+												}
+											</div>
+										</SettingRow>
+									}
+								</SettingGroup>
+							</>
+						}
+					</>
+				}
+				@if (tab() == "more") {
+					<>
+						<SettingGroup title="ДОПОЛНИТЕЛЬНО">
+							<SettingRow label="Моды" hint="Расширения игры"><button onClick={() => ctx.nav.push("mods")}>{"Открыть"}</button></SettingRow>
+							<SettingRow label="Режим разработчика">
+								<Toggle label="Режим разработчика" checked={data().developer} onChange={(value) => set(settings => { settings.developer = value; })} />
+							</SettingRow>
+							<SettingRow label="Логи" hint="Отчёт для разработчика при проблеме">
+								<button onClick={() => void ctx.dialogs.manager.open({ title: "ЛОГИ", wide: true, render: (close) => LogsView({ close }) })}>{"Получить"}</button>
+							</SettingRow>
+						</SettingGroup>
+						<SettingGroup title="О ПРОГРАММЕ">
+							<SettingRow label="Версия"><span class="value" data-keep>{version}</span></SettingRow>
+						</SettingGroup>
+					</>
+				}
 			</div>
 		</div>
 	</>

@@ -483,6 +483,23 @@ describe("Bafia", () => {
     });
   });
 
+  test("экономия ресурсов: аватарки везде статичные превью, даже там, где обычно играет анимация", async() => {
+    const data = { bafia: { enabled: true, asked: true, key: "k".repeat(24), code: "BAF-GOOD-CODE", color: "gold", favorites: [] }, lowPower: false };
+    const settings = new class extends Events<{ change: () => void }> {
+      data = data;
+      update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
+    }();
+    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+    const bafia = new Bafia({ settings, user, url: "wss://bafia.example.com", createSocket: serverSocket(["pp"], []).create });
+    await tick();
+    bafia.watch([{ id: "pp", nick: "Премиум" }]);
+    await tick();
+    expect(bafia.avatar("pp")).toBe("https://bafia.example.com/a/abcdef12");        // обычно полная анимация
+    data.lowPower = true;
+    expect(bafia.avatar("pp")).toBe("https://bafia.example.com/a/abcdef12/t");      // при экономии - превью
+    bafia.dispose();
+  });
+
   test("ключи случайные", () => {
     expect(newKey()).not.toBe(newKey());
   });

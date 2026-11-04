@@ -30,5 +30,11 @@ export const chatPackets = {
   sendPrivateMessage: clientPacket(K.PRIVATE_CHAT_MESSAGE_CREATE, {
     friendshipId: field(K.FRIENDSHIP, t.string),
     message: field(K.MESSAGE, message)
+  }),
+
+  /** удалить своё личное сообщение у обоих (в официальном приложении только свои; без токена, как отправка); сервер отвечает событием `privateMessageRemoved` */
+  removePrivateMessage: clientPacket("prmd", {
+    friendshipId: field(K.FRIENDSHIP, t.string),
+    messageId: field(K.OBJECT_ID, t.string)
   })
 };

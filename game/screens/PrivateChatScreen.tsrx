@@ -1,5 +1,6 @@
 import { fromEvents, onCleanup, onMount } from "@common/ui";
 import { PrivateChat, toEntries } from "../domain/chat/private";
+import { copyText } from "@common/utils/clipboard";
 import type { ChatEntry } from "../domain/chat/message";
 import { noteHint, outcomeOf, ownRecords, recordTitle } from "../domain/history";
 import { sessionDeps } from "../domain/room/deps";
@@ -20,10 +21,24 @@ export function PrivateChatScreen({ ctx, friendshipId, playerObjectId, username,
 	let known = new Map<number, ChatEntry>();
 	const entries = fromEvents(chat, "change", (): ChatEntry[] => {
 		const me = { playerObjectId: ctx.user.playerObjectId, username: ctx.user.username, photo: ctx.user.photo };
-		const result = toEntries(chat.messages, known, me, { playerObjectId, username, photo });
+		const result = toEntries(chat.visible, known, me, { playerObjectId, username, photo });
 		known = result.known;
 		return result.list;
 	});
+	/**
+	 * долгое нажатие или правая кнопка на сообщении: копировать; своё сообщение можно удалить у обоих (как в официальном приложении),
+	 * чужое - только скрыть у себя (сервер чужие не удаляет)
+	 */
+	const messageMenu = async (entry: ChatEntry, event: Event) => {
+		const mine = chat.messages.find(item => item.id == entry.id)?.from == ctx.user.playerObjectId;
+		const choice = await ctx.dialogs.choose(event, { title: "Сообщение", labels: ["Копировать", mine ? "Удалить" : "Скрыть у себя"] });
+		if(choice == 0) await copyText(entry.text);
+		else if(choice == 1 && !mine) chat.hide(entry.id);
+		else if(choice == 1 && await ctx.dialogs.confirm("Удалить сообщение? Оно пропадёт и у собеседника.", { title: "УДАЛИТЬ", yes: "Удалить" })) {
+			// у сообщения нет номера на сервере (старый ответ без него): тогда хотя бы скрываем у себя
+			if(!chat.remove(entry.id)) chat.hide(entry.id);
+		}
+	};
 	const note = fromEvents(chat, "change", () => chat.typing ? username + " печатает…" : "");
 
 	const resultWord = { win: "победа", lose: "поражение", draw: "ничья" } as const;
@@ -60,7 +75,7 @@ export function PrivateChatScreen({ ctx, friendshipId, playerObjectId, username,
 		</style>
 		<div class="page" style={{ "background-image": background() ? "url(" + background() + ")" : "none" }}>
 			<AppBar title={username} keepCase onBack={() => ctx.nav.pop()} />
-			<ChatView ctx={ctx} entries={entries} myName={myName} hideName={hideName} assets={ctx.assets} send={(text: string) => chat.send(text)} note={note} onAvatar={(id: string) => ctx.openProfile(id)} bafia={ctx.bafia} history={sendHistory} openHistory={openHistory} />
+			<ChatView ctx={ctx} entries={entries} myName={myName} hideName={hideName} assets={ctx.assets} send={(text: string) => chat.send(text)} note={note} onMenu={messageMenu} onAvatar={(id: string) => ctx.openProfile(id)} bafia={ctx.bafia} history={sendHistory} openHistory={openHistory} />
 		</div>
 	</>
 }

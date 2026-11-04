@@ -26,7 +26,7 @@ injectStyle("lowercase", `
 /** корень игры: экраны, окна поверх них и масштаб из настроек */
 export function GameRoot({ ctx, screens }: { ctx: GameContext, screens: Screens<Routes> }) @{
 	const zoom = fromEvents(ctx.settings, "change", () => ctx.settings.data.window.zoom || 1);
-	const navAnimation = fromEvents(ctx.settings, "change", () => ctx.settings.data.navAnimation);
+	const navAnimation = fromEvents(ctx.settings, "change", () => ctx.settings.data.navAnimation && !ctx.settings.data.lowPower);
 	const lowercase = fromEvents(ctx.settings, "change", () => ctx.settings.data.lowercase);
 	// фон по умолчанию у всех экранов - как в меню; пока картинка не загрузилась, обычный фон темы
 	// обои темы; если игрок заменил «Фон меню» своей картинкой, то она важнее

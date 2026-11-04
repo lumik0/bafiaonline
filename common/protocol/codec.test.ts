@@ -59,3 +59,13 @@ describe("decode", () => {
     expect(message).toMatchObject({ name: "userBlocked", data: {} });
   });
 });
+
+describe("удаление личного сообщения", () => {
+  test("запрос: дружба и номер сообщения, без токена (как в официальном приложении); событие приносит номер удалённого", () => {
+    expect(JSON.parse(encode("removePrivateMessage", { friendshipId: "fr1", messageId: "m2" }))).toEqual({ ty: "prmd", fp: "fr1", o: "m2" });
+    const event = decode(JSON.stringify({ ty: "prmd", o: "m2" }));
+    expect(event.name).toBe("privateMessageRemoved");
+    expect((event as { data: { messageId: string } }).data.messageId).toBe("m2");
+  });
+});
+

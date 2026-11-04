@@ -207,3 +207,23 @@ test("у тёмной и светлой тем свои обои, у остал�
   theme.select("daylight");
   expect(theme.wallpaper.path).toBe("textures/backgrounds/light.jpg");
 });
+
+test("тихий режим (экономия ресурсов): эффект темы не показывается и возвращается после выключения; о смене сообщается один раз", () => {
+  const { target } = fakeTarget();
+  const theme = new ThemeManager(target);
+  theme.select("halloween");
+  expect(theme.effect).toBe("halloween");
+  expect(theme.shownEffect).toBe("halloween");
+
+  let changes = 0;
+  theme.on("change", () => { changes++; });
+  theme.setQuiet(true);
+  expect(theme.shownEffect).toBe("none");
+  expect(theme.effect).toBe("halloween");              // сам эффект темы не потерян
+  theme.setQuiet(true);                                // то же значение - ничего не происходит
+  expect(changes).toBe(1);
+
+  theme.setQuiet(false);
+  expect(theme.shownEffect).toBe("halloween");
+  expect(changes).toBe(2);
+});

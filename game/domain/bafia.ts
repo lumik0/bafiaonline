@@ -358,7 +358,7 @@ export const FAVORITES_MAX = 200;
 export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[] }
 
 export interface BafiaDeps {
-  settings: { data: { bafia: BafiaSettings }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
+  settings: { data: { bafia: BafiaSettings, lowPower?: boolean }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
   user: { playerObjectId: string, username: string, on(event: "change", listener: () => void): unknown }
   url: string
   createSocket?: BafiaLinkOptions["createSocket"]
@@ -419,7 +419,8 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
     const mine = id == this.deps.user.playerObjectId;
     const path = mine ? link.myAvatar : link.avatars.get(id);
     // small - маленькое статичное превью для чата и списков: десятки анимированных аватарок сразу лагают на телефоне
-    return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + (small ? "/t" : "") : undefined;
+    // при экономии ресурсов анимации не крутятся нигде: везде статичное превью
+    return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + (small || this.deps.settings.data.lowPower ? "/t" : "") : undefined;
   }
   get myAvatarUrl() { return this.avatar(this.deps.user.playerObjectId); }
 

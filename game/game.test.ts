@@ -142,6 +142,8 @@ describe("игра", () => {
     await tick(30);
     press("Настройки");
     await tick(350);
+    click("Аккаунт");                                   // смена пароля - на вкладке «Аккаунт»
+    await tick(20);
     const row = [...window.content.querySelectorAll(".row")].find(item => item.textContent?.includes("Пароль"))!;
     expect(row).toBeTruthy();
     [...row.querySelectorAll("button")].find(button => button.textContent == "Сменить")!.click();
@@ -272,20 +274,28 @@ describe("игра", () => {
     await tick(350);
 
     const rows = () => [...window.content.querySelectorAll(".row")].map(row => row.textContent ?? "");
-    expect(rows().some(row => row.includes("Премиум"))).toBe(false);
+    const tabs = () => [...window.content.querySelectorAll<HTMLElement>(".tab")];
+    expect(tabs().map(tab => tab.textContent)).toEqual(["Основное", "Игра", "Аккаунт", "Бафия", "Ещё"]);
+    expect(tabs().filter(tab => tab.classList.contains("on")).map(tab => tab.textContent)).toEqual(["Основное"]);
 
-    // дата регистрации появляется, когда сервер её прислал
+    // дата регистрации (вкладка «Аккаунт») появляется, когда сервер её прислал
+    click("Аккаунт");
+    await tick(20);
     expect(rows().some(row => row.includes("Дата регистрации"))).toBe(false);
     game.ctx.user.created = Date.UTC(2024, 0, 15, 12, 0);
     game.ctx.user.emit("change");
     await tick(20);
     expect(rows().find(row => row.includes("Дата регистрации"))).toMatch(/15\.01\.2024/);
 
+    // строка «Премиум» (вкладка «Бафия») появляется только после согласия на сервер
+    click("Бафия");
+    await tick(20);
+    expect(rows().some(row => row.includes("Премиум"))).toBe(false);
     game.ctx.settings.update(settings => { settings.bafia.enabled = true; });
     await tick(20);
     expect(rows().some(row => row.includes("Премиум"))).toBe(true);
     // состояние связи с сервером Бафии видно в настройках: в тесте сокет молчит, значит «подключаюсь»
-    expect(rows().find(row => row.includes("Связь с сервером Бафии"))).toContain("подключаюсь");
+    expect(rows().find(row => row.includes("Связь с сервером"))).toContain("подключаюсь");
 
     // «Купить»: сначала окно с преимуществами, бот открывается только после согласия
     const opened: string[] = [];
@@ -305,6 +315,56 @@ describe("игра", () => {
     await tick();
     expect(opened).toEqual(["https://t.me/bafiaonlineopt_bot"]);
     globalThis.open = original;
+    expect(game.ctx.crash()).toBeUndefined();
+  });
+
+  test("настройки: каждая вкладка показывает своё; переключатель сохраняет значение; «Экономия ресурсов» выключает анимации и переходы", async() => {
+    const { press, click, window, game } = await launch({ email: "a@b.c", password: "правильный" });
+    await tick(10);
+    press("Настройки");
+    await tick(350);
+    const labels = () => [...window.content.querySelectorAll(".row .label")].map(item => item.textContent);
+    const toggle = (label: string) => window.content.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+
+    expect(labels()).toEqual(expect.arrayContaining(["Оформление", "Масштаб", "Экономия ресурсов", "Скрывать никнейм везде", "Язык сервера"]));
+    expect(labels()).not.toContain("Пароль");                  // это на вкладке «Аккаунт»
+
+    click("Игра");
+    await tick(20);
+    expect(labels()).toEqual(expect.arrayContaining(["Опьянение с", "Хранить историю игр"]));
+    expect(labels()).not.toContain("Оформление");
+    const history = toggle("Хранить историю после игры");
+    expect(history.checked).toBe(true);
+    history.checked = false;
+    history.dispatchEvent(new Event("change", { bubbles: true }));
+    await tick(20);
+    expect(game.ctx.settings.data.game.saveHistory).toBe(false);
+
+    click("Аккаунт");
+    await tick(20);
+    expect(labels()).toEqual(expect.arrayContaining(["Пол", "Пароль"]));
+
+    click("Ещё");
+    await tick(20);
+    expect(labels()).toEqual(expect.arrayContaining(["Моды", "Режим разработчика", "Логи", "Версия"]));
+    expect(window.content.textContent).toContain(`Beta ${versionNumber}`);
+
+    // экономия ресурсов: настройка, анимации украшений и праздничные эффекты выключаются, переходы между экранами тоже
+    const { animationsOff } = await import("./ui/animation-source");
+    expect(animationsOff()).toBe(false);
+    click("Основное");
+    await tick(20);
+    const saving = toggle("Экономия ресурсов");
+    saving.checked = true;
+    saving.dispatchEvent(new Event("change", { bubbles: true }));
+    await tick(20);
+    expect(game.ctx.settings.data.lowPower).toBe(true);
+    expect(animationsOff()).toBe(true);
+    expect(game.ctx.theme.shownEffect).toBe("none");
+    saving.checked = false;
+    saving.dispatchEvent(new Event("change", { bubbles: true }));
+    await tick(20);
+    expect(animationsOff()).toBe(false);
     expect(game.ctx.crash()).toBeUndefined();
   });
 
@@ -424,6 +484,65 @@ describe("игра", () => {
     await tick(400);
     expect(game.ctx.nav.top?.name).toBe("menu");
     expect(window.content.querySelectorAll(".count")).toHaveLength(0);
+  });
+
+  test("личный чат: своё сообщение удаляется у обоих (меню «Копировать» и «Удалить», подтверждение, событие сервера), чужое скрывается у себя и не возвращается после перезахода", async() => {
+    const { network, window, click, text, game } = await launch({ email: "a@b.c", password: "правильный" });
+    await tick(10);
+    const base = network.respond!;
+    network.respond = (packet, socket) => {
+      if(packet.ty == "acfl") socket.receive({ ty: "frl", frl: { frl: [{ o: "fr1", ff: { puo: "p2", u: "Друг", on: true } }] } });
+      else if(packet.ty == "acpc") socket.receive({ ty: "pcmsr", ms: [{ o: "m1", puo: "p2", tx: "привет", c: 1000, a: 1 }, { o: "m2", puo: "p1", tx: "лишнее сообщение", c: 2000, a: 1 }, { o: "m3", puo: "p2", tx: "как дела", c: 3000, a: 1 }] });
+      else if(packet.ty == "prmd") socket.receive({ ty: "prmd", o: packet.o });          // сервер подтверждает удаление событием
+      else base(packet, socket);
+    };
+    const openChat = async() => {
+      click("Друзья");
+      await tick(350);
+      window.content.querySelector<HTMLElement>(".item")!.click();
+      await tick(350);
+    };
+    const message = (part: string) => [...window.content.querySelectorAll<HTMLElement>(".text")].find(item => item.textContent?.includes(part))!;
+    const menu = async(part: string) => {
+      message(part).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 30, clientY: 30 }));
+      await tick();
+      return [...window.content.querySelectorAll<HTMLElement>(".menu .item")];
+    };
+
+    await openChat();
+    expect(text()).toContain("лишнее сообщение");
+
+    // своё сообщение: «Удалить» с подтверждением, у обоих
+    const own = await menu("лишнее");
+    expect(own.map(item => item.textContent)).toEqual(["Копировать", "Удалить"]);
+    own[1]!.click();
+    await tick();
+    expect(text()).toContain("Оно пропадёт и у собеседника");
+    expect(network.last.sent.some(packet => packet.ty == "prmd")).toBe(false);        // до подтверждения ничего не ушло
+    click("Удалить");
+    await tick(20);
+    expect(network.last.sent.find(packet => packet.ty == "prmd")).toEqual({ ty: "prmd", fp: "fr1", o: "m2" });
+    expect(text()).not.toContain("лишнее сообщение");
+
+    // чужое сообщение: удалять нельзя, только скрыть у себя
+    const foreign = await menu("как дела");
+    expect(foreign.map(item => item.textContent)).toEqual(["Копировать", "Скрыть у себя"]);
+    foreign[1]!.click();
+    await tick(20);
+    expect(text()).not.toContain("как дела");
+    expect(text()).toContain("привет");
+    expect(game.ctx.settings.data.hiddenPrivate.fr1).toHaveLength(1);
+    expect(network.last.sent.filter(packet => packet.ty == "prmd")).toHaveLength(1);   // чужое сервер не получил
+
+    // вышли и зашли снова: скрытое у себя не вернулось (а удалённое у обоих и так нет на сервере)
+    window.content.querySelector<HTMLElement>("button[aria-label=Назад]")!.click();
+    await tick(350);
+    window.content.querySelector<HTMLElement>("button[aria-label=Назад]")!.click();
+    await tick(350);
+    await openChat();
+    expect(text()).toContain("привет");
+    expect(text()).not.toContain("как дела");
+    expect(game.ctx.crash()).toBeUndefined();
   });
 
   test("друзья: список, переход в личный чат, принятие заявки, удаление с подтверждением", async() => {

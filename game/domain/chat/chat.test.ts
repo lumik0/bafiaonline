@@ -5,7 +5,7 @@ import { createStorage, MemoryFileStore } from "@common/storage";
 import { Friends } from "../friends";
 import { SettingsStore } from "../settings";
 import { GlobalChat } from "./global";
-import { PrivateChat, toEntries, type PrivateMessage } from "./private";
+import { HIDDEN_MAX, messageKey, PrivateChat, toEntries, type PrivateMessage } from "./private";
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -174,6 +174,119 @@ describe("подписка чатов после переподключения"
     chat.close();
     chat.resubscribe();
     expect(network.last.sent.filter(packet => packet.ty == "acpc")).toHaveLength(2);
+  });
+});
+
+describe("удаление личных сообщений у себя", () => {
+  const history = (network: { last: { receive(packet: unknown): void } }) =>
+    network.last.receive({ ty: "pcmsr", ms: [{ o: "m1", puo: "p2", tx: "привет", c: 1000, a: 1 }, { o: "m2", puo: "p1", tx: "ку", c: 2000, a: 1 }, { o: "m3", puo: "p2", tx: "как дела", c: 3000, a: 1 }] });
+
+  test("удалённое пропадает у меня и остаётся в сохранённых настройках; собеседника это не касается (сообщение в списке целиком)", async() => {
+    const { network, client, settings } = await setup();
+    const chat = new PrivateChat(client, settings, "fr1");
+    chat.open();
+    history(network);
+    const changes: number[] = [];
+    chat.on("change", () => changes.push(1));
+
+    expect(chat.hide(chat.messages[1]!.id)).toBe(true);
+    expect(chat.visible.map(message => message.text)).toEqual(["привет", "как дела"]);
+    expect(chat.messages).toHaveLength(3);                       // сами данные не тронуты
+    expect(changes).toHaveLength(1);
+    expect(settings.data.hiddenPrivate.fr1).toEqual([messageKey(chat.messages[1]!)]);
+
+    expect(chat.hide(9999)).toBe(false);                         // такого сообщения нет
+    chat.hide(chat.messages[1]!.id);                             // повторное удаление ничего не дублирует
+    expect(settings.data.hiddenPrivate.fr1).toHaveLength(1);
+  });
+
+  test("после перезахода (сообщения загрузились заново, номера другие) удалённое остаётся удалённым; в другой переписке такого же текста - нет", async() => {
+    const { network, client, settings } = await setup();
+    const chat = new PrivateChat(client, settings, "fr1");
+    chat.open();
+    history(network);
+    chat.hide(chat.messages[2]!.id);
+
+    const again = new PrivateChat(client, settings, "fr1");
+    again.open();
+    history(network);
+    expect(again.messages[2]!.id).not.toBe(chat.messages[2]!.id);   // номер другой, ключ тот же
+    expect(again.visible.map(message => message.text)).toEqual(["привет", "ку"]);
+
+    const other = new PrivateChat(client, settings, "fr2");
+    other.open();
+    history(network);
+    expect(other.visible).toHaveLength(3);
+  });
+
+  test("ключ зависит от времени, автора и текста; помним не больше лимита, самые старые забываются", async() => {
+    expect(messageKey({ from: "p1", text: "а", created: 1 })).not.toBe(messageKey({ from: "p2", text: "а", created: 1 }));
+    expect(messageKey({ from: "p1", text: "а", created: 1 })).not.toBe(messageKey({ from: "p1", text: "б", created: 1 }));
+    expect(messageKey({ from: "p1", text: "а", created: 1 })).not.toBe(messageKey({ from: "p1", text: "а", created: 2 }));
+    expect(messageKey({ from: "p1", text: "а", created: 1 })).toBe(messageKey({ from: "p1", text: "а", created: 1 }));
+
+    const { network, client, settings } = await setup();
+    const chat = new PrivateChat(client, settings, "fr1");
+    chat.open();
+    network.last.receive({ ty: "pcmsr", ms: Array.from({ length: 150 }, (_, i) => ({ o: "m" + i, puo: "p2", tx: "текст " + i, c: 1000 + i, a: 1 })) });
+    for(let round = 0; round < 4; round++) {
+      for(const message of [...chat.visible]) chat.hide(message.id);
+      network.last.receive({ ty: "pcmsr", ms: Array.from({ length: 150 }, (_, i) => ({ o: "m" + i, puo: "p2", tx: `текст ${round + 1}.${i}`, c: 1000 + i, a: 1 })) });
+    }
+    expect(settings.data.hiddenPrivate.fr1!.length).toBeLessThanOrEqual(HIDDEN_MAX);
+  });
+});
+
+describe("удаление личных сообщений у обоих", () => {
+  const history = (network: { last: { receive(packet: unknown): void } }) =>
+    network.last.receive({ ty: "pcmsr", ms: [{ o: "m1", puo: "p2", tx: "привет", c: 1000, a: 1 }, { o: "m2", puo: "p1", tx: "моё сообщение", c: 2000, a: 1 }, { puo: "p1", tx: "без номера", c: 2500, a: 1 }, { o: "m3", puo: "p2", tx: "как дела", c: 3000, a: 1 }] });
+
+  test("у сообщения есть номер сервера; удаление шлёт запрос, а пропадает сообщение только по событию сервера", async() => {
+    const { network, client, settings } = await setup();
+    const chat = new PrivateChat(client, settings, "fr1");
+    chat.open();
+    history(network);
+    expect(chat.messages.map(message => message.objectId)).toEqual(["m1", "m2", undefined, "m3"]);
+
+    expect(chat.remove(chat.messages[1]!.id)).toBe(true);
+    expect(network.last.sent.at(-1)).toEqual({ ty: "prmd", fp: "fr1", o: "m2" });
+    expect(chat.messages).toHaveLength(4);                       // до ответа сервера сообщение на месте
+
+    const changes: number[] = [];
+    chat.on("change", () => changes.push(1));
+    network.last.receive({ ty: "prmd", o: "m2" });
+    expect(chat.messages.map(message => message.text)).toEqual(["привет", "без номера", "как дела"]);
+    expect(changes).toHaveLength(1);
+  });
+
+  test("собеседник удалил своё сообщение - оно пропадает и у тебя; событие про неизвестное сообщение ничего не меняет", async() => {
+    const { network, client, settings } = await setup();
+    const chat = new PrivateChat(client, settings, "fr1");
+    chat.open();
+    history(network);
+    const changes: number[] = [];
+    chat.on("change", () => changes.push(1));
+
+    network.last.receive({ ty: "prmd", o: "m3" });
+    expect(chat.messages.map(message => message.text)).toEqual(["привет", "моё сообщение", "без номера"]);
+    network.last.receive({ ty: "prmd", o: "нет такого" });
+    expect(chat.messages).toHaveLength(3);
+    expect(changes).toHaveLength(1);
+  });
+
+  test("нет номера на сервере или такого сообщения - запрос не уходит; после close события не слушаются", async() => {
+    const { network, client, settings } = await setup();
+    const chat = new PrivateChat(client, settings, "fr1");
+    chat.open();
+    history(network);
+    const sent = network.last.sent.length;
+    expect(chat.remove(chat.messages[2]!.id)).toBe(false);       // «без номера»
+    expect(chat.remove(99999)).toBe(false);
+    expect(network.last.sent).toHaveLength(sent);
+
+    chat.close();
+    network.last.receive({ ty: "prmd", o: "m1" });
+    expect(chat.messages.map(message => message.objectId)).toContain("m1");
   });
 });
 

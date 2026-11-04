@@ -150,6 +150,17 @@ export class ThemeManager extends Events<{ change: (changed: TokenKey[]) => void
     return effect ?? getPreset(base)?.effect ?? "none";
   }
 
+  /** эффект, который реально показывается: при экономии ресурсов (`quiet`) - никакого */
+  get shownEffect(): string { return this.quiet ? "none" : this.effect; }
+
+  private quiet = false;
+  /** экономия ресурсов: праздничные эффекты поверх интерфейса не показываются */
+  setQuiet(value: boolean) {
+    if(this.quiet == value) return;
+    this.quiet = value;
+    this.emit("change");
+  }
+
   isOverridden(key: TokenKey) { return key in this.current.overrides; }
 
   async load() {

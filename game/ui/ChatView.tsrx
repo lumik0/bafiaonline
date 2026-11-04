@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createEffect, createSignal, fromEvents, onCleanup, onMount } from "@common/ui";
+import { longPress } from "@common/ui/long-press";
 import type { Assets } from "@common/assets";
 import { formatDateTime } from "@common/utils/format";
 import { animationOf, DecorationType, nickStyle, photoRing } from "../domain/decorations";
@@ -24,7 +25,7 @@ export interface ChatController {
 }
 
 /** общая часть всех чатов: сообщения по группам, смайлики, упоминания, ввод. Данные и отправку даёт экран */
-export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvatar, controller, note, expand, extra, nickPrefix, readonly, externalInput, bafia, openHistory, history, placeholder = "Сообщение" }: {
+export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvatar, controller, note, expand, extra, nickPrefix, readonly, externalInput, bafia, openHistory, history, onMenu, placeholder = "Сообщение" }: {
 	ctx: GameContext,
 	entries: () => readonly ChatEntry[], myName: () => string, hideName: () => boolean, assets: Assets,
 	send: (text: string) => void, onAvatar?: (playerObjectId: string) => void, controller?: ChatController,
@@ -44,10 +45,13 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	/** игра из ссылки `[hist:…]`: открыть (только в личных сообщениях) */
 	openHistory?: (id: string) => void,
 	/** кнопка «отправить игру из истории» у поля ввода (только в личных сообщениях) */
-	history?: () => void
+	history?: () => void,
+	/** меню сообщения (правая кнопка мыши или долгое нажатие пальцем): только в личных сообщениях */
+	onMenu?: (entry: ChatEntry, event: Event) => void
 }) @{
 	let scroller!: HTMLDivElement;
 	let content!: HTMLDivElement;
+	const longTap = longPress();
 	// премиум Бафии: значок и рамка ника в его цвете
 	const bafiaVersion = bafia ? fromEvents(bafia, "change", () => ({})) : () => 0;
 	const premiumColor = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.premiumColor(id) : undefined; };
@@ -116,6 +120,8 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 			.blur { filter: blur(5px); }
 			.text { user-select: text; -webkit-user-select: text; font-size: 14px; line-height: 1.35; padding: 1px 4px; margin-left: -4px; border-radius: 4px; align-self: flex-start; }
 			.text.unread { background: var(--chat-unread-bg); }
+			/* сообщение с меню: долгое нажатие открывает его, поэтому системное выделение и всплывающая подсказка iOS не нужны (копировать можно из меню) */
+			.text.menuable { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 			.time { display: block; font-size: 10px; opacity: .6; }
 			.mention, .index { color: var(--chat-mention); font-weight: 700; }
 			.text img, .emoji { width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; }
@@ -137,7 +143,9 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 									{animationOf(row.group.user.decorations, DecorationType.UsernameAnimation) ? <Lottie animation={() => animationOf(row.group.user.decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" /> : null}{nickPrefix?.(row.group.user.username) ? <span class="index">{nickPrefix(row.group.user.username)}</span> : null}{row.group.user.username}{badgeOf(row.group.user.playerObjectId) ? <PremiumBadge color={badgeOf(row.group.user.playerObjectId)!.color} title={badgeOf(row.group.user.playerObjectId)!.title} /> : null}<span class="vip">{row.group.user.vip ?? ""}</span>{row.group.entries[0]?.label ? <span class="label">{" · " + row.group.entries[0].label}</span> : null}
 								</span>
 								@for (const entry of row.group.entries) {
-									<span class={entry.unread ? "text unread" : "text"} data-keep style={{ color: lineColor(entry), ...(entry.unread ? {} : { background: lineBackground(entry) }) }}>
+									<span class={(entry.unread ? "text unread" : "text") + (onMenu ? " menuable" : "")} data-keep style={{ color: lineColor(entry), ...(entry.unread ? {} : { background: lineBackground(entry) }) }}
+										onContextMenu={(event) => { if(!onMenu) return; event.preventDefault(); if((event as PointerEvent).pointerType != "touch") onMenu(entry, event); }}
+										onPointerDown={(event) => { if(onMenu) longTap.down(event, () => onMenu(entry, event)); }} onPointerMove={longTap.move} onPointerUp={longTap.cancel} onPointerCancel={longTap.cancel} onPointerLeave={longTap.cancel}>
 										@for (const part of parseText(entry.text, myName())) {
 											@if (part.kind == "emoji") {
 												<img src={emoji()[part.name]} alt={part.name} />

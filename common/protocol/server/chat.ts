@@ -49,6 +49,8 @@ export const chatMessages = {
 
   privateChatMessages: serverPacket("pcmsr", { messages: field(K.MESSAGES, t.array(privateMessage)) }),
   privateChatMessage: serverPacket("pcmr", { message: field(K.MESSAGE, privateMessage) }),
+  /** личное сообщение удалено (кем-то из двоих): пропадает у обоих; приходит и тому, кто удалил */
+  privateMessageRemoved: serverPacket("prmd", { messageId: field(K.OBJECT_ID, t.string) }),
   /** собеседник начал / закончил печатать */
   privateTypingStarted: serverPacket("pruit", {}),
   privateTypingStopped: serverPacket("pruint", {})

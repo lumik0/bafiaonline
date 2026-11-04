@@ -5,7 +5,7 @@ import { Halloween } from "./Halloween.tsrx";
 
 /** эффект выбранной темы поверх всего интерфейса; не перехватывает нажатия */
 export function EffectsLayer({ theme }: { theme: ThemeManager }) @{
-	const effect = fromEvents(theme, "change", () => theme.effect);
+	const effect = fromEvents(theme, "change", () => theme.shownEffect);
 
 	<>
 		@if (effect() == "halloween") {

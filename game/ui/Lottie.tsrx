@@ -1,7 +1,7 @@
 import { createEffect, onCleanup } from "@common/ui";
 import type { AnimationItem } from "lottie-web";
 import type { DecorationAnimation } from "../domain/decorations";
-import { animationSource } from "./animation-source";
+import { animationSource, animationsOff } from "./animation-source";
 
 /** анимация украшения под содержимым (z-index -1); родитель: position relative, isolation isolate */
 export function Lottie({ animation, inset = "0", onError }: { animation: () => DecorationAnimation | undefined, inset?: string, onError?: (reason: string) => void }) @{
@@ -9,9 +9,10 @@ export function Lottie({ animation, inset = "0", onError }: { animation: () => D
 
 	createEffect(() => {
 		const spec = animation();
-		if(!box || !spec) return;
-		let player: AnimationItem | undefined, gone = false;
-		onCleanup(() => { gone = true; player?.destroy(); });
+		// экономия ресурсов: анимации не создаём совсем (библиотека даже не загружается)
+		if(!box || !spec || animationsOff()) return;
+		let player: AnimationItem | undefined, gone = false, observer: IntersectionObserver | undefined;
+		onCleanup(() => { gone = true; observer?.disconnect(); player?.destroy(); });
 		// библиотека тяжёлая и нужна не всем: грузим, когда понадобилась первая анимация
 		// сначала файл из образа игры, потом сервер (напрямую из браузера он обычно закрыт CORS)
 		const load = async(animation: DecorationAnimation): Promise<unknown> => {
@@ -33,6 +34,13 @@ export function Lottie({ animation, inset = "0", onError }: { animation: () => D
 			if(gone) return;
 			player = lottie.loadAnimation({ container: box, renderer: "svg", loop: true, autoplay: true, animationData, rendererSettings: { preserveAspectRatio: "xMidYMid meet" } });
 			player.setSpeed(spec.speed);
+			// кадры только целые, без промежуточных: на телефоне это заметно легче
+			player.setSubframe(false);
+			// играет только то, что видно на экране: в длинном чате десятки анимированных ников, а видны единицы
+			if(typeof IntersectionObserver != "undefined") {
+				observer = new IntersectionObserver(entries => { for(const entry of entries) entry.isIntersecting ? player?.play() : player?.pause(); });
+				observer.observe(box);
+			}
 			// оттенок заменяет цвета анимации, как в приложении
 			if(spec.color) player.addEventListener("DOMLoaded", () => {
 				for(const element of box.querySelectorAll<SVGElement>("path, rect, circle, ellipse")) {
