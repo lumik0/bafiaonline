@@ -18,17 +18,20 @@ export function loadScript(src: string): Promise<void> {
   });
 }
 
-/** образ из `bin/assets.*.js`: работает и с диска (file://), в отличие от fetch */
-export const scriptAssetsSource = (base = "./bin"): AssetsSource => ({
+/**
+ * образ из `bin/assets.*.js`: работает и с диска (file://), в отличие от fetch
+ * `suffix` - метка сборки в адресе (`?v=...`): без неё браузер мог взять старый файл из кэша
+ */
+export const scriptAssetsSource = (base = "./bin", suffix = ""): AssetsSource => ({
   async meta() {
-    await loadScript(`${base}/assets.meta.js`);
+    await loadScript(`${base}/assets.meta.js${suffix}`);
     const meta = globals().assetsMeta;
     delete globals().assetsMeta;
     if(!meta) throw new Error("В assets.meta.js нет оглавления");
     return meta;
   },
   async data() {
-    await loadScript(`${base}/assets.js`);
+    await loadScript(`${base}/assets.js${suffix}`);
     const data = globals().assetsData;
     delete globals().assetsData;
     if(!data) throw new Error("В assets.js нет данных");
