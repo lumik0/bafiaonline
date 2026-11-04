@@ -19,7 +19,9 @@ export function GlobalChatScreen({ ctx }: { ctx: GameContext }) @{
 	const background = fromEvents(ctx.assets, "change", () => ctx.assets.url("textures/backgrounds/day3.png"));
 
 	onMount(() => chat.open());
-	onCleanup(() => chat.close());
+	// после переподключения подписка на чат пропадает: подписываемся заново, иначе сообщения перестают показываться
+	const reconnect = ctx.auth.on("signedIn", (_account, reconnected) => { if(reconnected) chat.resubscribe(); });
+	onCleanup(() => { reconnect.remove(); chat.close(); });
 
 	const openProfile = (playerObjectId: string) => ctx.openProfile(playerObjectId);
 

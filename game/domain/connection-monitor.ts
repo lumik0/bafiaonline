@@ -35,6 +35,7 @@ export class ConnectionMonitor {
   private lastMessage: number;
   private lastReconnect = -Infinity;
   private reconnects = 0;
+  private quiet = false;
   private handles: { remove(): void }[] = [];
   private timer?: unknown;
   private cleanup: (() => void)[] = [];
@@ -57,7 +58,7 @@ export class ConnectionMonitor {
       }),
       client.on("close", willReconnect => {
         // пока игра ещё ни разу не соединилась, об этом говорит экран загрузки
-        if(!this.wasOpen || !willReconnect) return;
+        if(!this.wasOpen || !willReconnect || this.quiet) return;
         this.attempts++;
         this.down = true;
         this.stale = false;
@@ -85,6 +86,12 @@ export class ConnectionMonitor {
     }
 
     this.timer = (this.deps.schedule ?? setInterval)(() => this.check(), 2000);
+  }
+
+  /** сознательное переподключение (после долгого фона): обрыв и возвращение связи показывать игроку незачем */
+  quietReconnect(action: () => void) {
+    this.quiet = true;
+    try { action(); } finally { this.quiet = false; }
   }
 
   private recovered() {

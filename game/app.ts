@@ -15,6 +15,7 @@ import { Auth, signInProblem } from "./domain/auth";
 import { Friends } from "./domain/friends";
 import type { WorkerLike } from "@mods/index";
 import { ConnectionMonitor } from "./domain/connection-monitor";
+import { ForegroundWatch } from "./domain/foreground";
 import { enterRoom } from "./domain/rooms/enter";
 import type { RoomSession } from "./domain/room/session";
 import { isMobile } from "@common/utils/mobile";
@@ -252,6 +253,9 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     return session && !session.replay && session.state.status != 4 ? session : undefined;
   };
   auth.keepSubscription = () => !!activeSession();
+  // вернулись на вкладку после долгого фона: сокет мог тихо умереть, поэтому открываем соединение заново, пока вне игры
+  const foreground = new ForegroundWatch({ document, window, busy: () => !!activeSession(), reconnect: () => monitor.quietReconnect(() => client.connection.reset()) });
+  foreground.start();
   ctx.rooms.isActive = () => nav.top?.name == "rooms";
   auth.on("signedIn", (_account, reconnected) => {
     if(!reconnected) return;
@@ -308,6 +312,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     alerts.stop();
     unbindBack?.();
     monitor.stop();
+    foreground.stop();
     client.close();
     client.removeAllListeners();
   };

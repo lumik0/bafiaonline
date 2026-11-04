@@ -50,7 +50,9 @@ export function PrivateChatScreen({ ctx, friendshipId, playerObjectId, username,
 	};
 
 	onMount(() => chat.open());
-	onCleanup(() => chat.close());
+	// после переподключения подписка на переписку пропадает: открываем заново, иначе сообщения перестают показываться
+	const reconnect = ctx.auth.on("signedIn", (_account, reconnected) => { if(reconnected) chat.resubscribe(); });
+	onCleanup(() => { reconnect.remove(); chat.close(); });
 
 	<>
 		<style>

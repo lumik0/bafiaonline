@@ -1,5 +1,7 @@
-// Сначала сеть, при отсутствии связи - то, что запомнили. Так игрок всегда получает свежую версию.
-const CACHE = "bafia-play-v1";
+// Кэшируется только сама страница игры (чтобы она открывалась без сети): сначала сеть, при отсутствии связи - запомненная копия.
+// Остальные файлы (код, картинки, анимации) идут напрямую: перехват каждого запроса замедляет игру на телефоне,
+// а Safari к тому же усыпляет воркер, и каждый запрос после простоя ждёт его пробуждения.
+const CACHE = "bafia-play-v2";
 
 self.addEventListener("install", event => {
   self.skipWaiting();
@@ -15,7 +17,8 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("fetch", event => {
-  if(event.request.method != "GET" || !event.request.url.startsWith(self.location.origin)) return;
+  // только открытие страницы; всё остальное браузер грузит сам
+  if(event.request.method != "GET" || event.request.mode != "navigate" || !event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
     fetch(event.request)
@@ -26,6 +29,6 @@ self.addEventListener("fetch", event => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(event.request).then(cached => cached ?? caches.match("./play.html")))
   );
 });

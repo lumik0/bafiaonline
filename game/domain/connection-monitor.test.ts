@@ -140,5 +140,23 @@ describe("уведомления о связи", () => {
     advance(8000);
     expect(reconnects).toHaveLength(1);
   });
-});
 
+  test("сознательное переподключение (после долгого фона) обрыв не показывает, а настоящий обрыв после него - показывает", () => {
+    const { client, shown, monitor, last } = setup();
+    client.emit("open");
+    monitor.quietReconnect(() => client.emit("close", true));     // reset() сразу сообщает о закрытии
+    client.emit("open");
+    expect(shown).toEqual([]);                                     // ни «нет связи», ни «связь восстановлена»
+
+    client.emit("close", true);                                    // настоящий обрыв
+    expect(last()).toMatchObject({ title: "Нет связи с сервером" });
+  });
+
+  test("тихое переподключение, которое ничего не закрыло, не глушит следующий настоящий обрыв", () => {
+    const { client, monitor, last } = setup();
+    client.emit("open");
+    monitor.quietReconnect(() => {});                              // соединения не было, close не пришёл
+    client.emit("close", true);
+    expect(last()).toMatchObject({ title: "Нет связи с сервером" });
+  });
+});

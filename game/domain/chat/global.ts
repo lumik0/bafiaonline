@@ -26,6 +26,14 @@ export class GlobalChat extends Events<{ change: () => void }> {
     this.client.send("addClientToChat");
   }
 
+  /**
+   * связь переоткрылась: вход в аккаунт переключил подписку клиента на дашборд, и чат молча перестал приходить
+   * (свои сообщения уходят, а их и чужие не видно). Подписываемся заново, сервер пришлёт чат целиком
+   */
+  resubscribe() {
+    if(this.handles.length) this.client.send("addClientToChat");
+  }
+
   send(text: string, options: { style?: number, sticker?: boolean } = {}) {
     const message = applyBarmanEffect(text, this.settings.data.game.barmanEffect);
     if(!message.trim()) return;

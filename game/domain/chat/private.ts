@@ -71,6 +71,11 @@ export class PrivateChat extends Events<{ change: () => void }> {
     this.client.send("openPrivateChat", { friendshipId: this.friendshipId });
   }
 
+  /** связь переоткрылась: подписка на переписку пропала (вход в аккаунт переключил её), открываем заново, сервер пришлёт сообщения целиком */
+  resubscribe() {
+    if(this.handles.length) this.client.send("openPrivateChat", { friendshipId: this.friendshipId });
+  }
+
   send(text: string) {
     const message = applyBarmanEffect(text, this.settings.data.game.barmanEffect);
     if(!message.trim()) return;

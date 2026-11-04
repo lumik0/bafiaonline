@@ -141,3 +141,39 @@ describe("строки личной переписки", () => {
   });
 });
 
+describe("подписка чатов после переподключения", () => {
+  test("общий чат: после переоткрытия связи подписываемся заново и получаем чат целиком; закрытый чат не подписывается", async() => {
+    const { network, client, settings } = await setup();
+    const chat = new GlobalChat(client, settings);
+    chat.resubscribe();                                         // чат не открывали: ничего не шлём
+    expect(network.last.sent.filter(packet => packet.ty == "acc")).toHaveLength(0);
+
+    chat.open();
+    chat.resubscribe();
+    expect(network.last.sent.filter(packet => packet.ty == "acc")).toHaveLength(2);
+    network.last.receive({ ty: "ms", ms: [{ tx: "после переподключения", uu: { u: "A", puo: "p1" } }] });
+    expect(chat.entries.map(entry => entry.text)).toEqual(["после переподключения"]);
+
+    chat.close();
+    chat.resubscribe();
+    expect(network.last.sent.filter(packet => packet.ty == "acc")).toHaveLength(2);
+  });
+
+  test("личная переписка: после переоткрытия связи переписка открывается заново для той же дружбы", async() => {
+    const { network, client, settings } = await setup();
+    const chat = new PrivateChat(client, settings, "f1");
+    chat.resubscribe();
+    expect(network.last.sent.filter(packet => packet.ty == "acpc")).toHaveLength(0);
+
+    chat.open();
+    chat.resubscribe();
+    const opened = network.last.sent.filter(packet => packet.ty == "acpc");
+    expect(opened).toHaveLength(2);
+    expect(opened[1]).toMatchObject({ fp: "f1" });
+
+    chat.close();
+    chat.resubscribe();
+    expect(network.last.sent.filter(packet => packet.ty == "acpc")).toHaveLength(2);
+  });
+});
+
