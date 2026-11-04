@@ -19,6 +19,8 @@ const EMOJI = ["sm1", "sm2", "sm3", "sm4", "sm5", "sm6"];
 /** действия для других частей (например, список игроков вставляет ник) */
 export interface ChatController {
 	mention?: (username: string) => void
+	/** прокрутить в самый низ (после своего сообщения), даже если читатель листал вверх */
+	scrollToEnd?: () => void
 }
 
 /** общая часть всех чатов: сообщения по группам, смайлики, упоминания, ввод. Данные и отправку даёт экран */
@@ -45,6 +47,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	history?: () => void
 }) @{
 	let scroller!: HTMLDivElement;
+	let content!: HTMLDivElement;
 	// премиум Бафии: значок и рамка ника в его цвете
 	const bafiaVersion = bafia ? fromEvents(bafia, "change", () => ({})) : () => 0;
 	const premiumColor = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.premiumColor(id) : undefined; };
@@ -65,19 +68,33 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	const visible = () => entries().filter(entry => entry.kind != "message" || !entry.user?.objectId || !muted().has(entry.user.objectId));
 	const rows = () => previous = stableRows(previous, toRows(visible()));
 
-	// к новым сообщениям прокручиваем, только если читатель и так внизу: старую переписку не сбиваем
+	// чат всегда внизу, пока читатель сам не ушёл вверх читать старое. «Ушёл» определяем только по его собственной прокрутке:
+	// прокрутку, которую сделали мы (expectedTop), за уход не считаем, а от сдвигов браузера защищает overflow-anchor: none
 	let stick = true;
-	const onScroll = () => { stick = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop < 75; };
-	const toBottom = () => { if(stick && scroller) scroller.scrollTop = scroller.scrollHeight; };
+	let expectedTop = -1;
+	const onScroll = () => {
+		if(scroller.scrollTop === expectedTop) { expectedTop = -1; return; }
+		stick = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop < 75;
+	};
+	const toBottom = () => {
+		if(!stick || !scroller) return;
+		scroller.scrollTop = scroller.scrollHeight;
+		expectedTop = scroller.scrollTop;
+	};
+	/** в самый низ насовсем: после своего сообщения видно его, а не то, что читал выше */
+	const scrollToEnd = () => { stick = true; toBottom(); };
+	if(controller) controller.scrollToEnd = scrollToEnd;
 	createEffect(() => {
 		entries();
 		queueMicrotask(toBottom);
 	});
-	// высота списка меняется от экранной клавиатуры, высота строк - от загрузки картинок (гифки, аватарки, смайлики):
+	// высота списка меняется от экранной клавиатуры, высота содержимого - от картинок, шрифтов и переноса строк:
 	// читатель, который был внизу, остаётся внизу
 	onMount(() => {
+		toBottom();
 		const observer = typeof ResizeObserver != "undefined" ? new ResizeObserver(toBottom) : undefined;
 		observer?.observe(scroller);
+		observer?.observe(content);
 		scroller.addEventListener("load", toBottom, true);
 		onCleanup(() => { observer?.disconnect(); scroller.removeEventListener("load", toBottom, true); });
 	});
@@ -90,7 +107,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	<>
 		<style>
 			.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-			.messages { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 8px 10px 5px; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
+			.messages { flex: 1; min-height: 0; overflow-anchor: none; overflow-y: auto; overflow-x: hidden; margin: 8px 10px 5px; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
 			.group { display: flex; gap: 6px; padding: 4px 6px; text-align: left; align-items: flex-start; }
 			.column { display: flex; flex-direction: column; min-width: 0; word-break: break-word; }
 			.nick { position: relative; isolation: isolate; color: var(--chat-name); font-weight: 600; font-size: 13px; cursor: pointer; align-self: flex-start; }
@@ -110,6 +127,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 		</style>
 		<div class="chat">
 			<div class="messages" ref={scroller} onScroll={onScroll}>
+				<div ref={content}>
 				@for (const row of rows()) {
 					@if (row.type == "group") {
 						<div class="group">
@@ -160,12 +178,13 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 						</div>
 					}
 				}
+				</div>
 			</div>
 			@if (note && note()) {
 				<div class="note">{note()}</div>
 			}
 			@if (!readonly && !externalInput) {
-				<ChatInput ctx={ctx} assets={assets} send={send} expand={expand} controller={controller} bafia={bafia} history={history} placeholder={placeholder} />
+				<ChatInput ctx={ctx} assets={assets} send={(text: string) => { send(text); scrollToEnd(); }} expand={expand} controller={controller} bafia={bafia} history={history} placeholder={placeholder} />
 			}
 		</div>
 	</>

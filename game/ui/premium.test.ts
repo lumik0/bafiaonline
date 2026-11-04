@@ -1,5 +1,5 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import Events from "@common/utils/emitter";
 
 // DOM нужен только здесь; после тестов убираем
@@ -104,6 +104,9 @@ test("гифка в сообщении: пока скачивается - заг
   await tick();
   expect(root.querySelector(".wait")).toBeNull();
   expect(root.querySelector("img")?.getAttribute("src")).toBe("blob:cat");
+  // размер задаёт только общий стиль коробки (она одинаковая у заглушки и у гифки): свой размер у картинки сдвигал бы переписку
+  expect(root.querySelector("img")?.getAttribute("style")).toBeNull();
+  expect(root.querySelector(".box")?.querySelector(".gif")).not.toBeNull();
   dispose();
 
   const second = ui.mount(() => GifMessage({ bafia, id: "none" }) as never, root);
@@ -212,5 +215,74 @@ test("чат: кто был внизу, остаётся внизу, когда 
   expect(list.scrollTop).toBe(100);
   dispose();
   root.remove();
+});
+
+describe("чат всегда внизу", () => {
+  const entries = [{ id: 1, kind: "message" as const, text: "привет", user: { username: "Звезда", playerObjectId: "p1" } }];
+  let assets: InstanceType<typeof Assets>;
+  const mountChat = (controller?: { scrollToEnd?: () => void }, send: (text: string) => void = () => {}) => {
+    const root = document.body.appendChild(document.createElement("div"));
+    const dispose = ui.mount(() => ChatView({ entries: () => entries, myName: () => "я", hideName: () => false, assets, send, controller } as never) as never, root);
+    return { root, dispose, list: () => root.querySelector<HTMLElement>(".messages")! };
+  };
+  /** размеры в happy-dom нулевые: задаём высоту содержимого заранее, до показа чата */
+  const withHeight = (value: () => number, run: () => void | Promise<void>) => {
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", { get: value, configurable: true });
+    const restore = () => original ? Object.defineProperty(HTMLElement.prototype, "scrollHeight", original) : delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+    return Promise.resolve(run()).finally(restore);
+  };
+  test("чат открывается в самом низу, а не в случайном месте", async() => {
+    assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
+    await withHeight(() => 1000, async() => {
+      const { root, dispose, list } = mountChat();
+      await tick();
+      expect(list().scrollTop).toBe(1000);
+      dispose();
+      root.remove();
+    });
+  });
+
+  test("прокрутку, которую сделали мы, браузер сообщает событием scroll: это не уход читателя, чат остаётся внизу при дальнейшем росте", async() => {
+    assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
+    let height = 1000;
+    await withHeight(() => height, async() => {
+      const { root, dispose, list } = mountChat();
+      await tick();
+      expect(list().scrollTop).toBe(1000);
+      Object.defineProperty(list(), "clientHeight", { value: 300, configurable: true });
+
+      height = 1500;                                   // содержимое выросло, пока событие scroll ещё в пути
+      list().dispatchEvent(new Event("scroll"));       // событие от нашей прокрутки: scrollTop прежний
+      list().dispatchEvent(new Event("load"));         // подгрузилась картинка: дотягиваемся до нового низа
+      expect(list().scrollTop).toBe(1500);
+      dispose();
+      root.remove();
+    });
+  });
+
+  test("после своего сообщения чат уходит вниз, даже если читатель листал вверх", async() => {
+    assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
+    let height = 1000;
+    await withHeight(() => height, async() => {
+      const controller: { scrollToEnd?: () => void } = {};
+      const { root, dispose, list } = mountChat(controller);
+      await tick();
+      Object.defineProperty(list(), "clientHeight", { value: 300, configurable: true });
+      list().scrollTop = 100;                          // читатель ушёл вверх
+      list().dispatchEvent(new Event("scroll"));
+      height = 1400;
+      list().dispatchEvent(new Event("load"));
+      expect(list().scrollTop).toBe(100);              // не трогаем
+
+      controller.scrollToEnd!();
+      expect(list().scrollTop).toBe(1400);
+      height = 1800;                                   // и дальше остаёмся внизу
+      list().dispatchEvent(new Event("load"));
+      expect(list().scrollTop).toBe(1800);
+      dispose();
+      root.remove();
+    });
+  });
 });
 

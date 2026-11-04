@@ -188,7 +188,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 				</div>
 			}
 			@if (isMobile() && view().loaded && !session.replay) {
-				<ChatInput ctx={ctx} bafia={ctx.bafia} assets={ctx.assets} send={sendMessage} expand={expand} controller={controller} />
+				<ChatInput ctx={ctx} bafia={ctx.bafia} assets={ctx.assets} send={(text: string) => { sendMessage(text); controller.scrollToEnd?.(); }} expand={expand} controller={controller} />
 			}
 		</div>
 	</>
