@@ -42,6 +42,16 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 
 	const bafiaOn = fromEvents(ctx.settings, "change", () => ctx.settings.data.bafia.enabled);
 	const premium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumUntil);
+	// связь с сервером Бафии: от неё зависят значки, гифки и статистика; на скриншоте видно, подключено ли у игрока
+	const bafiaStatus = fromEvents(ctx.bafia, "change", () => ctx.bafia.status);
+	const problems: Record<string, string> = { version: "версия игры устарела, обнови страницу", "too-many": "открыто слишком много окон", "no-answer": "сервер не ответил", "slow-down": "слишком часто" };
+	const statusText = () => {
+		const status = bafiaStatus();
+		if(status.state == "connected") return "подключено";
+		if(status.state == "connecting") return "подключаюсь…";
+		const attempts = status.attempts ? ` (попыток: ${status.attempts})` : "";
+		return "нет связи" + attempts + (status.problem ? ": " + (problems[status.problem] ?? status.problem) : "");
+	};
 	// цвет меняется в настройках игры, следим и за ним
 	fromEvents(ctx.settings, "change", () => ctx.settings.data.bafia.color);
 	const codeErrors = {
@@ -114,6 +124,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			.swatch.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface); }
 			input[type=text] { width: 80px; }
 			.avatarPreview { border-radius: 50%; object-fit: cover; }
+			.bafiaState { font-size: 13px; text-align: right; }
 		</style>
 		<div class="page">
 			<AppBar title="Настройки" onBack={() => ctx.nav.pop()} />
@@ -165,6 +176,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 				// <SettingRow label="Номера игроков в чате комнаты">
 				// 	<input type="checkbox" checked={data().game.showIndexPlChat} onChange={(event) => ctx.settings.update(settings => { settings.game.showIndexPlChat = event.currentTarget.checked; })} />
 				// </SettingRow>
+				<SettingRow label="Связь с сервером Бафии">
+					<span class="bafiaState" style={{ color: bafiaStatus().state == "connected" ? "#2fb44c" : bafiaStatus().state == "offline" ? "#d94452" : undefined }} data-keep>{statusText()}</span>
+				</SettingRow>
 				<SettingRow label="Гифки, история ников и аватарки (сервер Бафии)">
 					<input type="checkbox" checked={bafiaOn()} onChange={(event) => void toggleBafia(event.currentTarget)} />
 				</SettingRow>

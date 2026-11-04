@@ -284,6 +284,8 @@ describe("игра", () => {
     game.ctx.settings.update(settings => { settings.bafia.enabled = true; });
     await tick(20);
     expect(rows().some(row => row.includes("Премиум"))).toBe(true);
+    // состояние связи с сервером Бафии видно в настройках: в тесте сокет молчит, значит «подключаюсь»
+    expect(rows().find(row => row.includes("Связь с сервером Бафии"))).toContain("подключаюсь");
 
     // «Купить»: сначала окно с преимуществами, бот открывается только после согласия
     const opened: string[] = [];

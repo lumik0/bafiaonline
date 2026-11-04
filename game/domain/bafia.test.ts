@@ -267,6 +267,61 @@ describe("BafiaLink", () => {
     bafia.dispose();
   });
 
+  describe("состояние связи", () => {
+    /** сокет, который не открылся (сервер отклонил подключение или недоступен) */
+    const dead = (): SocketLike => ({ onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} } as unknown as SocketLike);
+    const tickMany = async() => { for(let i = 0; i < 4; i++) await tick(); };
+
+    test("подключаюсь, нет связи с числом неудачных попыток, потом подключено и счёт обнуляется", async() => {
+      const server = serverSocket([], []);
+      let failures = 2;
+      const sockets: SocketLike[] = [];
+      const create = (): SocketLike => { const socket = failures-- > 0 ? dead() : server.create(); sockets.push(socket); return socket; };
+      const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: create, backoff: [1], delay: async() => {} });
+      const changes: string[] = [];
+      link.on("change", () => changes.push(link.state));
+
+      expect(link.state).toBe("connecting");
+      link.start();
+      sockets[0]!.onclose?.();                       // сервер не принял, соединение не открылось
+      await tick();
+      expect([link.state, link.attempts]).toEqual(["offline", 1]);
+      sockets[1]!.onclose?.();
+      await tickMany();
+      // третья попытка настоящая: открылась, hello принят
+      expect([link.state, link.attempts, link.problem]).toEqual(["connected", 0, undefined]);
+      expect(changes).toContain("offline");
+      link.stop();
+    });
+
+    test("сервер ответил отказом на hello: нет связи и причина; в состояние «подключено» не переходит", async() => {
+      const socket = { onopen: null, onmessage: null, onclose: null, onerror: null, close() {}, send(text: string) {
+        const message = JSON.parse(text);
+        queueMicrotask(() => socket.onmessage?.({ data: JSON.stringify({ t: "error", n: message.n, reason: "version" }) }));
+      } } as unknown as SocketLike;
+      queueMicrotask(() => socket.onopen?.());
+      const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: () => socket });
+      link.start();
+      await tickMany();
+      expect([link.state, link.problem, link.isReady]).toEqual(["offline", "version", false]);
+      link.stop();
+      expect([link.state, link.problem]).toEqual(["connecting", undefined]);   // после stop состояние начинается заново
+    });
+
+    test("Bafia отдаёт состояние для настроек", async() => {
+      const data = { bafia: { enabled: false, asked: true, key: "k".repeat(24), code: "", color: "gold", favorites: [] } };
+      const settings = new class extends Events<{ change: () => void }> {
+        data = data;
+        update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
+      }();
+      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+      const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: serverSocket([], []).create });
+      await tickMany();
+      expect(bafia.status).toEqual({ state: "connected", attempts: 0, problem: undefined });
+      bafia.dispose();
+    });
+  });
+
   test("сервер молчит или недоступен: запросы заканчиваются пустым результатом, а не ошибкой", async() => {
     const silent = (): SocketLike => {
       const socket = { onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} } as unknown as SocketLike;

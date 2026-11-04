@@ -6,6 +6,7 @@ import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
 import { toBase64 } from "@common/assets/pack";
+import { log } from "@common/logger";
 import { searchGiphy } from "./giphy";
 import { GifCache } from "./gif-cache";
 
@@ -52,6 +53,12 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   /** ключ Giphy, который выдал сервер: без него поиск идёт только по каталогу сервера */
   private gifKey?: string;
   get isReady() { return this.ready; }
+  /** сколько попыток подключиться подряд не удалось (с последнего успеха) */
+  attempts = 0;
+  /** почему сервер не принял: ответ на hello (`version`, `too-many`…) или `no-answer`; пусто - всё хорошо или ещё не отвечал */
+  problem?: string;
+  /** подключено, подключаемся или связи нет (попытки не удались или сервер не принял) */
+  get state(): "connected" | "connecting" | "offline" { return this.ready ? "connected" : this.attempts > 0 || this.problem ? "offline" : "connecting"; }
   /** кто из спрошенных игроков сейчас в Бафии */
   online = new Set<string>();
 
@@ -63,7 +70,15 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.connection = new Connection({ url: options.url, createSocket: options.createSocket, backoff: options.backoff ?? [2000, 10000, 60000], delay: options.delay });
     this.connection.on("message", text => this.receive(text));
     this.connection.on("open", () => void this.greet());
-    this.connection.on("close", () => this.drop());
+    this.connection.on("close", willReconnect => {
+      this.drop();
+      if(willReconnect) {
+        this.attempts++;
+        // в журнал (его присылают с отчётами) - не каждую попытку, а первую и дальше реже
+        if([1, 3, 10, 30, 100].includes(this.attempts)) log("warn", `Бафия: нет связи с сервером, неудачных попыток подряд: ${this.attempts}`);
+      }
+      this.emit("change");
+    });
   }
 
   start() { this.connection.connect(); }
@@ -96,6 +111,8 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.stopHeartbeat();
     this.connection.close();
     this.drop();
+    this.attempts = 0;
+    this.problem = undefined;
     this.identity = undefined;
     this.online = new Set();
     this.emit("change");
@@ -110,7 +127,15 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
 
   private async greet() {
     const hello = await this.request({ t: "hello", key: this.options.key, version: BAFIA_PROTOCOL_VERSION });
-    if(hello?.t != "ok") return;
+    if(hello?.t != "ok") {
+      this.problem = hello?.t == "error" ? hello.reason : "no-answer";
+      log("warn", `Бафия: сервер не принял подключение (${this.problem})`);
+      this.emit("change");
+      return;
+    }
+    if(this.attempts || this.problem) log("info", "Бафия: связь с сервером восстановлена");
+    this.attempts = 0;
+    this.problem = undefined;
     this.gifKey = hello.gifKey;
     this.premiumUntil = hello.premium;
     this.myAvatar = hello.avatar;
@@ -371,6 +396,10 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
   get online(): ReadonlySet<string> { return this.link?.online ?? new Set(); }
 
   get ready() { return this.link?.isReady ?? false; }
+  /** состояние связи с сервером Бафии для настроек: игрок видит, подключено ли у него, и в чём дело, если нет */
+  get status(): { state: "connected" | "connecting" | "offline", attempts: number, problem?: string } {
+    return { state: this.link?.state ?? "connecting", attempts: this.link?.attempts ?? 0, problem: this.link?.problem };
+  }
   /** до какого времени действует премиум (мс); `undefined` - нет */
   get premiumUntil() { const until = this.link?.premiumUntil; return until && until > Date.now() ? until : undefined; }
   get premiumOnline(): ReadonlySet<string> { return this.link?.premiumOnline ?? new Set(); }
