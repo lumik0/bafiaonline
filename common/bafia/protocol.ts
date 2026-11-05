@@ -58,13 +58,14 @@ export const PROFILE_BG = /^#[0-9a-fA-F]{6}$/;
 
 /** цвета значка премиума: название → цвет (сервер присылает только название) */
 export const PREMIUM_COLORS = {
-  gold: "#E0A800", red: "#E5484D", pink: "#E93D82", purple: "#8E4EC6", blue: "#3E63DD", cyan: "#12A594", green: "#30A46C", orange: "#F76B15"
+  gold: "#E0A800", red: "#E5484D", pink: "#E93D82", purple: "#8E4EC6", blue: "#3E63DD", cyan: "#12A594", green: "#30A46C", orange: "#F76B15",
+  lime: "#8DB600", sky: "#2D9CDB", indigo: "#5B5BD6", crimson: "#B5173D", magenta: "#C026D3", brown: "#8B5E3C", mint: "#3DD6A0", gray: "#6B7280"
 } as const;
 export type PremiumColor = keyof typeof PREMIUM_COLORS;
 export const isPremiumColor = (value: unknown): value is PremiumColor => typeof value == "string" && Object.hasOwn(PREMIUM_COLORS, value);
 
 /** эффекты ника (премиум): цвет берётся из цвета значка */
-export const PROFILE_EFFECTS = ["glow", "gradient", "rainbow"] as const;
+export const PROFILE_EFFECTS = ["gradient", "rainbow"] as const;
 export type ProfileEffect = typeof PROFILE_EFFECTS[number];
 /** готовые темы фона профиля (премиум): название -> CSS-градиент */
 export const PROFILE_THEMES = {
@@ -73,8 +74,16 @@ export const PROFILE_THEMES = {
   forest: "linear-gradient(135deg, #134e5e, #71b280)",
   night: "linear-gradient(135deg, #232526, #414345)",
   candy: "linear-gradient(135deg, #ee9ca7, #ffdde1)",
-  violet: "linear-gradient(135deg, #5f2c82, #49a09d)"
+  violet: "linear-gradient(135deg, #5f2c82, #49a09d)",
+  peach: "linear-gradient(135deg, #ffecd2, #fcb69f)",
+  mint: "linear-gradient(135deg, #a8edea, #fed6e3)",
+  gold: "linear-gradient(135deg, #f7971e, #ffd200)",
+  fire: "linear-gradient(135deg, #b91d1d, #f5af19)",
+  aurora: "linear-gradient(135deg, #00c9ff, #92fe9d)",
+  cherry: "linear-gradient(135deg, #8e0e00, #e55d87)"
 } as const;
+/** темы со светлым фоном: на них тёмный текст */
+export const LIGHT_THEMES: readonly string[] = ["sunset", "candy", "peach", "mint", "gold", "aurora"];
 export type ProfileTheme = keyof typeof PROFILE_THEMES;
 
 /** внешний вид профиля игрока с премиумом (кроме баннера и цвета фона) */

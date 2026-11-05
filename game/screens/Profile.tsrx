@@ -87,7 +87,8 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	const look = () => { bafiaVersion(); return ctx.bafia.look(player.playerObjectId ?? playerObjectId); };
 	const theme = () => themeBackground(look());
 	// готовая тема важнее цвета, цвет важнее фона от украшений игры
-	const background = () => { bafiaVersion(); return theme()?.background ?? ctx.bafia.profileBg(player.playerObjectId ?? playerObjectId) ?? colors.background; };
+	const customBackground = () => { bafiaVersion(); return theme()?.background ?? ctx.bafia.profileBg(player.playerObjectId ?? playerObjectId); };
+	const background = () => customBackground() ?? colors.background;
 	const textColor = () => theme()?.text ?? readableOn(background());
 	// избранный игрок: в Бафии это уведомление «зашёл в игру»; заметка - только у тебя
 	const watched = fromEvents(ctx.bafia, "change", () => ctx.bafia.isWatched(player.username ?? ""));
@@ -167,7 +168,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			.levelbar img { width: 22px; height: 22px; }
 			.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 8px; background: var(--surface); font-size: 14px; font-weight: 600; white-space: nowrap; }
 			.gender { font-size: 20px; line-height: 1; padding: 4px 10px; }
-			.hero { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; width: 100%; }
+			.hero { box-sizing: border-box; position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; width: 100%; }
 			.hero .left { display: flex; align-items: flex-end; align-self: end; justify-content: flex-start; }
 			.hero .right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; align-self: start; }
 			.trophy { font-style: normal; }
@@ -194,7 +195,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			.role { display: flex; flex-direction: column; align-items: center; padding: 5px; border-radius: 6px; background: var(--surface); color: var(--text-dark); font-size: 12px; }
 			.role img { width: 40px; height: 55px; object-fit: contain; }
 		</style>
-		<div class="profile" style={{ ...(background() ? { background: background(), padding: "8px", "border-radius": "8px", "--text-dark": textColor() } : {}), ...(colors.main ? { "--progress-fill": colors.main, "--accent": colors.main } : {}) }}>
+		<div class="profile" style={{ ...(background() ? { background: background(), padding: "8px", "border-radius": "8px", "--text-dark": textColor() } : {}), ...(customBackground() ? { margin: "-14px -16px -16px", padding: "14px 16px 16px", "border-radius": "0" } : {}), ...(colors.main ? { "--progress-fill": colors.main, "--accent": colors.main } : {}) }}>
 			<div class="level">
 				<span class="chip gender" title={player.sex == Sex.Female ? "Женский" : "Мужской"} style={{ color: player.sex == Sex.Female ? "#d6558d" : "#3a7bd5" }}>{player.sex == Sex.Female ? "♀" : "♂"}</span>
 				<div class="levelbar">

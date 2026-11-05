@@ -10,6 +10,7 @@ import { readableOn } from "../domain/decorations";
 import { Avatar } from "../ui/Avatar.tsrx";
 import { AppBar } from "../ui/AppBar.tsrx";
 import { SettingGroup, SettingRow, Toggle } from "../ui/SettingRow.tsrx";
+import { PinPicker } from "../ui/dialogs/PinPicker.tsrx";
 import { LanguageChoice } from "../ui/dialogs/LanguageChoice.tsrx";
 import { LogsView } from "../ui/dialogs/LogsView.tsrx";
 import { resetPassword } from "../ui/reset-password";
@@ -98,13 +99,21 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 		full: "На сервере Бафии сейчас нет места под загрузки. Попробуй позже.",
 		"presence-first": "Сервер Бафии ещё не узнал тебя: подожди пару секунд и повтори."
 	};
+	// загрузка идёт по сети и может занять время: кнопка сразу показывает "Загрузка" и полоску
+	const [avatarBusy, setAvatarBusy] = createSignal(false);
+	const [bannerBusy, setBannerBusy] = createSignal(false);
 	/** выбранный файл уходит на сервер как есть: анимация сохраняется, её видят другие игроки Бафии */
 	const pickAvatar = async (input: HTMLInputElement) => {
 		const file = input.files?.[0];
 		input.value = "";
 		if(!file) return;
-		const result = await ctx.bafia.setAvatar(new Uint8Array(await file.arrayBuffer()));
-		if("error" in result) await ctx.dialogs.alert(avatarErrors[result.error], { title: "Не получилось" });
+		setAvatarBusy(true);
+		try {
+			const result = await ctx.bafia.setAvatar(new Uint8Array(await file.arrayBuffer()));
+			if("error" in result) await ctx.dialogs.alert(avatarErrors[result.error], { title: "Не получилось" });
+		} finally {
+			setAvatarBusy(false);
+		}
 	};
 	const removeAvatar = async () => {
 		if(!await ctx.bafia.clearAvatar()) await ctx.dialogs.alert(avatarErrors.offline, { title: "Не получилось" });
@@ -129,16 +138,20 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 		setDraftStatus(undefined);
 		if(result != "ok") await ctx.dialogs.alert(result == "premium" ? "Это доступно только с премиумом." : avatarErrors.offline, { title: "Не получилось" });
 	};
-	const effectNames: Record<ProfileEffect, string> = { glow: "Свечение", gradient: "Градиент", rainbow: "Радуга" };
-	const themeNames: Record<ProfileTheme, string> = { sunset: "Закат", ocean: "Океан", forest: "Лес", night: "Ночь", candy: "Конфета", violet: "Фиолет" };
-	const pins = fromEvents(ctx.bafia, "change", () => ctx.bafia.favorites);
+	const effectNames: Record<ProfileEffect, string> = { gradient: "Градиент", rainbow: "Радуга" };
+	const themeNames: Record<ProfileTheme, string> = { sunset: "Закат", ocean: "Океан", forest: "Лес", night: "Ночь", candy: "Конфета", violet: "Фиолет", peach: "Персик", mint: "Мята", gold: "Золото", fire: "Огонь", aurora: "Аврора", cherry: "Вишня" };
 	const bannerErrors = { ...avatarErrors, premium: "Баннер доступен только с премиумом.", quota: "Слишком часто меняешь баннер. Попробуй завтра." };
 	const pickBanner = async (input: HTMLInputElement) => {
 		const file = input.files?.[0];
 		input.value = "";
 		if(!file) return;
-		const result = await ctx.bafia.setBanner(new Uint8Array(await file.arrayBuffer()));
-		if("error" in result) await ctx.dialogs.alert(bannerErrors[result.error], { title: "Не получилось" });
+		setBannerBusy(true);
+		try {
+			const result = await ctx.bafia.setBanner(new Uint8Array(await file.arrayBuffer()));
+			if("error" in result) await ctx.dialogs.alert(bannerErrors[result.error], { title: "Не получилось" });
+		} finally {
+			setBannerBusy(false);
+		}
 	};
 	const removeBanner = async () => {
 		if(!await ctx.bafia.clearBanner()) await ctx.dialogs.alert(avatarErrors.offline, { title: "Не получилось" });
@@ -172,7 +185,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			.body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 10px; }
 			.sexes { display: flex; gap: 6px; }
 			.sex.on { background: var(--accent) !important; color: #fff; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-			.swatches { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; max-width: 150px; padding: 2px 0; }
+			.swatches { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; max-width: 230px; padding: 2px 0; }
 			.swatch { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
 			.swatch.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface); }
 			input[type=text] { width: 80px; }
@@ -183,6 +196,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			.previewName { font-size: 16px; font-weight: 700; }
 			.previewStat { width: 100%; display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 6px; background: rgba(128, 128, 128, .18); font-size: 13px; box-sizing: border-box; }
 			.previewStatus { font-size: 13px; opacity: .9; text-align: center; overflow-wrap: anywhere; }
+			.progress { height: 6px; margin: 0 2px 6px; border-radius: 3px; background: rgba(128, 128, 128, .25); overflow: hidden; }
+			.progress div { width: 40%; height: 100%; border-radius: 3px; background: var(--accent); animation: slide 1.1s ease-in-out infinite; }
+			@keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
 			.pick { padding: 5px 10px; font-size: 13px; }
 			.pick.on { background: var(--accent) !important; color: #fff; }
 			select { max-width: 150px; }
@@ -296,12 +312,15 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 										@if (myAvatar()) {
 											<img class="avatarPreview" src={myAvatar()} width="34" height="34" alt="" />
 										}
-										<button onClick={() => avatarChooser.click()}>{myAvatar() ? "Заменить" : "Загрузить"}</button>
-										@if (myAvatar()) {
+										<button disabled={avatarBusy()} onClick={() => avatarChooser.click()}>{avatarBusy() ? "Загрузка…" : myAvatar() ? "Заменить" : "Загрузить"}</button>
+										@if (myAvatar() && !avatarBusy()) {
 											<button onClick={() => void removeAvatar()}>{"Убрать"}</button>
 										}
 										<input ref={avatarChooser} type="file" accept="image/gif,image/webp,image/png" hidden onChange={(event) => void pickAvatar(event.currentTarget)} />
 									</SettingRow>
+									@if (avatarBusy()) {
+										<div class="progress" role="progressbar" aria-label="Загрузка аватарки"><div></div></div>
+									}
 								</SettingGroup>
 								<SettingGroup title="КАСТОМ ПРОФИЛЬ">
 									<div class="preview" style={previewBg() ? { background: previewBg(), color: previewTheme()?.text ?? readableOn(previewBg()) } : undefined}>
@@ -320,12 +339,15 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 										</div>
 									</div>
 									<SettingRow label="Баннер" hint={premium() ? "Картинка или GIF над аватаркой; видят игроки Бафии" : "Нужен премиум; видят игроки Бафии"}>
-										<button disabled={!premium()} onClick={() => bannerChooser.click()}>{myBanner() ? "Заменить" : "Загрузить"}</button>
-										@if (myBanner()) {
+										<button disabled={!premium() || bannerBusy()} onClick={() => bannerChooser.click()}>{bannerBusy() ? "Загрузка…" : myBanner() ? "Заменить" : "Загрузить"}</button>
+										@if (myBanner() && !bannerBusy()) {
 											<button onClick={() => void removeBanner()}>{"Убрать"}</button>
 										}
 										<input ref={bannerChooser} type="file" accept="image/gif,image/webp,image/png" hidden onChange={(event) => void pickBanner(event.currentTarget)} />
 									</SettingRow>
+									@if (bannerBusy()) {
+										<div class="progress" role="progressbar" aria-label="Загрузка баннера"><div></div></div>
+									}
 									<SettingRow label="Статус" hint={premium() ? "Строка под ником, до 60 символов" : "Нужен премиум"}>
 										<input type="text" maxlength={BAFIA_LIMITS.status} disabled={!premium()} value={lookNow().status ?? ""} placeholder="О себе" style={{ width: "160px" }}
 											onInput={(event) => setDraftStatus(event.currentTarget.value)} onChange={(event) => void changeLook({ status: event.currentTarget.value.trim() })} />
@@ -352,13 +374,11 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 											}
 										</div>
 									</SettingRow>
-									<SettingRow label="Закреплённая гифка" hint={premium() ? "Одна из избранных гифок, показывается в профиле" : "Нужен премиум"}>
-										<select disabled={!premium()} value={myLook().pin ?? ""} onChange={(event) => void changeLook({ pin: event.currentTarget.value || undefined })}>
-											<option value="">{"Нет"}</option>
-											@for (const item of pins()) {
-												<option value={item.id}>{item.title || item.id}</option>
-											}
-										</select>
+									<SettingRow label="Закреплённая гифка" hint={premium() ? (myLook().pin ? "Закреплена; видна в твоём профиле" : "Одна из избранных гифок, показывается в профиле") : "Нужен премиум"}>
+										<button disabled={!premium()} onClick={() => void ctx.dialogs.manager.open({ title: "ЗАКРЕПЛЁННАЯ ГИФКА", render: (done) => PinPicker({ ctx, current: myLook().pin, choose: (id) => void changeLook({ pin: id }), close: done }) })}>{myLook().pin ? "Изменить" : "Выбрать"}</button>
+										@if (myLook().pin) {
+											<button onClick={() => void changeLook({ pin: undefined })}>{"Убрать"}</button>
+										}
 									</SettingRow>
 									<SettingRow label="Цвет фона" hint={premium() ? "Фон твоего профиля" : "Нужен премиум"}>
 										<input type="color" disabled={!premium()} value={previewBg() ?? "#ffffff"} onInput={(event) => setDraftBg(event.currentTarget.value)} onChange={(event) => void saveBg(event.currentTarget.value)} />

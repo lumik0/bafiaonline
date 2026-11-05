@@ -4,7 +4,7 @@ import { avatarFrame, frameColor, nickEffect, themeBackground } from "./premium-
 
 describe("внешний вид профиля", () => {
   test("parseLook оставляет только известные поля и чистит статус", () => {
-    expect(parseLook({ status: "  привет  ", frame: "red", effect: "glow", theme: "ocean", pin: "g_1", evil: 1 })).toEqual({ status: "привет", frame: "red", effect: "glow", theme: "ocean", pin: "g_1" });
+    expect(parseLook({ status: "  привет  ", frame: "red", effect: "rainbow", theme: "ocean", pin: "g_1", evil: 1 })).toEqual({ status: "привет", frame: "red", effect: "rainbow", theme: "ocean", pin: "g_1" });
     expect(parseLook({ status: "x".repeat(61), frame: "pink!", effect: "boom", theme: "nope", pin: "../x" })).toEqual({});
     expect(parseLook({ status: "a\nb" })).toEqual({});
     expect(parseLook(null)).toEqual({});
@@ -14,7 +14,11 @@ describe("внешний вид профиля", () => {
     expect(frameColor({ frame: "red" })).toBe("#E5484D");
     expect(avatarFrame({ frame: "red" })).toContain("#E5484D");
     expect(avatarFrame({}, "fallback")).toBe("fallback");
-    expect(nickEffect({ effect: "glow" }, "#112233")["text-shadow"]).toContain("#112233");
+    expect(nickEffect({ effect: "gradient" }, "#112233").background).toContain("#112233");
+    expect(parseLook({ effect: "glow" })).toEqual({});   // убранный эффект из старых данных отбрасывается
+    expect(frameColor({ frame: "mint" })).toBe("#3DD6A0");
+    expect(themeBackground({ theme: "peach" })).toMatchObject({ text: "#121212" });
+    expect(themeBackground({ theme: "cherry" })).toMatchObject({ text: "#f2f2f2" });
     expect(nickEffect({ effect: "rainbow" }, undefined).background).toContain("linear-gradient");
     expect(nickEffect({}, "#112233")).toEqual({});
     expect(themeBackground({ theme: "night" })).toMatchObject({ text: "#f2f2f2" });
