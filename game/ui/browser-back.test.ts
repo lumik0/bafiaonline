@@ -128,3 +128,37 @@ describe("кнопка «назад» браузера (Android)", () => {
     expect(browser.state.extra).toBe(0);
   });
 });
+
+describe("быстрые нажатия «назад» в настоящем браузере", () => {
+  /** история с номерами записей: `go` и «назад» двигают позицию, popstate приходит позже */
+  function realBrowser() {
+    const target = new EventTarget();
+    const entries: unknown[] = [null];
+    let index = 0;
+    const history = {
+      get state() { return entries[index]; },
+      pushState(state: unknown) { entries.length = index + 1; entries.push(state); index++; },
+      go(delta: number) { index = Math.max(0, index + delta); setTimeout(() => target.dispatchEvent(new Event("popstate")), 5); }
+    };
+    const back = () => { if(index == 0) return "вышли"; index--; setTimeout(() => target.dispatchEvent(new Event("popstate")), 5); return "popstate"; };
+    return { history, target, back, position: () => index };
+  }
+
+  test("несколько нажатий подряд не ломают кнопку", async() => {
+    const nav = new Navigator<Routes>();
+    nav.push("menu");
+    const dialogs = { manager: new DialogManager(), menu: new ContextMenuManager() };
+    const ctx = { nav, dialogs, host: { window: { active: true } }, back: async() => { nav.pop(); } } as unknown as GameContext;
+    const browser = realBrowser();
+    bindBrowserBack(ctx, browser.history, browser.target);
+    nav.push("rooms"); nav.push("roomCreation"); nav.push("friends");
+    browser.back(); browser.back();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(nav.top?.name).toBe("rooms");
+    expect(browser.position()).toBe(1);
+    browser.back();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(nav.top?.name).toBe("menu");
+    expect(browser.position()).toBe(0);
+  });
+});

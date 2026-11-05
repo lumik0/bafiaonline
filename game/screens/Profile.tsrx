@@ -1,5 +1,6 @@
 import { createEffect, createSignal, fromEvents, onMount } from "@common/ui";
 import { formatNumber } from "@common/utils/format";
+import { PHOTO_BASE } from "@common/constants";
 import type { PlayerProfile } from "../domain/profile";
 import type { RoomSession } from "../domain/room/session";
 import { Role, Sex } from "../domain/enums";
@@ -7,7 +8,9 @@ import { Avatar } from "../ui/Avatar.tsrx";
 import { Lottie } from "../ui/Lottie.tsrx";
 import { PremiumBadge } from "../ui/PremiumBadge.tsrx";
 import { Marks } from "../ui/Marks.tsrx";
-import { premiumFrame } from "../domain/premium-style";
+import { avatarFrame, nickEffect, premiumFrame, themeBackground } from "../domain/premium-style";
+import { renderProfileCard, shareImage } from "../domain/profile-card";
+import { GifMessage } from "../ui/GifMessage.tsrx";
 import { AvatarView } from "../ui/dialogs/AvatarView.tsrx";
 import { animationOf, DecorationType, normalizeDecorations, nickStyle, photoRing, profileColors, readableOn } from "../domain/decorations";
 import { profileData } from "../mods/data";
@@ -79,6 +82,45 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
 	const premiumColor = () => { bafiaVersion(); return ctx.bafia.premiumColor(player.playerObjectId ?? playerObjectId); };
 	const gifAvatar = () => { bafiaVersion(); return ctx.bafia.avatar(player.playerObjectId ?? playerObjectId); };
+	// баннер и цвет фона профиля (премиум Бафии): видят только игроки Бафии
+	const banner = () => { bafiaVersion(); return ctx.bafia.banner(player.playerObjectId ?? playerObjectId); };
+	const look = () => { bafiaVersion(); return ctx.bafia.look(player.playerObjectId ?? playerObjectId); };
+	const theme = () => themeBackground(look());
+	// готовая тема важнее цвета, цвет важнее фона от украшений игры
+	const background = () => { bafiaVersion(); return theme()?.background ?? ctx.bafia.profileBg(player.playerObjectId ?? playerObjectId) ?? colors.background; };
+	const textColor = () => theme()?.text ?? readableOn(background());
+	// избранный игрок: в Бафии это уведомление «зашёл в игру»; заметка - только у тебя
+	const watched = fromEvents(ctx.bafia, "change", () => ctx.bafia.isWatched(player.username ?? ""));
+	const noteKey = player.objectId;
+	const [note, setNote] = createSignal(noteKey ? ctx.settings.data.notes?.[noteKey] ?? "" : "");
+	const editNote = async () => {
+		if(!noteKey) return;
+		const value = await ctx.dialogs.prompt({ title: "ЗАМЕТКА", text: "Видишь только ты, на сервер она не уходит.", initial: note(), placeholder: "Например: хороший мафия", ok: "Сохранить" });
+		if(value === undefined) return;
+		const text = value.trim().slice(0, 200);
+		ctx.settings.update(settings => {
+			settings.notes = { ...settings.notes };
+			if(text) settings.notes[noteKey] = text; else delete settings.notes[noteKey];
+		});
+		setNote(text);
+	};
+	const complain = async (kind: "banner" | "avatar") => {
+		if(!await ctx.dialogs.confirm(`Пожаловаться на ${kind == "banner" ? "баннер" : "аватарку"} этого игрока? Если жалоб будет несколько, картинка спрячется до проверки.`, { yes: "Пожаловаться", title: "ЖАЛОБА" })) return;
+		const result = await ctx.bafia.report(player.playerObjectId ?? playerObjectId, kind);
+		await ctx.dialogs.alert(result == "ok" ? "Спасибо, жалоба отправлена." : result == "slow-down" ? "Слишком много жалоб, попробуй завтра." : result == "nothing" ? "Этой картинки уже нет." : "Сервер Бафии сейчас недоступен.", { title: "Жалоба" });
+	};
+	/** визитка: картинка со статистикой, баннером и аватаркой для друзей */
+	const share = async () => {
+		const bg = background();
+		const blob = await renderProfileCard({
+			nick: player.username ?? "", status: look().status, level, games: player.playedGames ?? 0,
+			winsMafia: player.winsAsMafia ?? 0, winsPeaceful: player.winsAsPeaceful ?? 0,
+			background: theme() ? (/#[0-9a-f]{6}/gi.exec(theme()!.background) ? theme()!.background.match(/#[0-9a-f]{6}/gi)! : ["#444444"]) : [bg && /^#[0-9a-f]{6}/i.test(bg) ? bg.slice(0, 7) : "#f2f2f2"],
+			text: textColor(), banner: banner(), avatar: gifAvatar() ?? (player.photo ? `${PHOTO_BASE}/${player.photo}` : undefined)
+		});
+		if(!blob) return void await ctx.dialogs.alert("Не получилось нарисовать визитку.", { title: "Ошибка" });
+		await shareImage(blob, `${player.username ?? "profile"}.png`);
+	};
 	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "" }]));
 	// ник в профиле приходит позже запроса: значки по нему запрашиваем, когда ник появился
 	createEffect(() => { if(player.username) ctx.bafia.watchNicks([player.username]); });
@@ -138,6 +180,8 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			.photo { position: relative; cursor: pointer; }
 			.online { position: absolute; left: 2px; top: 6px; width: 18px; height: 18px; box-sizing: border-box; border: 2px solid #fff; border-radius: 50%; background: #636363; }
 			.online.on { background: #3fe33f; }
+			.status { max-width: 100%; text-align: center; font-size: 14px; opacity: .9; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+			.note { max-width: 100%; text-align: center; font-size: 13px; opacity: .75; font-style: italic; overflow-wrap: anywhere; }
 			.name { font-size: 18px; font-weight: 700; user-select: text; -webkit-user-select: text; }
 			.blur { filter: blur(5px); }
 			.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
@@ -150,7 +194,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			.role { display: flex; flex-direction: column; align-items: center; padding: 5px; border-radius: 6px; background: var(--surface); color: var(--text-dark); font-size: 12px; }
 			.role img { width: 40px; height: 55px; object-fit: contain; }
 		</style>
-		<div class="profile" style={{ ...(colors.background ? { background: colors.background, padding: "8px", "border-radius": "8px", "--text-dark": readableOn(colors.background) } : {}), ...(colors.main ? { "--progress-fill": colors.main, "--accent": colors.main } : {}) }}>
+		<div class="profile" style={{ ...(background() ? { background: background(), padding: "8px", "border-radius": "8px", "--text-dark": textColor() } : {}), ...(colors.main ? { "--progress-fill": colors.main, "--accent": colors.main } : {}) }}>
 			<div class="level">
 				<span class="chip gender" title={player.sex == Sex.Female ? "Женский" : "Мужской"} style={{ color: player.sex == Sex.Female ? "#d6558d" : "#3a7bd5" }}>{player.sex == Sex.Female ? "♀" : "♂"}</span>
 				<div class="levelbar">
@@ -163,7 +207,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				</div>
 			</div>
 
-			<div class="hero">
+			<div class="hero" style={banner() ? { "background-image": `url("${banner()}")`, "background-size": "cover", "background-position": "center", "border-radius": "10px", padding: "18px 10px", "min-height": "150px" } : undefined}>
 				@if (animationOf(decorations, DecorationType.ProfileAnimation)) {
 					<Lottie animation={() => animationOf(decorations, DecorationType.ProfileAnimation)} />
 				}
@@ -172,7 +216,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 					// <span class="chip" title="Рейтинг"><b class="trophy">{"🏆"}</b>{player.matchMakingScore ?? 0}</span>
 				</div>
 				<div class="photo" onClick={() => void ctx.dialogs.manager.open({ title: player.username, render: () => AvatarView({ photo: player.photo, assets: ctx.assets, gif: gifAvatar() }) })}>
-					<Avatar photo={() => player.photo ?? ""} gif={gifAvatar} ring={() => photoRing(decorations)} animation={() => animationOf(decorations, DecorationType.PhotoBorderAnimation)} assets={ctx.assets} size={110} />
+					<Avatar photo={() => player.photo ?? ""} gif={gifAvatar} ring={() => avatarFrame(look(), photoRing(decorations))} animation={() => animationOf(decorations, DecorationType.PhotoBorderAnimation)} assets={ctx.assets} size={110} />
 					<div class={player.isOnline ? "online on" : "online"}></div>
 				</div>
 				<div class="right">
@@ -190,14 +234,37 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				@if (animationOf(decorations, DecorationType.UsernameAnimation)) {
 					<Lottie animation={() => animationOf(decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" />
 				}
-				{player.username ?? ""}
+				<span style={nickEffect(look(), premiumColor())}>{player.username ?? ""}</span>
 				{premiumColor() ? <PremiumBadge color={premiumColor()!} /> : null}
 				<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} />
 			</div>
 
+			@if (look().status) {
+				<div class="status" data-keep>{look().status}</div>
+			}
+			@if (look().pin) {
+				<GifMessage bafia={ctx.bafia} id={look().pin!} />
+			}
+			@if (note()) {
+				<div class="note" data-keep>{"Заметка: " + note()}</div>
+			}
+
 			<div class="actions">
 				@if (ctx.bafia.enabled) {
 					<button onClick={() => void showNicks()}>{"История ников"}</button>
+				}
+				<button onClick={() => void share()}>{"Визитка"}</button>
+				@if (noteKey) {
+					<button onClick={() => void editNote()}>{note() ? "Изменить заметку" : "Заметка"}</button>
+				}
+				@if (!isMe && ctx.bafia.enabled && player.username) {
+					<button onClick={() => ctx.bafia.toggleWatched(player.username ?? "")}>{watched() ? "Не следить" : "Следить"}</button>
+				}
+				@if (!isMe && ctx.bafia.enabled && banner()) {
+					<button class="dark-gray" onClick={() => void complain("banner")}>{"Жалоба на баннер"}</button>
+				}
+				@if (!isMe && ctx.bafia.enabled && gifAvatar()) {
+					<button class="dark-gray" onClick={() => void complain("avatar")}>{"Жалоба на аватарку"}</button>
 				}
 				@if (!isMe) {
 					<>

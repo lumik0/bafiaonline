@@ -1,2 +1,2 @@
-export const versionNumber = "2.1.8";
+export const versionNumber = "2.2";
 export const version = `Beta ${versionNumber}`;

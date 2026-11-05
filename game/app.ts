@@ -97,11 +97,18 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const user = new User();
   const auth = new Auth(client, host.storage.accounts, user);
   // игрока не пустили в игру (бан): сервер Бафии показывает значок «БАН», пока он не закончится; ник и id берём из сохранённого аккаунта
-  auth.on("blocked", async (email, seconds) => {
-    const account = (await host.storage.accounts.list()).find(item => item.email == email);
-    if(account?.name && account.playerUserId) ctx.bafia.reportBan(account.playerUserId, account.name, seconds);
+  auth.on("blocked", (email, seconds) => {
+    void host.storage.accounts.list().then(accounts => {
+      const account = accounts.find(item => item.email == email);
+      if(account?.name && account.playerUserId) ctx.bafia.reportBan(account.playerUserId, account.name, seconds);
+    }).catch(() => {});
   });
   const nav = new Navigator<Routes>();
+  // перезаход после обрыва не удался (например, бан): показываем причину на экране входа
+  auth.on("restoreFailed", (email, result) => {
+    dialogs.manager.closeAll();
+    nav.replace("authorization", { email, error: signInProblem(result) });
+  });
   const dialogs = createDialogs(new DialogManager());
   const settings = await SettingsStore.load(host.storage.settings);
   const roomFilter = await DocumentStore.load(filterDocument(host.storage.files));

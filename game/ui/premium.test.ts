@@ -30,7 +30,7 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 /** игрок с премиумом: у него значок и рамка вокруг ника в его цвете, у остальных обычный вид */
 test("премиум Бафии: цветной значок в списке игроков, значок и рамка у ника в чате", async() => {
   const assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
-  const bafia = Object.assign(new Events<{ change: () => void }>(), { premiumColor: (id: string) => id == "p1" ? "#3E63DD" : undefined, online: new Set(["p1", "p2"]), avatar: (id: string) => id == "p1" ? "https://bafia.example.com/a/abc12345" : undefined, enabled: true,
+  const bafia = Object.assign(new Events<{ change: () => void }>(), { look: () => ({}), premiumColor: (id: string) => id == "p1" ? "#3E63DD" : undefined, online: new Set(["p1", "p2"]), avatar: (id: string) => id == "p1" ? "https://bafia.example.com/a/abc12345" : undefined, enabled: true,
     shamePoints: (nick: string) => nick == "Чужой" ? 3 : undefined, banUntil: (nick: string) => nick == "Обычный" ? Date.now() + 3_600_000 : undefined });
   const root = document.body.appendChild(document.createElement("div"));
   const users = [{ username: "Звезда", playerObjectId: "p1" }, { username: "Обычный", playerObjectId: "p2" }];

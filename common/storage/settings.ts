@@ -29,8 +29,14 @@ export const defaultGameSettings = (mobile: boolean) => ({
     /** цвет значка премиума (название из PREMIUM_COLORS) */
     color: "gold",
     /** избранные гифки (новые первыми): номер и название, по названию ищут во вкладке «Избранное» */
-    favorites: [] as { id: string, title: string }[]
+    favorites: [] as { id: string, title: string }[],
+    /** избранные игроки (ники): уведомление, когда зашли в Бафию */
+    watched: [] as string[],
+    /** день (число суток с 1970), когда игроку напомнили, что премиум скоро закончится */
+    expiryWarned: 0
   },
+  /** личные заметки об игроках: постоянный `objectId` пользователя -> текст; хранятся только здесь, сервер их не видит */
+  notes: {} as Record<string, string>,
   window: {
     zoom: 1
   },

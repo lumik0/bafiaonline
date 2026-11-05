@@ -78,7 +78,7 @@ describe("Auth", () => {
     expect(network.last.sent[0]).toMatchObject({ ty: "sin", e: "a@b.c", pw: md5salt("right") });
   });
 
-  test("в комнате повторный вход не запрашивает дашборд и не меняет подписку; устройство то же", async() => {
+  test("в комнате повторный вход не запрашивает дашборд и не меняет подписку; устройство каждый раз новое", async() => {
     const { network, auth } = await setup();
     await auth.signIn({ email: "a@b.c", password: "right" });
     const firstDevice = network.last.sent[0]!.d;
@@ -90,7 +90,7 @@ describe("Auth", () => {
     await reconnected;
 
     expect(network.last.sent.map(packet => packet.ty)).toEqual(["sin"]);
-    expect(network.last.sent[0]!.d).toBe(firstDevice);
+    expect(network.last.sent[0]!.d).not.toBe(firstDevice);
   });
 
   test("выход очищает сессию и больше не входит при переподключении", async() => {

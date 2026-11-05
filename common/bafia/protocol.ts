@@ -35,6 +35,12 @@ export const BAFIA_LIMITS = {
   avatarBytes: 16 * 1024 * 1024,
   avatarPerDay: 10,
   avatarSide: 256,
+  /** баннер профиля (премиум): размер файла, сколько раз в сутки можно менять, длинная сторона после сжатия (px) */
+  bannerBytes: 16 * 1024 * 1024,
+  bannerPerDay: 10,
+  bannerSide: 960,
+  /** статус в профиле (премиум): длина */
+  status: 60,
   /** сообщение всем игрокам от администратора: длина текста */
   notice: 300
 } as const;
@@ -45,12 +51,58 @@ export const GIF_FILE_PATH = /^\/g\/[a-z0-9]{6,12}$/;
 /** аватарка лежит на сервере Бафии; путь `/a/номер` */
 export const AVATAR_FILE_PATH = /^\/a\/[a-z0-9]{6,12}$/;
 
+/** баннер профиля лежит на сервере Бафии; путь `/b/номер` */
+export const BANNER_FILE_PATH = /^\/b\/[a-z0-9]{6,12}$/;
+/** свой цвет фона профиля (премиум): #rrggbb; пустая строка - цвет не задан */
+export const PROFILE_BG = /^#[0-9a-fA-F]{6}$/;
+
 /** цвета значка премиума: название → цвет (сервер присылает только название) */
 export const PREMIUM_COLORS = {
   gold: "#E0A800", red: "#E5484D", pink: "#E93D82", purple: "#8E4EC6", blue: "#3E63DD", cyan: "#12A594", green: "#30A46C", orange: "#F76B15"
 } as const;
 export type PremiumColor = keyof typeof PREMIUM_COLORS;
 export const isPremiumColor = (value: unknown): value is PremiumColor => typeof value == "string" && Object.hasOwn(PREMIUM_COLORS, value);
+
+/** эффекты ника (премиум): цвет берётся из цвета значка */
+export const PROFILE_EFFECTS = ["glow", "gradient", "rainbow"] as const;
+export type ProfileEffect = typeof PROFILE_EFFECTS[number];
+/** готовые темы фона профиля (премиум): название -> CSS-градиент */
+export const PROFILE_THEMES = {
+  sunset: "linear-gradient(135deg, #ff9966, #ff5e62)",
+  ocean: "linear-gradient(135deg, #2193b0, #6dd5ed)",
+  forest: "linear-gradient(135deg, #134e5e, #71b280)",
+  night: "linear-gradient(135deg, #232526, #414345)",
+  candy: "linear-gradient(135deg, #ee9ca7, #ffdde1)",
+  violet: "linear-gradient(135deg, #5f2c82, #49a09d)"
+} as const;
+export type ProfileTheme = keyof typeof PROFILE_THEMES;
+
+/** внешний вид профиля игрока с премиумом (кроме баннера и цвета фона) */
+export interface ProfileLook {
+  /** короткая строка под ником */
+  status?: string
+  /** цвет рамки аватарки (название из PREMIUM_COLORS) */
+  frame?: PremiumColor
+  effect?: ProfileEffect
+  theme?: ProfileTheme
+  /** номер закреплённой гифки */
+  pin?: string
+}
+
+/** разбирает и чистит внешний вид профиля; чужие поля отбрасывает, пустое даёт `{}` */
+export function parseLook(value: unknown): ProfileLook {
+  const look: ProfileLook = {};
+  if(!isRecord(value)) return look;
+  if(typeof value.status == "string") {
+    const status = value.status.trim();
+    if(status && status.length <= BAFIA_LIMITS.status && clean(status)) look.status = status;
+  }
+  if(isPremiumColor(value.frame)) look.frame = value.frame;
+  if(typeof value.effect == "string" && (PROFILE_EFFECTS as readonly string[]).includes(value.effect)) look.effect = value.effect as ProfileEffect;
+  if(typeof value.theme == "string" && Object.hasOwn(PROFILE_THEMES, value.theme)) look.theme = value.theme as ProfileTheme;
+  if(typeof value.pin == "string" && GIF_ID.test(value.pin)) look.pin = value.pin;
+  return look;
+}
 
 /** ссылка на историю игры в личном сообщении: `[hist:номер]` */
 export const HIST_TAG = /^\[hist:([a-z0-9]{12})\]$/;
@@ -132,6 +184,17 @@ export type ClientMessage =
   | { t: "avatarSet", n: number, data: string }
   /** убрать свою аватарку */
   | { t: "avatarClear", n: number }
+  /** баннер профиля (только премиум): gif, webp или png в base64; видят игроки Бафии в твоём профиле */
+  | { t: "bannerSet", n: number, data: string }
+  | { t: "bannerClear", n: number }
+  /** свой цвет фона профиля (только премиум): `#rrggbb` или пустая строка, чтобы убрать */
+  | { t: "profileBg", n: number, color: string }
+  /** внешний вид профиля (только премиум): заменяет прежний целиком, пустой - всё убрать */
+  | { t: "look", n: number, look: ProfileLook }
+  /** пожаловаться на баннер или аватарку игрока, который сейчас в сети (по id игрока) */
+  | { t: "report", n: number, id: string, kind: "banner" | "avatar" }
+  /** кто из этих ников сейчас в Бафии (для избранных игроков, до 20 ников) */
+  | { t: "whoNicks", n: number, nicks: string[] }
   /** статус премиума и мои загрузки */
   | { t: "premium", n: number }
   /** активировать код премиума (выдаётся за донат) на этой установке */
@@ -157,13 +220,16 @@ export interface NickRecord { nick: string, first: number, last: number }
 export type ServerMessage =
   /** на `hello` сервер может добавить ключ Giphy: поиск гифок игрок делает сам, из своего браузера */
   /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
-  | { t: "ok", n: number, gifKey?: string, premium?: number, avatar?: string }
+  | { t: "ok", n: number, gifKey?: string, premium?: number, avatar?: string, banner?: string, profileBg?: string, look?: ProfileLook }
   /** одноразовое сообщение администратора всем, кто сейчас в сети (приходит само, `n` всегда 0); позже зашедшие его не получают */
   | { t: "notice", n: 0, text: string }
   | { t: "error", n: number, reason: string }
   /** `avatars` - пути аватарок игроков (id → `/a/номер`) */
-  | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string>, avatars?: Record<string, string> }
+  /** `banners` - пути баннеров профиля (id → `/b/номер`), `backs` - цвета фона профиля; только у игроков с премиумом */
+  | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string>, avatars?: Record<string, string>, banners?: Record<string, string>, backs?: Record<string, string>, looks?: Record<string, ProfileLook> }
   /** ключ - `nickKey` ника; `shame` - очки «Позора» у тех, кому положен значок; `bans` - до какого времени (мс) действует бан; у остальных записи нет */
+  /** ключи (`nickKey`) ников из `whoNicks`, которые сейчас в сети */
+  | { t: "onlineNicks", n: number, nicks: string[] }
   | { t: "marks", n: number, shame?: Record<string, number>, bans?: Record<string, number> }
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
   /** `url` нет, если такой гифки в каталоге нет */
@@ -195,12 +261,15 @@ function ids(value: unknown): string[] | undefined {
 export function parseClientMessage(raw: string): ClientMessage | undefined {
   // снимок игры и гифка большие, остальные сообщения нет; размер проверяется ещё раз по типу ниже
   if(raw.length > Math.ceil(BAFIA_LIMITS.gifBytes * 4 / 3) + 1000) return undefined;
+  // большое сообщение допустимо только трёх типов: тип стоит в начале, поэтому лишнее отбрасываем до разбора JSON (иначе поток мусора по 20 МБ грузил бы процессор)
+  if(raw.length > BAFIA_LIMITS.message && !/"t":\s*"(histPut|gifUpload|avatarSet|bannerSet)"/.test(raw.slice(0, 200))) return undefined;
   let value: unknown;
   try { value = JSON.parse(raw); } catch { return undefined; }
   if(!isRecord(value) || typeof value.n != "number" || !Number.isSafeInteger(value.n)) return undefined;
   const n = value.n;
-  if(value.t != "histPut" && value.t != "gifUpload" && value.t != "avatarSet" && raw.length > BAFIA_LIMITS.message) return undefined;
+  if(value.t != "histPut" && value.t != "gifUpload" && value.t != "avatarSet" && value.t != "bannerSet" && raw.length > BAFIA_LIMITS.message) return undefined;
   if(value.t == "avatarSet" && raw.length > Math.ceil(BAFIA_LIMITS.avatarBytes * 4 / 3) + 1000) return undefined;
+  if(value.t == "bannerSet" && raw.length > Math.ceil(BAFIA_LIMITS.bannerBytes * 4 / 3) + 1000) return undefined;
   if(value.t == "histPut" && raw.length > BAFIA_LIMITS.premiumHistory + 200) return undefined;
 
   switch(value.t) {
@@ -242,6 +311,18 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "avatarSet":
       return typeof value.data == "string" && value.data.length > 20 && /^[A-Za-z0-9+/=]+$/.test(value.data) ? { t: "avatarSet", n, data: value.data } : undefined;
     case "avatarClear": return { t: "avatarClear", n };
+    case "bannerSet":
+      return typeof value.data == "string" && value.data.length > 20 && /^[A-Za-z0-9+/=]+$/.test(value.data) ? { t: "bannerSet", n, data: value.data } : undefined;
+    case "bannerClear": return { t: "bannerClear", n };
+    case "profileBg":
+      return typeof value.color == "string" && (value.color == "" || PROFILE_BG.test(value.color)) ? { t: "profileBg", n, color: value.color.toLowerCase() } : undefined;
+    case "look": return { t: "look", n, look: parseLook(value.look) };
+    case "report":
+      return text(value.id, BAFIA_LIMITS.id) && clean(value.id) && (value.kind == "banner" || value.kind == "avatar") ? { t: "report", n, id: value.id, kind: value.kind as "banner" | "avatar" } : undefined;
+    case "whoNicks": {
+      const nicks = Array.isArray(value.nicks) ? value.nicks.filter((nick): nick is string => text(nick, BAFIA_LIMITS.nick) && clean(nick)) : [];
+      return Array.isArray(value.nicks) && value.nicks.length <= 20 && nicks.length == value.nicks.length ? { t: "whoNicks", n, nicks } : undefined;
+    }
     case "premium": return { t: "premium", n };
     case "mine": return { t: "mine", n };
     case "redeem":

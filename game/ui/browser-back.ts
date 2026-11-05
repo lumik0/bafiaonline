@@ -4,6 +4,8 @@ import type { GameContext } from "../context";
 export interface HistoryLike {
   pushState(state: unknown, title: string): void
   go(delta: number): void
+  /** настоящий браузер отдаёт сюда номер записи; заглушка может не иметь */
+  readonly state?: unknown
 }
 
 /**
@@ -17,6 +19,8 @@ export interface HistoryLike {
 export function bindBrowserBack(ctx: GameContext, history: HistoryLike = window.history, target: EventTarget = window): () => void {
   let pushed = 0;
   let ignore = 0;
+  // куда мы сами отправили историю через `go`: пока не доехали, popstate не считается нажатием «назад»
+  let pending: number | undefined;
 
   const needed = () => Math.max(0, ctx.nav.depth - 1 + ctx.dialogs.manager.entries.length + (ctx.dialogs.menu.isOpen ? 1 : 0));
 
@@ -27,16 +31,37 @@ export function bindBrowserBack(ctx: GameContext, history: HistoryLike = window.
       const extra = pushed - need;
       pushed = need;
       ignore++;
+      pending = need;
       history.go(-extra);
     }
   };
 
+  /** настоящий номер записи из браузера; `undefined`, если браузер его не отдаёт */
+  const position = () => {
+    if(!("state" in history)) return undefined;
+    const state = history.state as { bafia?: unknown } | null | undefined;
+    return typeof state?.bafia == "number" ? state.bafia : 0;
+  };
+
   const onPop = () => {
-    if(ignore > 0) {
+    const real = position();
+    if(real !== undefined) {
+      // быстрые нажатия «назад» ломали счётчики, поэтому опираемся на настоящую позицию
+      if(pending !== undefined && real == pending) {
+        pending = undefined;
+        ignore = 0;
+        pushed = real;
+        return;
+      }
+      pending = undefined;
+      ignore = 0;
+      pushed = Math.min(pushed, real);
+    } else if(ignore > 0) {
       ignore--;
       return;
+    } else {
+      pushed = Math.max(0, pushed - 1);
     }
-    pushed = Math.max(0, pushed - 1);
 
     // в неактивном окне игры «назад» ничего не делает: запись возвращается
     if(!ctx.host.window.active) return sync();
@@ -55,6 +80,7 @@ export function bindBrowserBack(ctx: GameContext, history: HistoryLike = window.
     // игра закрыта: добавленные записи истории убираем, чтобы «назад» не ходило по пустым
     if(pushed > 0) {
       ignore++;
+      pending = 0;
       history.go(-pushed);
       pushed = 0;
     }

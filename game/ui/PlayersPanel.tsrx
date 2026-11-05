@@ -2,6 +2,7 @@ import type { Assets } from "@common/assets";
 import type { ChatUser } from "../domain/chat/message";
 import { Avatar } from "./Avatar.tsrx";
 import { nickStyle, photoRing } from "../domain/decorations";
+import { avatarFrame } from "../domain/premium-style";
 import type { Bafia } from "../domain/bafia";
 import { Marks } from "./Marks.tsrx";
 
@@ -30,7 +31,7 @@ export function PlayersPanel({ users, myName, hideName, assets, mention, profile
 		<div class="players">
 			@for (const user of users()) {
 				<div class="player">
-					<div onClick={() => profile(user.playerObjectId ?? "")}><Avatar photo={() => user.photo ?? ""} gif={() => avatar?.(user.playerObjectId ?? "")} ring={() => photoRing(user.decorations)} assets={assets} size={25} /></div>
+					<div onClick={() => profile(user.playerObjectId ?? "")}><Avatar photo={() => user.photo ?? ""} gif={() => avatar?.(user.playerObjectId ?? "")} ring={() => avatarFrame(bafia?.look(user.playerObjectId ?? ""), photoRing(user.decorations))} assets={assets} size={25} /></div>
 					<span class={hideName() && user.username == myName() ? "nick blur" : "nick"} data-keep style={nickStyle(user.decorations)} onClick={() => mention(user.username)}>{user.username}<span class="vip">{user.vip ?? ""}</span>{inBafia?.(user.playerObjectId ?? "") ? <span class="bafia" style={badgeColor?.(user.playerObjectId ?? "") ? { background: badgeColor(user.playerObjectId ?? "") } : undefined} title={badgeColor?.(user.playerObjectId ?? "") ? "Играет в Бафии, премиум" : "Играет в Бафии"}>{"Б"}</span> : null}<Marks bafia={bafia} nick={() => user.username} /></span>
 				</div>
 			}

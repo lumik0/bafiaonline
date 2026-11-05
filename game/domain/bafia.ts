@@ -1,7 +1,7 @@
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
-import { isPremiumColor, nickKey, PREMIUM_COLORS, AVATAR_FILE_PATH, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { isPremiumColor, nickKey, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -45,6 +45,15 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   avatars = new Map<string, string>();
   /** путь моей аватарки; нет - аватарки нет */
   myAvatar?: string;
+  /** баннеры и цвета фона профиля игроков с премиумом из последних ответов «кто в Бафии» */
+  banners = new Map<string, string>();
+  backs = new Map<string, string>();
+  /** мои баннер и цвет фона профиля */
+  myBanner?: string;
+  myBg?: string;
+  /** внешний вид профилей игроков с премиумом (статус, рамка, эффект, тема, гифка) и мой */
+  looks = new Map<string, ProfileLook>();
+  myLook: ProfileLook = {};
   /** мой выбранный цвет: отправляется серверу, когда есть премиум */
   color?: string;
   /** код, который активируется сам при подключении, если премиума ещё нет */
@@ -118,11 +127,13 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.emit("change");
   }
 
-  private banReport?: { id: string, nick: string, seconds: number };
+  private banReport?: { id: string, nick: string, until: number };
 
   /** игра не пустила этого игрока (бан): сервер Бафии покажет всем значок «БАН» до конца срока. При входе без бана значок снимается сам */
   reportBan(id: string, nick: string, seconds: number) {
-    this.banReport = { id, nick, seconds };
+    this.banReport = { id, nick, until: Date.now() + seconds * 1000 };
+    // игрок не играет: старое «я играю» при переподключении сняло бы значок
+    this.identity = undefined;
     if(this.ready) void this.request({ t: "banned", id, nick, seconds });
   }
 
@@ -148,10 +159,18 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.gifKey = hello.gifKey;
     this.premiumUntil = hello.premium;
     this.myAvatar = hello.avatar;
+    this.myBanner = typeof hello.banner == "string" && BANNER_FILE_PATH.test(hello.banner) ? hello.banner : undefined;
+    this.myBg = PROFILE_BG.test(hello.profileBg ?? "") ? hello.profileBg : undefined;
+    this.myLook = parseLook(hello.look);
     this.ready = true;
     this.startHeartbeat();
     if(this.identity) await this.request({ t: "presence", ...this.identity });
-    else if(this.banReport) await this.request({ t: "banned", ...this.banReport });
+    else if(this.banReport) {
+      // после переподключения шлём остаток срока, а не исходный: иначе значок каждый раз продлевался бы
+      const { id, nick, until } = this.banReport, seconds = Math.ceil((until - Date.now()) / 1000);
+      if(seconds > 0) await this.request({ t: "banned", id, nick, seconds });
+      else this.banReport = undefined;
+    }
     // премиум не найден по ключу (новая установка), а код у игрока сохранён - активируем его сами
     if(!this.premiumUntil && this.savedCode) await this.redeem(this.savedCode);   // цвет после активации уходит сам
     else await this.sendColor();
@@ -201,7 +220,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(shareSeen) void this.request({ t: "seen", players: list });
     const answer = await this.request({ t: "who", ids: list.map(player => player.id) });
     if(answer?.t != "online") return;
-    const next = new Set(this.online), premium = new Set(this.premiumOnline), colors = new Map(this.premiumColors), avatars = new Map(this.avatars);
+    const next = new Set(this.online), premium = new Set(this.premiumOnline), colors = new Map(this.premiumColors), avatars = new Map(this.avatars), banners = new Map(this.banners), backs = new Map(this.backs), looks = new Map(this.looks);
     for(const { id } of list) {
       answer.ids.includes(id) ? next.add(id) : next.delete(id);
       answer.premium?.includes(id) ? premium.add(id) : premium.delete(id);
@@ -209,11 +228,19 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
       isPremiumColor(color) ? colors.set(id, color) : colors.delete(id);
       const avatar = answer.avatars?.[id];
       typeof avatar == "string" && AVATAR_FILE_PATH.test(avatar) ? avatars.set(id, avatar) : avatars.delete(id);
+      const banner = answer.banners?.[id], back = answer.backs?.[id];
+      typeof banner == "string" && BANNER_FILE_PATH.test(banner) ? banners.set(id, banner) : banners.delete(id);
+      typeof back == "string" && PROFILE_BG.test(back) ? backs.set(id, back) : backs.delete(id);
+      const look = parseLook(answer.looks?.[id]);
+      Object.keys(look).length ? looks.set(id, look) : looks.delete(id);
     }
     this.online = next;
     this.premiumOnline = premium;
     this.premiumColors = colors;
     this.avatars = avatars;
+    this.banners = banners;
+    this.backs = backs;
+    this.looks = looks;
     this.emit("change");
   }
 
@@ -288,13 +315,13 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** предложить свою гифку: попадёт в каталог после проверки администратором */
-  async uploadGif(title: string, bytes: Uint8Array): Promise<{ ok: true } | { error: "offline" | "premium" | "too-big" | "bad-format" | "duplicate" | "quota" }> {
+  async uploadGif(title: string, bytes: Uint8Array): Promise<{ ok: true } | { error: "offline" | "premium" | "too-big" | "bad-format" | "duplicate" | "quota" | "full" | "presence-first" }> {
     if(bytes.length > BAFIA_LIMITS.gifBytes) return { error: "too-big" };
     if(!this.ready) return { error: "offline" };
     const answer = await this.request({ t: "gifUpload", title: title.slice(0, BAFIA_LIMITS.gifTitle), data: toBase64(bytes) }, 60_000);
     if(answer?.t == "ok") return { ok: true };
     const reason = answer?.t == "error" ? answer.reason : "";
-    return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "duplicate" || reason == "quota" ? reason : "offline" };
+    return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "duplicate" || reason == "quota" || reason == "full" || reason == "presence-first" ? reason : "offline" };
   }
 
   /** выложить игру на 30 дней: номер для ссылки `[hist:номер]`, `undefined` если не вышло */
@@ -349,7 +376,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** поставить свою аватарку (gif, webp или png до 1 МБ); другие игроки Бафии увидят её сразу */
-  async setAvatar(bytes: Uint8Array): Promise<{ ok: true } | { error: "offline" | "premium" | "too-big" | "bad-format" | "quota" }> {
+  async setAvatar(bytes: Uint8Array): Promise<{ ok: true } | { error: "offline" | "premium" | "too-big" | "bad-format" | "quota" | "full" | "presence-first" }> {
     if(bytes.length > BAFIA_LIMITS.avatarBytes) return { error: "too-big" };
     if(!this.ready) return { error: "offline" };
     const answer = await this.request({ t: "avatarSet", data: toBase64(bytes) }, 30_000);
@@ -359,7 +386,70 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
       return { ok: true };
     }
     const reason = answer?.t == "error" ? answer.reason : "";
-    return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "quota" ? reason : "offline" };
+    return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "quota" || reason == "full" || reason == "presence-first" ? reason : "offline" };
+  }
+
+  /** поставить баннер профиля (только премиум): gif, webp или png */
+  async setBanner(bytes: Uint8Array): Promise<{ ok: true } | { error: "offline" | "premium" | "too-big" | "bad-format" | "quota" | "full" | "presence-first" }> {
+    if(bytes.length > BAFIA_LIMITS.bannerBytes) return { error: "too-big" };
+    if(!this.ready) return { error: "offline" };
+    const answer = await this.request({ t: "bannerSet", data: toBase64(bytes) }, 30_000);
+    if(answer?.t == "ok") {
+      this.myBanner = typeof answer.banner == "string" && BANNER_FILE_PATH.test(answer.banner) ? answer.banner : undefined;
+      this.emit("change");
+      return { ok: true };
+    }
+    const reason = answer?.t == "error" ? answer.reason : "";
+    return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "quota" || reason == "full" || reason == "presence-first" ? reason : "offline" };
+  }
+
+  async clearBanner(): Promise<boolean> {
+    if(!this.ready) return false;
+    const answer = await this.request({ t: "bannerClear" });
+    if(answer?.t != "ok") return false;
+    this.myBanner = undefined;
+    this.emit("change");
+    return true;
+  }
+
+  /** внешний вид профиля (только премиум): статус, рамка, эффект, тема, закреплённая гифка; заменяет прежний целиком */
+  async setLook(look: ProfileLook): Promise<"ok" | "premium" | "offline"> {
+    if(!this.ready) return "offline";
+    const answer = await this.request({ t: "look", look });
+    if(answer?.t == "ok") {
+      this.myLook = parseLook(answer.look);
+      this.emit("change");
+      return "ok";
+    }
+    return answer?.t == "error" && answer.reason == "premium" ? "premium" : "offline";
+  }
+
+  /** жалоба на баннер или аватарку игрока, который сейчас в сети */
+  async report(id: string, kind: "banner" | "avatar"): Promise<"ok" | "nothing" | "self" | "slow-down" | "offline"> {
+    if(!this.ready) return "offline";
+    const answer = await this.request({ t: "report", id, kind });
+    if(answer?.t == "ok") return "ok";
+    const reason = answer?.t == "error" ? answer.reason : "";
+    return reason == "nothing" || reason == "self" || reason == "slow-down" ? reason : "offline";
+  }
+
+  /** кто из этих ников сейчас в Бафии (ключи `nickKey`); `undefined` - нет связи */
+  async nicksOnline(nicks: string[]): Promise<Set<string> | undefined> {
+    if(!this.ready || !nicks.length) return undefined;
+    const answer = await this.request({ t: "whoNicks", nicks: nicks.slice(0, 20) });
+    return answer?.t == "onlineNicks" ? new Set(answer.nicks) : undefined;
+  }
+
+  /** цвет фона профиля (`#rrggbb`) или пусто, чтобы убрать; только премиум */
+  async setProfileBg(color: string): Promise<"ok" | "premium" | "offline"> {
+    if(!this.ready) return "offline";
+    const answer = await this.request({ t: "profileBg", color });
+    if(answer?.t == "ok") {
+      this.myBg = color || undefined;
+      this.emit("change");
+      return "ok";
+    }
+    return answer?.t == "error" && answer.reason == "premium" ? "premium" : "offline";
   }
 
   /** убрать свою аватарку */
@@ -390,7 +480,7 @@ export interface FavoriteGif { id: string, title: string }
 /** сколько гифок можно хранить в избранном */
 export const FAVORITES_MAX = 200;
 
-export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[] }
+export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[], watched?: string[], expiryWarned?: number }
 
 export interface BafiaDeps {
   settings: { data: { bafia: BafiaSettings, lowPower?: boolean }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
@@ -427,6 +517,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
     deps.settings.on("change", () => this.sync());
     deps.user.on("change", () => this.sync());
     this.sync();
+    this.startWatchPoll();
   }
 
   /** согласие на всё остальное: гифки, история ников, игры, аватарки */
@@ -460,6 +551,77 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
     // при экономии ресурсов анимации не крутятся нигде: везде статичное превью
     return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + (small || this.deps.settings.data.lowPower ? "/t" : "") : undefined;
   }
+  /** адрес баннера профиля игрока; свой виден только пока есть премиум */
+  banner(id: string): string | undefined {
+    const link = this.consented;
+    if(!link) return undefined;
+    const mine = id == this.deps.user.playerObjectId;
+    const path = mine ? (link.premiumUntil && link.premiumUntil > Date.now() ? link.myBanner : undefined) : link.banners.get(id);
+    return path && BANNER_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path : undefined;
+  }
+  /** цвет фона профиля игрока (`#rrggbb`) */
+  profileBg(id: string): string | undefined {
+    const link = this.consented;
+    if(!link) return undefined;
+    const mine = id == this.deps.user.playerObjectId;
+    return mine ? (link.premiumUntil && link.premiumUntil > Date.now() ? link.myBg : undefined) : link.backs.get(id);
+  }
+  /** внешний вид профиля игрока; свой виден только пока есть премиум */
+  look(id: string): ProfileLook {
+    const link = this.consented;
+    if(!link) return {};
+    const mine = id == this.deps.user.playerObjectId;
+    return mine ? (link.premiumUntil && link.premiumUntil > Date.now() ? link.myLook : {}) : link.looks.get(id) ?? {};
+  }
+  get myLook(): ProfileLook { return this.look(this.deps.user.playerObjectId); }
+  setLook(look: ProfileLook) { return this.consented?.setLook(look) ?? Promise.resolve("offline" as const); }
+  report(id: string, kind: "banner" | "avatar") { return this.consented?.report(id, kind) ?? Promise.resolve("offline" as const); }
+
+  /** избранные игроки (ники): когда зайдут в Бафию, приходит уведомление */
+  get watched(): readonly string[] {
+    const list = this.deps.settings.data.bafia.watched;
+    return Array.isArray(list) ? list.filter(nick => typeof nick == "string") : [];
+  }
+  isWatched(nick: string) { return this.watched.some(item => nickKey(item) == nickKey(nick)); }
+  toggleWatched(nick: string): boolean {
+    const had = this.isWatched(nick);
+    this.deps.settings.update(data => {
+      const rest = this.watched.filter(item => nickKey(item) != nickKey(nick));
+      data.bafia.watched = had ? rest : [nick, ...rest].slice(0, 20);
+    });
+    this.emit("change");
+    return !had;
+  }
+  private watchedOnline = new Set<string>();
+  private watchTimer?: ReturnType<typeof setInterval>;
+  /** раз в минуту спрашивает сервер об избранных игроках и сообщает о тех, кто только что зашёл */
+  private pollWatched = async () => {
+    if(!this.enabled || !this.watched.length) { this.watchedOnline = new Set(); return; }
+    const now = await this.consented?.nicksOnline([...this.watched]);
+    if(!now) return;
+    // первый ответ только запоминаем: при запуске игры никого «только что зашедшим» считать не нужно
+    const first = this.watchedOnline.size == 0 && !this.polled;
+    this.polled = true;
+    if(!first) for(const nick of this.watched) if(now.has(nickKey(nick)) && !this.watchedOnline.has(nickKey(nick))) this.emit("notice", `${nick} в Бафии`);
+    this.watchedOnline = now;
+  };
+  private polled = false;
+  /** запускает опрос избранных игроков; вызывается один раз при создании */
+  private startWatchPoll() {
+    this.watchTimer = setInterval(() => void this.pollWatched(), 60_000);
+  }
+  /** если премиум закончится в ближайшие 3 дня, напоминает раз в сутки */
+  private warnExpiry() {
+    const until = this.premiumUntil;
+    if(!until || until - Date.now() > 3 * 86_400_000) return;
+    const today = Math.floor(Date.now() / 86_400_000);
+    if(this.deps.settings.data.bafia.expiryWarned == today) return;
+    this.deps.settings.update(data => { data.bafia.expiryWarned = today; });
+    const days = Math.max(1, Math.ceil((until - Date.now()) / 86_400_000));
+    this.emit("notice", `Премиум Бафии закончится через ${days} дн. Продлить можно в настройках, во вкладке «Бафия»`);
+  }
+  get myBannerUrl() { return this.banner(this.deps.user.playerObjectId); }
+  get myProfileBg() { return this.profileBg(this.deps.user.playerObjectId); }
   get myAvatarUrl() { return this.avatar(this.deps.user.playerObjectId); }
 
   /** выбрать цвет своего значка; уходит на сервер сразу */
@@ -491,7 +653,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
       const link = this.link = new BafiaLink({ url: this.deps.url, fileBase: this.deps.url.replace(/^ws/, "http"), key, createSocket: this.deps.createSocket, timeout: this.deps.timeout });
       link.savedCode = this.deps.settings.data.bafia.code || undefined;
       link.color = this.deps.settings.data.bafia.color;
-      link.on("change", () => { this.scheduleExpiry(); this.emit("change"); });
+      link.on("change", () => { this.scheduleExpiry(); this.warnExpiry(); this.emit("change"); });
       // одноразовое сообщение администратора: игра показывает его баннером
       link.on("notice", text => this.emit("notice", text));
       link.start();
@@ -603,6 +765,9 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
   }
   setAvatar(bytes: Uint8Array) { return this.consented?.setAvatar(bytes) ?? Promise.resolve({ error: "offline" } as const); }
   clearAvatar() { return this.consented?.clearAvatar() ?? Promise.resolve(false); }
+  setBanner(bytes: Uint8Array) { return this.consented?.setBanner(bytes) ?? Promise.resolve({ error: "offline" } as const); }
+  clearBanner() { return this.consented?.clearBanner() ?? Promise.resolve(false); }
+  setProfileBg(color: string) { return this.consented?.setProfileBg(color) ?? Promise.resolve("offline" as const); }
   uploadGif(title: string, bytes: Uint8Array) { return this.consented?.uploadGif(title, bytes) ?? Promise.resolve({ error: "offline" } as const); }
 
   shareHistory(record: HistoryRecord) { return this.consented?.shareHistory(record) ?? Promise.resolve({ error: "offline" } as const); }
@@ -612,7 +777,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
 
   nicks(id: string) { return this.consented?.nicks(id) ?? Promise.resolve(undefined); }
 
-  dispose() { clearTimeout(this.expiryTimer); this.expiryAt = 0; this.link?.stop(); this.link = undefined; this.images.clear(); }
+  dispose() { clearInterval(this.watchTimer); clearTimeout(this.expiryTimer); this.expiryAt = 0; this.link?.stop(); this.link = undefined; this.images.clear(); }
 }
 
 /** что уходит на сервер Бафии: показывается при первом заходе и при включении в настройках */

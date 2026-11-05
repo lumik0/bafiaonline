@@ -45,27 +45,12 @@ export function signInProblem(result: SignInResult): string | undefined {
   }
 }
 
-const DEVICE_KEY = "bafia-device-id";
-let memoryDeviceId: string | undefined;
-
-/** одинаковый на этом устройстве, чтобы вход не выглядел как новое устройство */
+/** новый при каждом входе: сервер не связывает входы с одним устройством */
 function deviceId(): string {
-  try {
-    const saved = localStorage.getItem(DEVICE_KEY);
-    if(saved) return saved;
-  } catch {
-    // localStorage недоступен: держим в памяти
-  }
-  memoryDeviceId ??= Array.from(crypto.getRandomValues(new Uint8Array(8)), byte => byte.toString(16).padStart(2, "0")).join("");
-  try {
-    localStorage.setItem(DEVICE_KEY, memoryDeviceId);
-  } catch {
-    // см. выше
-  }
-  return memoryDeviceId;
+  return Array.from(crypto.getRandomValues(new Uint8Array(8)), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export class Auth extends Events<{ signedIn: (account: Account, reconnected: boolean) => void, signedOut: () => void, blocked: (email: string, secondsRemaining: number) => void }> {
+export class Auth extends Events<{ signedIn: (account: Account, reconnected: boolean) => void, signedOut: () => void, blocked: (email: string, secondsRemaining: number) => void, restoreFailed: (email: string, result: SignInResult) => void }> {
   private current?: Credentials;
   /** в комнате не запрашивать дашборд при входе: иначе подписка переключится и игра встанет */
   keepSubscription?: () => boolean;
@@ -94,7 +79,12 @@ export class Auth extends Events<{ signedIn: (account: Account, reconnected: boo
     try {
       const result = await this.authenticate(this.current, !this.keepSubscription?.());
       if(result.status == "ok") this.emit("signedIn", result.account, true);
-      else this.signOut();
+      else {
+        // сервер больше не пускает (бан, смена пароля): без этого игрок остался бы на экране без входа
+        const { email } = this.current;
+        this.signOut();
+        this.emit("restoreFailed", email, result);
+      }
     } catch {
       // связь опять пропала - следующий open повторит попытку
     }

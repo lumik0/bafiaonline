@@ -44,6 +44,33 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 5));
 const KEY = "k".repeat(24);
 
 describe("BafiaLink", () => {
+  test("бан: сообщается один раз, после переподключения уходит остаток срока, по окончании - ничего", async() => {
+    const log: Record<string, unknown>[] = [];
+    const { create, sockets } = serverSocket([], log);
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: create, backoff: [1] });
+    const realNow = Date.now;
+    let now = realNow();
+    Date.now = () => now;
+    try {
+      link.reportBan("p1", "Нарушитель", 600);
+      link.start();
+      await tick();
+      expect(log.filter(message => message.t == "banned")).toEqual([expect.objectContaining({ id: "p1", nick: "Нарушитель", seconds: 600 })]);
+
+      now += 400_000;
+      log.length = 0;
+      sockets.at(-1)!.onclose?.();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      expect(log.filter(message => message.t == "banned")).toEqual([expect.objectContaining({ seconds: 200 })]);
+
+      now += 300_000;
+      log.length = 0;
+      sockets.at(-1)!.onclose?.();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      expect(log.filter(message => message.t == "banned")).toEqual([]);
+    } finally { Date.now = realNow; link.stop(); }
+  });
+
   test("hello с ключом, потом presence; спрашивает, кто в Бафии, и помнит ответ", async() => {
     const log: Record<string, unknown>[] = [];
     const { create } = serverSocket(["p2"], log);
