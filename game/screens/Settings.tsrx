@@ -47,6 +47,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 
 	const bafiaOn = fromEvents(ctx.settings, "change", () => ctx.settings.data.bafia.enabled);
 	const premium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumUntil);
+	// статус премиума цветом: серый - не активирован, зелёный - действует, красный - закончился (код сохранён, а сервер премиум уже не видит)
+	const premiumState = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumUntil ? "active" : ctx.bafia.code && ctx.bafia.ready ? "expired" : "none");
+	const premiumStates = { none: ["#9aa0a6", "Не активирован"], active: ["#2fb44c", "Активирован"], expired: ["#d94452", "Закончился"] } as const;
 	// связь с сервером Бафии: от неё зависят значки, гифки и статистика; на скриншоте видно, подключено ли у игрока
 	const bafiaStatus = fromEvents(ctx.bafia, "change", () => ctx.bafia.status);
 	const problems: Record<string, string> = { version: "версия игры устарела, обнови страницу", "too-many": "открыто слишком много окон", "no-answer": "сервер не ответил", "slow-down": "слишком часто" };
@@ -92,7 +95,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const myAvatar = fromEvents(ctx.bafia, "change", () => ctx.bafia.myAvatarUrl);
 	const avatarErrors = {
 		offline: "Сервер Бафии сейчас недоступен.",
-		premium: "Сервер Бафии не принял аватарку: обнови игру.",
+		premium: "GIF-аватарка доступна только с премиумом.",
 		"too-big": "Файл больше 16 МБ. Выбери поменьше.",
 		"bad-format": "Нужен GIF, WebP или PNG.",
 		quota: "Слишком часто меняешь аватарку. Попробуй завтра.",
@@ -199,6 +202,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			.progress { height: 6px; margin: 0 2px 6px; border-radius: 3px; background: rgba(128, 128, 128, .25); overflow: hidden; }
 			.progress div { width: 40%; height: 100%; border-radius: 3px; background: var(--accent); animation: slide 1.1s ease-in-out infinite; }
 			@keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+			.pstate { flex: none; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
 			.pick { padding: 5px 10px; font-size: 13px; }
 			.pick.on { background: var(--accent) !important; color: #fff; }
 			select { max-width: 150px; }
@@ -308,11 +312,11 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 						@if (bafiaOn()) {
 							<>
 								<SettingGroup title="АВАТАРКА">
-									<SettingRow label="GIF-аватарка" hint="Анимированная, до 16 МБ; её видят другие игроки Бафии">
+									<SettingRow label="GIF-аватарка" hint={premium() ? "Анимированная, до 16 МБ; её видят другие игроки Бафии" : "Нужен премиум; когда он закончится, аватарка скроется, но сохранится"}>
 										@if (myAvatar()) {
 											<img class="avatarPreview" src={myAvatar()} width="34" height="34" alt="" />
 										}
-										<button disabled={avatarBusy()} onClick={() => avatarChooser.click()}>{avatarBusy() ? "Загрузка…" : myAvatar() ? "Заменить" : "Загрузить"}</button>
+										<button disabled={!premium() || avatarBusy()} onClick={() => avatarChooser.click()}>{avatarBusy() ? "Загрузка…" : myAvatar() ? "Заменить" : "Загрузить"}</button>
 										@if (myAvatar() && !avatarBusy()) {
 											<button onClick={() => void removeAvatar()}>{"Убрать"}</button>
 										}
@@ -389,6 +393,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 								</SettingGroup>
 								<SettingGroup title="ПРЕМИУМ">
 									<SettingRow label={premium() ? "Премиум до " + new Date(premium()!).toLocaleDateString("ru-RU") : "Премиум"} hint="Цветной значок с рамкой и история игр дольше">
+										<span class="pstate" style={{ background: premiumStates[premiumState()][0] }} title={premiumStates[premiumState()][1]} aria-label={premiumStates[premiumState()][1]}></span>
 										<button onClick={() => void buyPremium()}>{premium() ? "Продлить" : "Купить"}</button>
 										<button onClick={() => void enterCode()}>{"Ввести код"}</button>
 									</SettingRow>

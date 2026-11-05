@@ -546,7 +546,8 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
     const link = this.consented;
     if(!link) return undefined;
     const mine = id == this.deps.user.playerObjectId;
-    const path = mine ? link.myAvatar : link.avatars.get(id);
+    // аватарка - перк премиума: без него её не видно, но на сервере она остаётся
+    const path = mine ? (link.premiumUntil && link.premiumUntil > Date.now() ? link.myAvatar : undefined) : link.avatars.get(id);
     // small - маленькое статичное превью для чата и списков: десятки анимированных аватарок сразу лагают на телефоне
     // при экономии ресурсов анимации не крутятся нигде: везде статичное превью
     return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + (small || this.deps.settings.data.lowPower ? "/t" : "") : undefined;
