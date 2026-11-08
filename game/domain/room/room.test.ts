@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { decode } from "@common/protocol";
 import { Role } from "../enums";
 import { toRoomEntry, firstTarget } from "./messages";
+import { isRoulette, rouletteTarget } from "./roulette";
 import { RoomState, type RoomSettings } from "./state";
 
 const settings: RoomSettings = { id: "r1", modelType: 0, title: "Тест", minPlayers: 5, maxPlayers: 8, minLevel: 1, vip: false, roles: [2] };
@@ -9,8 +10,8 @@ const stats = (wire: object) => { const message = decode(JSON.stringify({ ty: "r
 const pl = (o: string, puo: string, u: string) => ({ o, pu: { puo, u } });
 
 /** игра за столом из 8: я (p1) и семь остальных; роли задаются отдельно */
-function startGame(myRole: number, dayTime = 1) {
-  const state = new RoomState(settings, "p1");
+function startGame(myRole: number, dayTime = 1, title = settings.title) {
+  const state = new RoomState({ ...settings, title }, "p1");
   const players = Array.from({ length: 8 }, (_, i) => pl(`o${i + 1}`, `p${i + 1}`, `Игрок${i + 1}`));
   state.applyStatistics(stats({
     gs: { s: 3, t: 30, d: dayTime }, pls: players,
@@ -162,6 +163,61 @@ describe("действия по ролям", () => {
     expect(state.actionFor(state.playerBy("p4")!)).toBe("kill");
     state.applyPlayersData([{ playerObjectId: "p4", alive: false }]);
     expect(state.actionFor(state.playerBy("p4")!)).toBeUndefined();
+  });
+
+  test("рулетка: днём голос только за следующего живого по кругу, мафия ночью не убивает, остальные роли как обычно", () => {
+    for(const title of ["Рулетка", "ПОЗОР МАФИИ 2.0 ночь", "играем в рулетка!"]) expect(isRoulette(title)).toBe(true);
+    for(const title of ["Позор мафии", "Тест", undefined]) expect(isRoulette(title)).toBe(false);
+
+    const civilian = startGame(Role.Civilian, 3, "Рулетка");
+    expect(Object.entries(actions(civilian)).filter(([, action]) => action).map(([id]) => id)).toEqual(["p2"]);
+    civilian.applyPlayersData([{ playerObjectId: "p2", alive: false }]);
+    expect(Object.entries(actions(civilian)).filter(([, action]) => action).map(([id]) => id)).toEqual(["p3"]);
+
+    // мафия: днём тоже по кругу, ночью никого
+    const mafia = startGame(Role.Mafia, 1, "Рулетка");
+    expect(Object.values(actions(mafia)).every(action => action === undefined)).toBe(true);
+    const mafiaDay = startGame(Role.Mafia, 3, "Рулетка");
+    expect(actions(mafiaDay)["p2"]).toBe("kill");
+    expect(actions(mafiaDay)["p3"]).toBeUndefined();
+
+    // доктор и шериф ночью ходят на кого угодно
+    const doctor = startGame(Role.Doctor, 1, "Рулетка");
+    expect(doctor.actionFor(doctor.playerBy("p5")!)).toBe("_2");
+    const sheriff = startGame(Role.Sheriff, 1, "Рулетка");
+    expect(sheriff.actionFor(sheriff.playerBy("p5")!)).toBe("check");
+  });
+
+  test("«Позор мафии 2.0»: хост не участвует - за него не голосуют, его самого правила не ограничивают; в обычной рулетке хост играет как все", () => {
+    const withHost = (myRole: number, creator: string, dayTime: number, title = "Позор мафии 2.0") => {
+      const state = new RoomState({ ...settings, title, creator }, "p1");
+      const players = Array.from({ length: 8 }, (_, i) => pl(`o${i + 1}`, `p${i + 1}`, `Игрок${i + 1}`));
+      state.applyStatistics(stats({ gs: { s: 3, t: 30, d: dayTime }, pls: players, data: players.map((p, i) => ({ puo: p.pu.puo, a: true, r: i == 0 ? myRole : 1 })), rls: { "1": 5, "4": 2 } }));
+      return state;
+    };
+    const voted = (state: RoomState) => Object.entries(actions(state)).filter(([, action]) => action).map(([id]) => id);
+    // следующий за мной - хост: голос уходит через него
+    expect(voted(withHost(Role.Civilian, "p2", 3))).toEqual(["p3"]);
+    // я сам хост: голосую за кого угодно, мафия убивает ночью
+    expect(voted(withHost(Role.Civilian, "p1", 3))).toHaveLength(7);
+    expect(voted(withHost(Role.Mafia, "p1", 1))).toHaveLength(7);
+    // обычная рулетка: хост в круге, правила на всех
+    expect(voted(withHost(Role.Civilian, "p2", 3, "Рулетка"))).toEqual(["p2"]);
+    expect(voted(withHost(Role.Civilian, "p1", 3, "Рулетка"))).toEqual(["p2"]);
+    expect(voted(withHost(Role.Mafia, "p1", 1, "Рулетка"))).toEqual([]);
+  });
+
+  test("рулетка: порядок по кругу пропускает мёртвых", () => {
+    const table = (alive: boolean[]) => alive.map((isAlive, i) => ({ playerObjectId: `p${i}`, alive: isAlive }));
+    // Игрок 1, Игрок 2, Я (2), Игрок 3 мёртв, Игрок 4, Игрок 5
+    const players = table([true, true, true, false, true, true]);
+    expect(rouletteTarget(players, "p2")?.playerObjectId).toBe("p4");
+    expect(rouletteTarget(players, "p0")?.playerObjectId).toBe("p1");
+    expect(rouletteTarget(players, "p1")?.playerObjectId).toBe("p2");
+    expect(rouletteTarget(players, "p5")?.playerObjectId).toBe("p0");
+    expect(rouletteTarget(table([true, false, false]), "p0")).toBeUndefined();
+    expect(rouletteTarget(players, "нет")).toBeUndefined();
+    expect(rouletteTarget(players, "p2", "p4")?.playerObjectId).toBe("p5");
   });
 
   test("после действия повторить нельзя; напоённый барменом может ещё раз; мёртвый и не в игре - нет", () => {

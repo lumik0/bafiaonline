@@ -3,7 +3,9 @@ import { createSignal, fromEvents } from "@common/ui";
 import { longPress } from "@common/ui/long-press";
 import { createViewCache, type PlayerView } from "../../domain/room/views";
 import { nickStyle } from "../../domain/decorations";
+import type { RoomTip } from "./room-tip";
 import { playerMenuData } from "../../mods/data";
+import { completeTip } from "../../domain/tips";
 import { roleNames, Role } from "../../domain/enums";
 import type { RoomSession } from "../../domain/room/session";
 import type { GameContext } from "../../context";
@@ -11,7 +13,7 @@ import type { GameContext } from "../../context";
 const ALL_ROLES = Object.values(Role).filter((value): value is Role => typeof value == "number");
 
 /** стол: карты игроков; нажатие - ход или упоминание, правый клик - меню */
-export function PlayersGrid({ ctx, session, mention }: { ctx: GameContext, session: RoomSession, mention: (username: string) => void }) @{
+export function PlayersGrid({ ctx, session, mention, tip }: { ctx: GameContext, session: RoomSession, mention: (username: string) => void, tip?: RoomTip }) @{
 	const cache = createViewCache();
 	const views = fromEvents(session, "change", () => cache(session.state).filter(view => !view.isMe));
 	const images = fromEvents(ctx.assets, "change", () => ({
@@ -29,17 +31,22 @@ export function PlayersGrid({ ctx, session, mention }: { ctx: GameContext, sessi
 		event.preventDefault();
 		const canMark = view.alive && view.role == 0;
 		const core = canMark ? ["Профиль", "Отметить роль"] : ["Профиль"];
+		tip?.opened(view.playerObjectId);
 		// остальные пункты добавляют моды (авто-клик - из официального)
 		const data = playerMenuData(view);
 		const extra = await ctx.mods.menuItems("player", data);
 		const choice = await ctx.dialogs.choose(event, { title: view.username, labels: [...core, ...extra.map(entry => entry.label)] });
-		if(choice === undefined) return;
+		if(choice === undefined) return tip?.cancelled(view.playerObjectId);
 		if(choice >= core.length) return ctx.mods.selectMenu(extra[choice - core.length]!, "player", data);
 		if(choice == 0) ctx.openProfile(view.playerObjectId);
 		else if(choice == 1) {
 			// список ролей открывается там же, где меню
+			tip?.choosingRole(view.playerObjectId);
 			const pick = await ctx.dialogs.choose(event, { title: "ОТМЕТИТЬ РОЛЬ", labels: ["Убрать пометку", ...ALL_ROLES.map(role => roleNames[role])] });
-			if(pick !== undefined) session.state.markRole(view.playerObjectId, pick == 0 ? undefined : ALL_ROLES[pick - 1]);
+			if(pick === undefined) return tip?.cancelled(view.playerObjectId);
+			session.state.markRole(view.playerObjectId, pick == 0 ? undefined : ALL_ROLES[pick - 1]);
+			// кто один раз сам отметил роль, подсказка про это больше не нужна
+			if(pick != 0) (tip ?? { marked: () => completeTip(ctx.settings, "markRole") }).marked();
 		}
 	};
 
@@ -58,6 +65,7 @@ export function PlayersGrid({ ctx, session, mention }: { ctx: GameContext, sessi
 			@for (const view of views()) {
 				<div
 					class="cell"
+					data-player={view.playerObjectId}
 					onClick={() => press(view)}
 					onContextMenu={(event) => { event.preventDefault(); if((event as PointerEvent).pointerType != "touch") void menu(view, event); }}
 					onPointerDown={(event) => longTap.down(event, () => void menu(view, event))}

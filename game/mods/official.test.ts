@@ -143,7 +143,7 @@ describe("авто-клик (официальный мод)", () => {
     return { manager, network, log, session, night, sent: () => network.last.sent.filter(packet => packet.ty == "ra") };
   }
 
-  test("пункт в меню игрока переключается; ход делается один раз за этап, когда становится доступен", async() => {
+  test("пункт в меню игрока переключается; ход делается один раз, когда становится доступен, и выбор снимается", async() => {
     const { manager, night, sent } = await inRoom();
     const target = { index: 3, username: "Игрок4", playerObjectId: "p4", alive: true };
 
@@ -164,13 +164,14 @@ describe("авто-клик (официальный мод)", () => {
     expect(sent()).toHaveLength(1);
     expect(sent()[0]).toMatchObject({ puo: "p4" });
 
+    [entry] = await manager.menuItems("player", target);
+    expect(entry!.label).toBe("Авто-клик");   // после хода выбор снят
+
     night(1);                       // тот же этап пришёл снова - второго хода нет
     await tick(6);
-    expect(sent()).toHaveLength(1);
-
-    night(3);                       // день, голосование: новый этап - ход снова
+    night(3);                       // и в новом этапе тоже: нужно выбрать игрока заново
     await tick(6);
-    expect(sent()).toHaveLength(2);
+    expect(sent()).toHaveLength(1);
   });
 
   test("повторный выбор снимает авто-клик; мёртвому пункта нет", async() => {

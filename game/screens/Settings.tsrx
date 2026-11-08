@@ -9,6 +9,7 @@ import { version } from "@common/version";
 import { readableOn } from "../domain/decorations";
 import { Avatar } from "../ui/Avatar.tsrx";
 import { AppBar } from "../ui/AppBar.tsrx";
+import { resetTips } from "../domain/tips";
 import { SettingGroup, SettingRow, Toggle } from "../ui/SettingRow.tsrx";
 import { PinPicker } from "../ui/dialogs/PinPicker.tsrx";
 import { LanguageChoice } from "../ui/dialogs/LanguageChoice.tsrx";
@@ -247,6 +248,10 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 							</SettingRow>
 						</SettingGroup>
 						<SettingGroup title="ПРИВАТНОСТЬ И ЯЗЫК">
+							<SettingRow label="Подсказки в игре" hint="Короткие советы, когда они пригодятся; выполненные больше не появляются">
+								<Toggle label="Подсказки в игре" checked={data().tips.enabled} onChange={(value) => set(settings => { settings.tips.enabled = value; })} />
+							</SettingRow>
+							<SettingRow label="Показать подсказки заново"><button onClick={() => { resetTips(ctx.settings); ctx.host.notifications.show({ title: "Подсказки", kind: "success", text: "Выполненные подсказки снова будут появляться." }); }}>{"Сбросить"}</button></SettingRow>
 							<SettingRow label="Скрывать никнейм везде" hint="Твой ник размывается на экране, удобно для записи и скриншотов">
 								<Toggle label="Скрывать никнейм везде" checked={data().hideUsername} onChange={(value) => set(settings => { settings.hideUsername = value; })} />
 							</SettingRow>

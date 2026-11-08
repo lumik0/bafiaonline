@@ -3,6 +3,7 @@ import Events from "@common/utils/emitter";
 import { MessageList } from "../chat/message";
 import { normalizeDecorations, type Decorations } from "../decorations";
 import { Role, mafiaRoles } from "../enums";
+import { isHostFree, isRoulette, rouletteTarget } from "./roulette";
 
 type Statistics = ServerData<"roomStatistics">["statistics"];
 type PlayerUpdate = ServerData<"userData">["players"][number];
@@ -307,11 +308,14 @@ export class RoomState extends Events<{ change: () => void }> {
     if(!me || this.status != 3 || !me.alive || !target.alive || target.playerObjectId == me.playerObjectId) return undefined;
 
     const day = this.dayTime;
+    const host = this.rouletteHost;
+    // хост рулетки не участвует: правила на него не действуют, и за него нельзя голосовать
+    const roulette = this.roulette && me.playerObjectId != host;
     let action = "";
     switch(me.role) {
       case Role.Doctor: if(day == 1) action = "_2"; break;
       case Role.Sheriff: if(day == 1 && !target.affectedByRoles.includes(Role.Sheriff)) action = "check"; break;
-      case Role.Mafia: if(day == 1 && !isMafia(target.role)) action = "kill"; break;
+      case Role.Mafia: if(day == 1 && !isMafia(target.role) && !roulette) action = "kill"; break;
       case Role.Lover: if(day == 0) action = "_5"; break;
       case Role.Terrorist: if(day == 3) action = "_6"; break;
       case Role.Journalist: if(day == 1 && !target.affectedByRoles.includes(Role.Journalist)) action = "_7"; break;
@@ -321,6 +325,9 @@ export class RoomState extends Events<{ change: () => void }> {
     }
     // днём все голосуют
     if(!action && day == 3) action = "kill";
+    // рулетка: голос только за следующего живого игрока
+    if(this.roulette && action == "kill" && day == 3 && target.playerObjectId == host) return undefined;
+    if(roulette && action == "kill" && day == 3 && rouletteTarget(this.players, me.playerObjectId, host)?.playerObjectId != target.playerObjectId) return undefined;
     if(!action) return undefined;
 
     let used = day < 2 ? me.isNightActionUsed : me.isDayActionUsed;
@@ -331,6 +338,12 @@ export class RoomState extends Events<{ change: () => void }> {
     if(day == 2 && me.role == Role.Bodyguard && me.affectedByRoles.includes(Role.Barman) && !me.isNightActionUsed) used = false;
     return used ? undefined : action;
   }
+
+  /** комната в режиме «Рулетка» */
+  get roulette(): boolean { return isRoulette(this.settings.title); }
+
+  /** создатель комнаты, если он известен и комната - «Позор мафии 2.0» (там он не участвует) */
+  private get rouletteHost(): string | undefined { return isHostFree(this.settings.title) && this.settings.creator ? this.host?.playerObjectId : undefined; }
 
   /** как «горит» таймер: чем меньше времени, тем тревожнее */
   get timerLevel(): "normal" | "warning" | "danger" | "critical" {

@@ -314,14 +314,14 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     return answer?.t == "gifs" ? answer.items.flatMap(item => this.accept(item) ?? []) : undefined;
   }
 
-  /** предложить свою гифку: попадёт в каталог после проверки администратором */
-  async uploadGif(title: string, bytes: Uint8Array): Promise<{ ok: true } | { error: "offline" | "premium" | "too-big" | "bad-format" | "duplicate" | "quota" | "full" | "presence-first" }> {
+  /** предложить свою гифку: у премиума сразу в каталоге, у остальных после проверки администратором */
+  async uploadGif(title: string, bytes: Uint8Array): Promise<{ ok: true, approved: boolean } | { error: "offline" | "premium" | "too-big" | "bad-format" | "duplicate" | "quota" | "slow-down" | "full" | "presence-first" }> {
     if(bytes.length > BAFIA_LIMITS.gifBytes) return { error: "too-big" };
     if(!this.ready) return { error: "offline" };
     const answer = await this.request({ t: "gifUpload", title: title.slice(0, BAFIA_LIMITS.gifTitle), data: toBase64(bytes) }, 60_000);
-    if(answer?.t == "ok") return { ok: true };
+    if(answer?.t == "ok") return { ok: true, approved: !!answer.approved };
     const reason = answer?.t == "error" ? answer.reason : "";
-    return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "duplicate" || reason == "quota" || reason == "full" || reason == "presence-first" ? reason : "offline" };
+    return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "duplicate" || reason == "quota" || reason == "slow-down" || reason == "full" || reason == "presence-first" ? reason : "offline" };
   }
 
   /** выложить игру на 30 дней: номер для ссылки `[hist:номер]`, `undefined` если не вышло */

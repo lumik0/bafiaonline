@@ -11,7 +11,8 @@ const uploadErrors = {
 	"too-big": "Файл больше " + BAFIA_LIMITS.gifBytes / 1024 / 1024 + " МБ.",
 	"bad-format": "Подходят GIF, WebP и PNG (не больше 2000×2000).",
 	duplicate: "Такая гифка уже есть.",
-	quota: "Слишком много загрузок: подожди, пока предыдущие проверят.",
+	quota: "Лимит загрузок исчерпан: подожди, пока проверят предыдущие, или попробуй завтра. С премиумом лимиты намного мягче.",
+	"slow-down": "Не так быстро: подожди минуту перед следующей загрузкой.",
 	full: "На сервере Бафии сейчас нет места под загрузки. Попробуй позже.",
 	"presence-first": "Сервер Бафии ещё не узнал тебя: подожди пару секунд и повтори."
 };
@@ -70,7 +71,7 @@ export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) =>
 		setSending(true);
 		const result = await bafia.uploadGif(title().trim(), new Uint8Array(await picked.arrayBuffer()));
 		setSending(false);
-		setStatus("ok" in result ? "Отправлено на проверку: после одобрения появится в каталоге Бафии, а пока видна во вкладке «Мои»." : uploadErrors[result.error]);
+		setStatus("ok" in result ? (result.approved ? "Опубликовано: гифка уже в каталоге Бафии." : "Отправлено на проверку: после одобрения появится в каталоге Бафии, а пока видна во вкладке «Мои».") : uploadErrors[result.error]);
 		if("ok" in result) setFile(undefined);
 	};
 

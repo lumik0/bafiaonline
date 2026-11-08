@@ -206,6 +206,11 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   /** походить на игрока: убить, вылечить, проверить, проголосовать - смотря какая у вас роль и время суток */
   act(playerObjectId: string) {
     if(this.replay) return;
+    // рулетка: ход, который правила не разрешают, не уходит (в том числе из модов)
+    if(this.state.roulette) {
+      const target = this.state.playerBy(playerObjectId);
+      if(!target || !this.state.actionFor(target)) return;
+    }
     this.deps.client.send("roleAction", { playerObjectId, roomId: this.roomId, modelType: this.state.settings.modelType });
     this.announceVisit(playerObjectId);
     this.state.changed();

@@ -137,7 +137,7 @@ describe("BafiaLink", () => {
     await tick();
     const bytes = new Uint8Array([71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
-    expect(await link.uploadGif("Кот", bytes)).toEqual({ ok: true });
+    expect(await link.uploadGif("Кот", bytes)).toEqual({ ok: true, approved: false });
     expect(sent.find(message => message.t == "gifUpload")).toMatchObject({ title: "Кот", data: "R0lGODlhAQABAAAAAAAAAAAAAAA=" });
     expect(await link.uploadGif("Кот", new Uint8Array(BAFIA_LIMITS.gifBytes + 1))).toEqual({ error: "too-big" });
     link.stop();

@@ -1,4 +1,4 @@
-import { createEffect, createSignal, fromEvents, onCleanup } from "@common/ui";
+import { createEffect, createSignal, fromEvents, onCleanup, untrack } from "@common/ui";
 import { isMobile } from "@common/utils/mobile";
 import type { ChatUser } from "../domain/chat/message";
 import type { RoomSession } from "../domain/room/session";
@@ -15,6 +15,9 @@ import { PlayersPanel } from "../ui/PlayersPanel.tsrx";
 import { GameInfo } from "../ui/room/GameInfo.tsrx";
 import { KickVote } from "../ui/room/KickVote.tsrx";
 import { KickVoteDialog } from "../ui/room/KickVoteDialog.tsrx";
+import { RoomTip } from "../ui/room/room-tip";
+import { sheriffClaimTarget } from "../domain/tips";
+import { TipOverlay } from "../ui/room/TipOverlay.tsrx";
 import { PlayersGrid } from "../ui/room/PlayersGrid.tsrx";
 import type { GameContext } from "../context";
 
@@ -60,6 +63,23 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	const bafiaPremium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumOnline);
 	createEffect(() => ctx.bafia.watch(lobby().map(user => ({ id: user.playerObjectId, nick: user.username }))));
 	const over = session.on("over", () => { ctx.bafia.played(state.won); void ctx.dialogs.manager.open({ title: "ИГРА ОКОНЧЕНА", render: close => GameOverDialog({ ctx, session, close }) }); });
+
+	// подсказки: кто-то в чате называет себя шерифом - подсвечиваем его на столе (только новые сообщения, не старая история)
+	const tip = new RoomTip(ctx);
+	let lastEntry = untrack(() => entries().at(-1)?.id ?? -1);
+	createEffect(() => {
+		const list = entries();
+		const fresh = list.filter(entry => entry.id > lastEntry);
+		lastEntry = list.at(-1)?.id ?? lastEntry;
+		if(session.replay || !state.inGame) return;
+		for(const entry of fresh) {
+			if(entry.kind != "message" || !entry.user?.playerObjectId) continue;
+			const author = state.playerBy(entry.user.playerObjectId);
+			const target = sheriffClaimTarget(entry.text, author, state.myPlayerObjectId);
+			if(target && author) return tip.offer(target, author.username, entry.id);
+		}
+	});
+	onCleanup(() => tip.stop());
 
 	const showRoles = () => void ctx.dialogs.manager.open({ title: "РОЛИ В КОМНАТЕ", render: close => RoomRolesDialog({ ctx, session, close }) });
 	const mention = (username: string) => controller.mention?.(username);
@@ -185,10 +205,11 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 						@if (!isMobile()) {
 							<input class="zoom" type="range" min="25" max="50" value={layout().zoom * 25} onInput={(event) => ctx.settings.update(settings => { settings.game.zoomPL = Number(event.currentTarget.value) / 25; })} />
 						}
-						<div class="scroll" style={{ zoom: layout().zoom }}><PlayersGrid ctx={ctx} session={session} mention={mention} /></div>
+						<div class="scroll" style={{ zoom: layout().zoom }}><PlayersGrid ctx={ctx} session={session} mention={mention} tip={tip} /></div>
 					</div>
 				</div>
 			}
+			<TipOverlay tip={tip} />
 			@if (isMobile() && view().loaded && !session.replay) {
 				<ChatInput ctx={ctx} bafia={ctx.bafia} assets={ctx.assets} send={(text: string) => { sendMessage(text); controller.scrollToEnd?.(); }} expand={expand} controller={controller} />
 			}

@@ -37,6 +37,12 @@ export const defaultGameSettings = (mobile: boolean) => ({
   },
   /** личные заметки об игроках: постоянный `objectId` пользователя -> текст; хранятся только здесь, сервер их не видит */
   notes: {} as Record<string, string>,
+  /** подсказки: `enabled` - показывать ли, `done` - какие игрок уже выполнил (больше не появляются), `shown` - сколько раз показана (если игнорируют, надоедать перестаём) */
+  tips: {
+    enabled: true,
+    done: [] as string[],
+    shown: {} as Record<string, number>
+  },
   window: {
     zoom: 1
   },

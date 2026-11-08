@@ -67,22 +67,16 @@ mod.profile.section({
   }
 });
 
-// --- авто-клик: игрок из меню стола, на которого ход делается сам, как только он станет доступен ---
+// --- авто-клик: игрок из меню стола, на которого ход делается сам один раз, как только он станет доступен ---
 
 const auto = new Set<string>();
-const done = new Set<string>();
-let lastStep: string | undefined;
 
-/** один автоматический ход на этап: после хода (или если игрок не выбран) ждём следующего этапа */
+/** один автоматический ход: после него выбор снимается, для следующего хода нужно выбрать игрока снова */
 async function autoClick(room: RoomSnapshot | null) {
   if(!room || room.phase != "game" || !room.me?.alive) return;
-  if(room.step != lastStep) {
-    lastStep = room.step;
-    done.clear();
-  }
-  const target = room.players.find(player => auto.has(player.playerObjectId) && player.action && !done.has(player.playerObjectId));
+  const target = room.players.find(player => auto.has(player.playerObjectId) && player.action);
   if(!target) return;
-  done.add(target.playerObjectId);
+  auto.delete(target.playerObjectId);
   await mod.room.act(target.index).catch(() => {});
 }
 
@@ -92,7 +86,6 @@ mod.menu.add("player", {
     if(id != "auto") return;
     if(auto.has(player.playerObjectId)) auto.delete(player.playerObjectId);
     else auto.add(player.playerObjectId);
-    done.delete(player.playerObjectId);
     await autoClick(await mod.room.state());
   }
 });
@@ -102,8 +95,6 @@ mod.on("room:state", room => void autoClick(room));
 mod.on("screen:change", ({ name }) => {
   if(name == "room") return;
   auto.clear();
-  done.clear();
-  lastStep = undefined;
 });
 
 type RoomSnapshot = import("bafia:api").RoomSnapshot;

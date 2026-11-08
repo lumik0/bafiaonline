@@ -26,10 +26,15 @@ export const BAFIA_LIMITS = {
   /** код премиума: длина записи, на скольких устройствах можно активировать */
   code: 32,
   codeDevices: 3,
-  /** загрузка гифки (для всех игроков): размер файла, очередь проверки и лимит загрузок в сутки */
+  /** загрузка гифки (для всех игроков, без премиума - после проверки): размер файла, очередь проверки и лимит загрузок в сутки */
   gifBytes: 16 * 1024 * 1024,
-  gifPending: 10,
-  gifPerDay: 20,
+  gifPending: 3,
+  gifPerDay: 5,
+  /** пауза между загрузками (мс) у игрока без премиума */
+  gifCooldown: 60_000,
+  /** премиум: проверки нет (гифка сразу в каталоге), лимиты намного мягче */
+  premiumGifPerDay: 40,
+  premiumGifCooldown: 3_000,
   gifTitle: 80,
   /** аватарка (для всех игроков): размер файла, сколько раз в сутки можно менять, длинная сторона после сжатия (px) */
   avatarBytes: 16 * 1024 * 1024,
@@ -229,7 +234,7 @@ export interface NickRecord { nick: string, first: number, last: number }
 export type ServerMessage =
   /** на `hello` сервер может добавить ключ Giphy: поиск гифок игрок делает сам, из своего браузера */
   /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
-  | { t: "ok", n: number, gifKey?: string, premium?: number, avatar?: string, banner?: string, profileBg?: string, look?: ProfileLook }
+  | { t: "ok", n: number, /** гифка опубликована сразу (премиум), а не ушла на проверку */ approved?: boolean, gifKey?: string, premium?: number, avatar?: string, banner?: string, profileBg?: string, look?: ProfileLook }
   /** одноразовое сообщение администратора всем, кто сейчас в сети (приходит само, `n` всегда 0); позже зашедшие его не получают */
   | { t: "notice", n: 0, text: string }
   | { t: "error", n: number, reason: string }
