@@ -166,18 +166,21 @@ describe("RoomSession", () => {
     expect(network.last.sent.at(-1)).toEqual({ ty: "ku", ro: "r1", puo: "p3" });
   });
 
-  test("ночной ход сразу виден в твоём чате, повтор по тому же игроку строку не дублирует", async() => {
-    const { network, session, first } = await setup();
-    session.start(first);
-    network.last.receive({ ty: "rst", rst: { gs: { s: 3, t: 30, d: 1 }, pls: roster(8), data: roster(8).map((p, i) => ({ puo: p.pu.puo, a: true, r: i == 0 ? 4 : 1 })), rls: { "1": 6, "4": 2 } } });
-    const target = session.state.players[2]!;
-    const count = session.state.messages.entries.length;
+  test("ночной ход сразу виден в твоём чате, повтор по тому же игроку строку не дублирует; у мафии строки нет (сервер пишет «Голосует за»)", async() => {
+    for(const [role, expected] of [[2, "visit-doctor"], [4, undefined]] as const) {
+      const { network, session, first } = await setup();
+      session.start(first);
+      network.last.receive({ ty: "rst", rst: { gs: { s: 3, t: 30, d: 1 }, pls: roster(8), data: roster(8).map((p, i) => ({ puo: p.pu.puo, a: true, r: i == 0 ? role : 1 })), rls: { "1": 6, "4": 2 } } });
+      const target = session.state.players[2]!;
+      const count = session.state.messages.entries.length;
 
-    session.act(target.playerObjectId);
-    session.act(target.playerObjectId);
-    const added = session.state.messages.entries.slice(count);
-    expect(added).toHaveLength(1);
-    expect(added[0]).toMatchObject({ kind: "system", tone: "visit-mafia", text: `Ты пришёл(-ла) к [${target.username}]` });
+      session.act(target.playerObjectId);
+      session.act(target.playerObjectId);
+      const added = session.state.messages.entries.slice(count);
+      if(!expected) { expect(added).toHaveLength(0); continue; }
+      expect(added).toHaveLength(1);
+      expect(added[0]).toMatchObject({ kind: "system", tone: expected, text: `Ты пришёл(-ла) к [${target.username}]` });
+    }
   });
 
   test("сообщения: при смене фазы заменяются, если включена очистка; иначе дополняются", async() => {

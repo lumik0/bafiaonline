@@ -72,10 +72,11 @@ const VISITORS: Partial<Record<Role, { key: VisitRole, name: string, verb: strin
   [Role.Mafia]: { key: "mafia", name: "Мафия", verb: "пришла" }
 };
 
-/** своё сообщение о ночном ходе: только у тебя в чате, сервер о нём не знает. Без подходящей роли - `undefined` */
+/** своё сообщение о ночном ходе: только у тебя в чате, сервер о нём не знает. Без подходящей роли и для мафии - `undefined` */
 export function visitEntry(role: number | undefined, target: { username: string }, self: boolean): ChatEntry | undefined {
   const visitor = VISITORS[role as Role];
-  if(!visitor) return undefined;
+  // у мафии выбор жертвы - голосование, сервер сам пишет в чат «Голосует за ...», второе сообщение лишнее
+  if(!visitor || role == Role.Mafia) return undefined;
   // игрок и так знает свою роль, поэтому «Ты», а не название роли
   return { id: nextId++, kind: "system", text: `Ты пришёл(-ла) к ${self ? "себе" : nick(target.username)}`, tone: `visit-${visitor.key}` };
 }

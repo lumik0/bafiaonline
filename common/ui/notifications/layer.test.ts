@@ -16,6 +16,44 @@ afterAll(() => GlobalRegistrator.unregister());
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
+test("плашка с ответом: кнопка «Ответить» открывает поле, плашка не исчезает, отправка закрывает её, ошибка остаётся в поле", async() => {
+  const clock = { timers: [] as (() => void)[] };
+  const center = new NotificationCenter({ set: callback => clock.timers.push(callback), clear: () => {} });
+  const root = document.body.appendChild(document.createElement("div"));
+  const dispose = ui.mount(() => NotificationLayer({ center }) as never, root);
+  const sent: string[] = [];
+  let error: string | undefined = "Сервер недоступен";
+  center.show({ key: "notice", title: "Сообщение", text: "Вышла версия", timeout: 40_000, reply: { send: async text => { sent.push(text); return error; } } });
+  await tick();
+
+  const banner = () => root.querySelector<HTMLElement>(".banner")!;
+  const button = root.querySelector<HTMLButtonElement>(".reply-btn")!;
+  expect(button.textContent).toBe("Ответить");
+  button.click();
+  await tick();
+  expect(root.querySelector(".composer")).not.toBeNull();
+  banner().click();                       // нажатие по плашке во время ответа её не закрывает
+  await tick();
+  expect(center.items).toHaveLength(1);
+
+  const area = root.querySelector<HTMLTextAreaElement>("textarea")!;
+  area.value = "Спасибо";
+  area.dispatchEvent(new Event("input", { bubbles: true }));
+  await tick();
+  root.querySelector<HTMLButtonElement>(".primary")!.click();
+  await tick(); await tick();
+  expect(sent).toEqual(["Спасибо"]);
+  expect(root.querySelector(".problem")!.textContent).toBe("Сервер недоступен");
+  expect(center.items).toHaveLength(1);
+
+  error = undefined;
+  root.querySelector<HTMLButtonElement>(".primary")!.click();
+  await tick(); await tick();
+  expect(sent).toEqual(["Спасибо", "Спасибо"]);
+  expect(center.items.map(item => item.title)).toEqual(["Ответ отправлен"]);
+  dispose();
+});
+
 test("плашка с действием: нажатие выполняет его и закрывает плашку; обычная плашка просто закрывается", async() => {
   const center = new NotificationCenter();
   const root = document.body.appendChild(document.createElement("div"));

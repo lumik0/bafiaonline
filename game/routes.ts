@@ -15,6 +15,7 @@ export type Routes = {
   backpack: {}
   rules: {}
   ratings: {}
+  feedback: {}
   shop: {}
   mods: {}
   competitive: {}

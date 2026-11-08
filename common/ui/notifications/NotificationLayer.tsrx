@@ -1,4 +1,4 @@
-import { fromEvents } from "@common/ui";
+import { createSignal, fromEvents } from "@common/ui";
 import type { NotificationCenter } from "./center";
 
 /**
@@ -9,6 +9,25 @@ import type { NotificationCenter } from "./center";
 export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 	// у macOS самое новое уведомление сверху
 	const items = fromEvents(center, "change", () => [...center.items].reverse());
+
+	// ответ на уведомление (как в macOS): одно поле ввода за раз
+	const [replying, setReplying] = createSignal<number | undefined>(undefined);
+	const [draft, setDraft] = createSignal("");
+	const [busy, setBusy] = createSignal(false);
+	const [problem, setProblem] = createSignal("");
+	const openReply = (id: number) => { setDraft(""); setProblem(""); setReplying(id); center.hold(id); };
+	const send = async (item: (typeof center.items)[number]) => {
+		const text = draft().trim();
+		if(!text || busy() || !item.reply) return;
+		setBusy(true);
+		setProblem("");
+		const error = await item.reply.send(text);
+		setBusy(false);
+		if(error) return setProblem(error);
+		setReplying(undefined);
+		center.dismissId(item.id);
+		center.show({ title: "Ответ отправлен", kind: "success", timeout: 2500, key: "reply-sent" });
+	};
 
 	<>
 		<style>
@@ -30,13 +49,22 @@ export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 			.close { position: absolute; top: -7px; left: -7px; width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 0; background: var(--close-bg); color: var(--close-text); box-shadow: 0 0 0 .5px var(--border), 0 1px 4px rgba(0, 0, 0, .3); display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(.7); transition: opacity .12s, transform .12s; cursor: pointer; }
 			.close svg { width: 10px; height: 10px; display: block; }
 			.banner:hover .close, .close:focus-visible { opacity: 1; transform: none; }
+			.reply-btn { margin-top: 6px; padding: 2px 10px; border: 0; border-radius: 999px; font: inherit; font-size: 11px; font-weight: 600; color: var(--text); background: var(--close-bg); box-shadow: 0 0 0 .5px var(--border); cursor: pointer; }
+			.reply-btn:hover { filter: brightness(.95); }
+			.composer { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+			.composer textarea { width: 100%; box-sizing: border-box; min-height: 52px; resize: none; padding: 6px 8px; border-radius: 8px; border: 0; font: inherit; font-size: 13px; color: var(--text); background: var(--close-bg); box-shadow: 0 0 0 .5px var(--border); }
+			.composer .row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+			.composer .row button { padding: 3px 12px; border: 0; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text); background: var(--close-bg); box-shadow: 0 0 0 .5px var(--border); }
+			.composer .row button.primary { color: #fff; background: #0a84ff; box-shadow: none; }
+			.composer .row button:disabled { opacity: .5; cursor: default; }
+			.composer .problem { flex: 1; font-size: 11px; color: #ff453a; }
 			@keyframes slide-in { from { opacity: 0; transform: translateX(60px) scale(.97); } to { opacity: 1; transform: none; } }
 			@media (max-width: 600px) { .stack { left: 10px; right: 10px; width: auto; } .close { opacity: 1; transform: none; } @keyframes slide-in { from { opacity: 0; transform: translateY(-40px) scale(.97); } to { opacity: 1; transform: none; } } }
 			@media (prefers-reduced-motion: reduce) { .banner { animation: none; } .close { transition: none; } }
 		</style>
 		<div class="stack" role="status" aria-live="polite">
 			@for (const item of items()) {
-				<div class={item.action ? "banner action" : "banner"} onClick={() => { item.action?.(); center.dismissId(item.id); }}>
+				<div class={item.action ? "banner action" : "banner"} onClick={() => { if(replying() == item.id) return; item.action?.(); center.dismissId(item.id); }}>
 					<button class="close" aria-label="Закрыть" onClick={(event) => { event.stopPropagation(); center.dismissId(item.id); }}>
 						<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l6 6M8 2L2 8"></path></svg>
 					</button>
@@ -62,6 +90,27 @@ export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 						</div>
 						@if (item.text) {
 							<div class="text">{item.text}</div>
+						}
+						@if (item.reply) {
+							@if (replying() == item.id) {
+								<div class="composer" onClick={(event) => event.stopPropagation()}>
+									<textarea
+										placeholder={item.reply.placeholder ?? "Ответ"}
+										maxlength="1000"
+										value={draft()}
+										ref={(element: HTMLTextAreaElement) => queueMicrotask(() => element.focus())}
+										onInput={(event) => setDraft(event.currentTarget.value)}
+										onKeyDown={(event) => { if(event.key == "Enter" && !event.shiftKey) { event.preventDefault(); void send(item); } else if(event.key == "Escape") setReplying(undefined); }}
+									></textarea>
+									<div class="row">
+										<span class="problem">{problem()}</span>
+										<button onClick={() => setReplying(undefined)}>{"Отмена"}</button>
+										<button class="primary" disabled={busy() || !draft().trim()} onClick={() => void send(item)}>{busy() ? "…" : "Отправить"}</button>
+									</div>
+								</div>
+							} @else {
+								<button class="reply-btn" onClick={(event) => { event.stopPropagation(); openReply(item.id); }}>{"Ответить"}</button>
+							}
 						}
 					</div>
 				</div>

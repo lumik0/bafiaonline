@@ -156,6 +156,7 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 						<button onClick={actions.ratings}>{"Рейтинги"}</button>
 						<button onClick={actions.rules}>{"Правила"}</button>
 						<button onClick={actions.history}>{"История игр"}</button>
+						<button onClick={actions.feedback}>{"Идеи и баги"}</button>
 					</div>
 					<button class="shop" onClick={actions.shop}><Icon name="store" />{"Магазин"}</button>
 				</div>

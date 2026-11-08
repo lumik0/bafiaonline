@@ -17,6 +17,8 @@ export interface NotificationOptions {
   key?: string
   /** что сделать по нажатию на плашку (например, обновить страницу); после него плашка закрывается */
   action?: () => void
+  /** кнопка «Ответить» с полем ввода, как в уведомлениях macOS: `send` возвращает текст ошибки или ничего, если ответ ушёл */
+  reply?: { placeholder?: string, send: (text: string) => Promise<string | undefined> }
 }
 
 export interface NotificationItem extends Required<Pick<NotificationOptions, "title" | "kind" | "timeout">> {
@@ -25,6 +27,7 @@ export interface NotificationItem extends Required<Pick<NotificationOptions, "ti
   source: string
   key?: string
   action?: () => void
+  reply?: NotificationOptions["reply"]
 }
 
 /** что игра и моды видят от центра уведомлений */
@@ -61,7 +64,8 @@ export class NotificationCenter extends Events<{ change: () => void }> implement
       source: options.source ?? "Бафия",
       timeout: options.timeout ?? DEFAULT_TIMEOUT,
       key: options.key,
-      action: options.action
+      action: options.action,
+      reply: options.reply
     };
 
     const same = item.key ? this.list.findIndex(other => other.key == item.key) : -1;
@@ -82,6 +86,9 @@ export class NotificationCenter extends Events<{ change: () => void }> implement
     const item = this.list.find(other => other.key == key);
     if(item) this.dismissId(item.id);
   }
+
+  /** пока игрок пишет ответ, плашка не исчезает */
+  hold(id: number) { this.stopTimer(id); }
 
   dismissId(id: number, notify = true) {
     this.stopTimer(id);

@@ -47,8 +47,16 @@ export const BAFIA_LIMITS = {
   /** статус в профиле (премиум): длина */
   status: 60,
   /** сообщение всем игрокам от администратора: длина текста */
-  notice: 300
+  notice: 300,
+  /** идея, баг, предложение или ответ на сообщение администратора: длина текста, пауза между отправками (мс) и сколько в сутки с одной установки */
+  feedback: 1000,
+  feedbackCooldown: 20_000,
+  feedbackPerDay: 10
 } as const;
+
+/** что игрок отправил администратору: ответ на сообщение всем или запись из экрана «Идеи и баги» */
+export const FEEDBACK_KINDS = ["reply", "idea", "bug", "suggestion"] as const;
+export type FeedbackKind = typeof FEEDBACK_KINDS[number];
 
 /** файл лежит на сервере Бафии; `url` - путь `/g/номер` */
 export const GIF_FILE_PATH = /^\/g\/[a-z0-9]{6,12}$/;
@@ -218,7 +226,9 @@ export type ClientMessage =
   /** выложить снимок игры (JSON строкой) и получить номер для ссылки `[hist:номер]` */
   | { t: "histPut", n: number, data: string }
   /** получить снимок по номеру из ссылки */
-  | { t: "histGet", n: number, id: string };
+  | { t: "histGet", n: number, id: string }
+  /** идея, баг, предложение или ответ (`reply`) на сообщение администратора `notice`: видит только администратор */
+  | { t: "feedback", n: number, kind: FeedbackKind, text: string, notice?: number };
 
 /** гифка каталога: готовая ссылка на разрешённый хост */
 export interface GifItem {
@@ -236,7 +246,8 @@ export type ServerMessage =
   /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
   | { t: "ok", n: number, /** гифка опубликована сразу (премиум), а не ушла на проверку */ approved?: boolean, gifKey?: string, premium?: number, avatar?: string, banner?: string, profileBg?: string, look?: ProfileLook }
   /** одноразовое сообщение администратора всем, кто сейчас в сети (приходит само, `n` всегда 0); позже зашедшие его не получают */
-  | { t: "notice", n: 0, text: string }
+  /** сообщение администратора; `id` нужен, чтобы на него можно было ответить */
+  | { t: "notice", n: 0, text: string, id?: number }
   | { t: "error", n: number, reason: string }
   /** `avatars` - пути аватарок игроков (id → `/a/номер`) */
   /** `banners` - пути баннеров профиля (id → `/b/номер`), `backs` - цвета фона профиля; только у игроков с премиумом */
@@ -343,6 +354,15 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return typeof value.code == "string" && /^[A-Za-z0-9-]{6,32}$/.test(value.code) ? { t: "redeem", n, code: value.code.toUpperCase() } : undefined;
     case "histPut":
       return typeof value.data == "string" && value.data.length > 2 && value.data.length <= BAFIA_LIMITS.premiumHistory ? { t: "histPut", n, data: value.data } : undefined;
+    case "feedback": {
+      const body = typeof value.text == "string" ? value.text.trim() : "";
+      if(!body || body.length > BAFIA_LIMITS.feedback || /[\u0000-\u0008\u000b-\u001f\u007f]/.test(body)) return undefined;
+      if(!(FEEDBACK_KINDS as readonly unknown[]).includes(value.kind)) return undefined;
+      const notice = typeof value.notice == "number" && Number.isSafeInteger(value.notice) && value.notice > 0 ? value.notice : undefined;
+      // ответ без сообщения, на которое отвечают, бессмыслен
+      if(value.kind == "reply" && notice === undefined) return undefined;
+      return { t: "feedback", n, kind: value.kind as FeedbackKind, text: body, ...(notice !== undefined ? { notice } : {}) };
+    }
     case "histGet":
       return typeof value.id == "string" && HIST_ID.test(value.id) ? { t: "histGet", n, id: value.id } : undefined;
     case "gifs":

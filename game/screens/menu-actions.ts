@@ -6,6 +6,7 @@ export interface MenuActions {
   friends(): void
   backpack(): void
   ratings(): void
+  feedback(): void
   rules(): void
   history(): void
   shop(): void

@@ -143,6 +143,22 @@ describe("BafiaLink", () => {
     link.stop();
   });
 
+  test("идеи и ответы: уходят с видом и номером сообщения, пустой и слишком длинный текст не отправляются, причины отказа понятны", async() => {
+    const sent: Record<string, unknown>[] = [];
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: serverSocket([], sent).create });
+    link.start();
+    await tick();
+    expect(await link.sendFeedback("idea", "  Добавьте тёмную тему  ")).toEqual({ ok: true });
+    expect(sent.find(message => message.t == "feedback")).toMatchObject({ kind: "idea", text: "Добавьте тёмную тему" });
+    expect(sent.find(message => message.t == "feedback")).not.toHaveProperty("notice");
+    expect(await link.sendFeedback("reply", "Спасибо", 7)).toEqual({ ok: true });
+    expect(sent.filter(message => message.t == "feedback").at(-1)).toMatchObject({ kind: "reply", notice: 7 });
+    expect(await link.sendFeedback("bug", "   ")).toEqual({ error: "empty" });
+    expect(await link.sendFeedback("bug", "я".repeat(BAFIA_LIMITS.feedback + 1))).toEqual({ error: "too-long" });
+    link.stop();
+    expect(await link.sendFeedback("idea", "оффлайн")).toEqual({ error: "offline" });
+  });
+
   test("история игры: отправка даёт номер, получение очищает чужие данные, нет - null", async() => {
     const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: serverSocket([], []).create });
     link.start();

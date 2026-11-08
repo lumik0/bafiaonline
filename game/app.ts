@@ -1,5 +1,5 @@
 import { ConnectionError, Connection, RequestTimeoutError, ServerClient, type SocketLike } from "@common/net";
-import { Bafia, BAFIA_CONSENT } from "./domain/bafia";
+import { Bafia, BAFIA_CONSENT, feedbackProblems } from "./domain/bafia";
 import { MessageAlerts } from "./domain/message-alerts";
 import { animationSource, setAnimationsOff } from "./ui/animation-source";
 import { BAFIA_SERVER_URL, SERVER_URLS } from "@common/constants";
@@ -27,6 +27,7 @@ import { resetPassword } from "./ui/reset-password";
 import { waitAndJoin } from "./ui/room-actions";
 import { ModsScreen } from "./screens/ModsScreen.tsrx";
 import { ShopScreen } from "./screens/ShopScreen.tsrx";
+import { FeedbackScreen } from "./screens/FeedbackScreen.tsrx";
 import { RatingsScreen } from "./screens/RatingsScreen.tsrx";
 import { RulesScreen } from "./screens/RulesScreen.tsrx";
 import { BackpackScreen } from "./screens/BackpackScreen.tsrx";
@@ -217,7 +218,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const actions: MenuActions = {
     rooms: () => nav.push("rooms"), competitive: () => nav.push("competitive"), chat: () => nav.push("globalChat"), friends: () => nav.push("friends"),
     history: () => nav.push("history"),
-    backpack: () => nav.push("backpack"), ratings: () => nav.push("ratings"), rules: () => nav.push("rules"), shop: () => nav.push("shop"),
+    backpack: () => nav.push("backpack"), ratings: () => nav.push("ratings"), feedback: () => nav.push("feedback"), rules: () => nav.push("rules"), shop: () => nav.push("shop"),
     settings: () => nav.push("settings"),
     profile: () => ctx.openProfile(user.playerObjectId),
     changePhoto: () => void dialogs.manager.open({ title: "ФОТО ПРОФИЛЯ", render: close => PhotoPicker({ ctx, close }) }),
@@ -237,6 +238,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     backpack: () => BackpackScreen({ ctx }),
     rules: () => RulesScreen({ ctx }),
     ratings: () => RatingsScreen({ ctx }),
+    feedback: () => FeedbackScreen({ ctx }),
     shop: () => ShopScreen({ ctx }),
     mods: () => ModsScreen({ ctx }),
     competitive: () => CompetitiveScreen({ ctx }),
@@ -254,7 +256,14 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
 
   // личные сообщения и заявки в друзья: баннер, если игрок не в личном чате
   // сообщение от администратора (например, «вышла новая версия, обнови страницу»): баннер, который не мешает игре
-  ctx.bafia.on("notice", text => host.notifications.show({ key: "bafia-notice", title: "Сообщение от Бафии", text, kind: "info", timeout: 40_000 }));
+  // на сообщение администратора можно ответить кнопкой «Ответить» (как в macOS), ответ видит только он
+  ctx.bafia.on("notice", (text, id) => host.notifications.show({
+    key: "bafia-notice", title: "Сообщение от Бафии", text, kind: "info", timeout: 40_000,
+    reply: id === undefined ? undefined : {
+      placeholder: "Ответить",
+      send: async reply => { const result = await ctx.bafia.sendFeedback("reply", reply, id); return "ok" in result ? undefined : feedbackProblems[result.error]; }
+    }
+  }));
   const alerts = new MessageAlerts({ client, user, notifier: host.notifications, chatOpen: () => nav.top?.name == "privateChat", canPoll: () => nav.top?.name == "menu", requestsOutsideMenu: () => settings.data.game.pollRequests });
   alerts.start();
   // вернулись в меню: значки заявок и сообщений обновляем сразу, а не ждём таймера

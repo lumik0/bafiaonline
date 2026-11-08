@@ -1,7 +1,7 @@
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
-import { isPremiumColor, nickKey, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { isPremiumColor, nickKey, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -30,7 +30,19 @@ export interface BafiaLinkOptions {
  * связь с сервером Бафии; при ошибке или молчании просто пустой результат
  * уходят только ник, публичный id, случайный ключ установки и счётчики партий
  */
-export class BafiaLink extends Events<{ change: () => void, notice: (text: string) => void }> {
+export const feedbackProblems: Record<FeedbackError, string> = {
+  empty: "Напиши текст",
+  "too-long": `Не длиннее ${BAFIA_LIMITS.feedback} символов`,
+  offline: "Сервер Бафии сейчас недоступен. Попробуй позже.",
+  "slow-down": "Не так быстро: подожди немного перед следующей отправкой.",
+  quota: "На сегодня достаточно: за сутки можно отправить ограниченное число сообщений.",
+  "presence-first": "Сервер Бафии ещё не узнал тебя: подожди пару секунд и повтори.",
+  "bad-request": "Сообщение не принято. Попробуй обновить игру."
+};
+
+export type FeedbackError = "empty" | "too-long" | "offline" | "slow-down" | "quota" | "presence-first" | "bad-request";
+
+export class BafiaLink extends Events<{ change: () => void, notice: (text: string, id?: number) => void }> {
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
@@ -178,8 +190,8 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** сообщение администратора: только настоящее (непустой текст нужной длины) */
-  private announce(text: unknown) {
-    if(typeof text == "string" && text.length > 0 && text.length <= BAFIA_LIMITS.notice) this.emit("notice", text);
+  private announce(text: unknown, id?: unknown) {
+    if(typeof text == "string" && text.length > 0 && text.length <= BAFIA_LIMITS.notice) this.emit("notice", text, typeof id == "number" && Number.isSafeInteger(id) && id > 0 ? id : undefined);
   }
 
   private drop() {
@@ -194,7 +206,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     try { message = JSON.parse(text); } catch { return; }
     if(typeof message?.n != "number") return;
     // сообщение администратора приходит само, без запроса
-    if(message.t == "notice") return this.announce(message.text);
+    if(message.t == "notice") return this.announce(message.text, message.id);
     this.pending.get(message.n)?.(message);
   }
 
@@ -322,6 +334,18 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(answer?.t == "ok") return { ok: true, approved: !!answer.approved };
     const reason = answer?.t == "error" ? answer.reason : "";
     return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "duplicate" || reason == "quota" || reason == "slow-down" || reason == "full" || reason == "presence-first" ? reason : "offline" };
+  }
+
+  /** отправить администратору идею, баг, предложение или ответ на его сообщение (`notice` - номер сообщения) */
+  async sendFeedback(kind: FeedbackKind, text: string, notice?: number): Promise<{ ok: true } | { error: FeedbackError }> {
+    const body = text.trim();
+    if(!body) return { error: "empty" };
+    if(body.length > BAFIA_LIMITS.feedback) return { error: "too-long" };
+    if(!this.ready) return { error: "offline" };
+    const answer = await this.request({ t: "feedback", kind, text: body, ...(notice !== undefined ? { notice } : {}) });
+    if(answer?.t == "ok") return { ok: true };
+    const reason = answer?.t == "error" ? answer.reason : "";
+    return { error: reason == "slow-down" || reason == "quota" || reason == "presence-first" || reason == "bad-request" ? reason : "offline" };
   }
 
   /** выложить игру на 30 дней: номер для ссылки `[hist:номер]`, `undefined` если не вышло */
@@ -506,7 +530,7 @@ export function newKey(): string {
  * сервер Бафии для окна игры. Всегда работает «кто играет» и значок премиума (твой ник и id, число партий, id видимых игроков),
  * остальное (ники других игроков, гифки, игры, аватарки) - только с согласием в настройках
  */
-export class Bafia extends Events<{ change: () => void, notice: (text: string) => void }> {
+export class Bafia extends Events<{ change: () => void, notice: (text: string, id?: number) => void }> {
   private link?: BafiaLink;
   /** гифки из сообщений: скачиваются сразу, живут в памяти 5 минут */
   readonly images = new GifCache();
@@ -656,7 +680,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
       link.color = this.deps.settings.data.bafia.color;
       link.on("change", () => { this.scheduleExpiry(); this.warnExpiry(); this.emit("change"); });
       // одноразовое сообщение администратора: игра показывает его баннером
-      link.on("notice", text => this.emit("notice", text));
+      link.on("notice", (text, id) => this.emit("notice", text, id));
       link.start();
     }
     const { playerObjectId, username } = this.deps.user;
@@ -769,6 +793,8 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string) =
   setBanner(bytes: Uint8Array) { return this.consented?.setBanner(bytes) ?? Promise.resolve({ error: "offline" } as const); }
   clearBanner() { return this.consented?.clearBanner() ?? Promise.resolve(false); }
   setProfileBg(color: string) { return this.consented?.setProfileBg(color) ?? Promise.resolve("offline" as const); }
+  /** идеи и ответы - осознанное действие игрока, согласие на «гифки и историю ников» для них не нужно (уходят только текст и ник) */
+  sendFeedback(kind: FeedbackKind, text: string, notice?: number) { return this.link?.sendFeedback(kind, text, notice) ?? Promise.resolve({ error: "offline" } as const); }
   uploadGif(title: string, bytes: Uint8Array) { return this.consented?.uploadGif(title, bytes) ?? Promise.resolve({ error: "offline" } as const); }
 
   shareHistory(record: HistoryRecord) { return this.consented?.shareHistory(record) ?? Promise.resolve({ error: "offline" } as const); }
