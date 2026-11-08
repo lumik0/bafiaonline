@@ -1,6 +1,7 @@
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
+import type { ModPackage } from "@mods/index";
 import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type FeedbackItem, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
@@ -32,6 +33,21 @@ export interface BafiaLinkOptions {
  * связь с сервером Бафии; при ошибке или молчании просто пустой результат
  * уходят только ник, публичный id, случайный ключ установки и счётчики партий
  */
+/** почему мод не приняли на проверку, понятным языком */
+export const modProblems: Record<string, string> = {
+  offline: "Сервер Бафии сейчас недоступен. Попробуй позже.",
+  "presence-first": "Сервер Бафии ещё не узнал тебя: подожди пару секунд и повтори.",
+  unsigned: "Мод не подписан. Собери его командой bun buildmod <папка> --key author.key.json.",
+  "bad-signature": "Подпись не сходится с кодом: пересобери и подпиши мод заново.",
+  "author-mismatch": "Ник автора в манифесте должен совпадать с твоим ником в Бафии.",
+  "key-nick": "Этот ключ уже привязан к другому нику. Ключ можно использовать только под одним ником.",
+  "too-big": "Мод слишком большой для проверки.",
+  "bad-package": "Файл мода не подходит. Пересобери его.",
+  quota: "Слишком много отправок за сутки. Попробуй завтра.",
+  blocked: "Этот мод или его автор запрещён.",
+  rejected: "Эту версию мода уже отклонили. Измени её и отправь заново."
+};
+
 export const feedbackProblems: Record<FeedbackError, string> = {
   empty: "Напиши текст",
   "too-long": `Не длиннее ${BAFIA_LIMITS.feedback} символов`,
@@ -359,6 +375,14 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   async sendUsage(counts: Record<string, number>): Promise<boolean> {
     if(!this.ready) return false;
     return (await this.request({ t: "usage", counts }))?.t == "ok";
+  }
+
+  /** отправить мод на проверку (подписанный, автором); `error` - причина отказа */
+  async submitMod(pack: ModPackage): Promise<{ ok: true } | { error: string }> {
+    if(!this.ready) return { error: "offline" };
+    const answer = await this.request({ t: "modSubmit", pack: { manifest: pack.manifest, code: pack.code, sources: pack.sources, signature: pack.signature } }, 60_000);
+    if(answer?.t == "ok") return { ok: true };
+    return { error: answer?.t == "error" ? answer.reason : "offline" };
   }
 
   /** сколько я в Бафии: время, дней и с какого дня считается; `undefined` - нет связи или сервер ещё не знает меня */
@@ -876,6 +900,13 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     if(await (this.link?.sendUsage(counts) ?? Promise.resolve(false))) return;
     for(const [key, count] of Object.entries(counts)) this.usage[key] = Math.min(1000, (this.usage[key] ?? 0) + count);
     this.usageTimer ??= setTimeout(() => void this.flushUsage(), (this.deps.usageDelay ?? 60_000) * 5);
+  }
+
+  /** мод автора на проверку (см. BafiaLink.submitMod); нужен «я играю», ник в манифесте мода должен быть ником игрока */
+  async submitMod(pack: ModPackage) {
+    const result = await (this.link?.submitMod(pack) ?? Promise.resolve({ error: "offline" } as const));
+    if("ok" in result) this.track("feature:modSubmit");
+    return result;
   }
 
   /** время в Бафии для своего профиля (по моему нику, без согласия: свои данные); `undefined` - нет связи */

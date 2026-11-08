@@ -1,9 +1,16 @@
-// bun scripts/pack-mod.ts mods/examples/hello - собирает мод в <id>.bafiamod.json
+// bun scripts/pack-mod.ts mods/examples/hello [--key author.key.json] - собирает мод в <id>.bafiamod.json; с --key подписывает его ключом автора
+// (нет файла ключа - создаёт новый; его закрытую часть нельзя никому отдавать)
 import { hashText } from "../mods/hash";
 import { bundleMod } from "./bundle-mod";
 import { parsePackage } from "../mods/manifest";
+import { generateAuthorKey, keyId, signMod, type AuthorKey } from "../mods/signing";
+import { existsSync } from "node:fs";
 
-const dir = process.argv[2];
+const args = process.argv.slice(2);
+const keyIndex = args.indexOf("--key");
+const keyPath = keyIndex >= 0 ? args[keyIndex + 1] : undefined;
+if(keyIndex >= 0 && !keyPath) { console.error("После --key укажи файл ключа: --key author.key.json"); process.exit(1); }
+const dir = args.find((arg, index) => !arg.startsWith("--") && index != keyIndex + 1);
 if(!dir) {
   console.error("Укажи папку мода: bun scripts/pack-mod.ts <папка>");
   process.exit(1);
@@ -29,7 +36,22 @@ for await(const path of new Bun.Glob("**/*.{ts,tsx,js,mjs}").scan({ cwd: dir }))
   sources[path] = await Bun.file(`${dir}/${path}`).text();
 }
 
-const file = JSON.stringify({ manifest: pack.manifest, code: pack.code, sources }, null, 2);
+// подпись автора: id, версия, ник автора и хеш кода; ник должен быть ником в Бафии, по нему мод связывают с автором
+let signature;
+if(keyPath) {
+  if(!pack.manifest.author) { console.error("Чтобы подписать мод, укажи в manifest.json поле author: твой ник в Бафии"); process.exit(1); }
+  let key: AuthorKey;
+  if(existsSync(keyPath)) key = await Bun.file(keyPath).json();
+  else {
+    key = await generateAuthorKey();
+    await Bun.write(keyPath, JSON.stringify(key, null, 2) + "\n");
+    console.log(`Создан новый ключ автора: ${keyPath}. Храни его в надёжном месте и никому не отдавай: с ним подписывают все твои моды.`);
+  }
+  signature = await signMod(pack.manifest, pack.code, key);
+  console.log(`Подписано ключом ${await keyId(key.publicKey)} (автор: ${pack.manifest.author})`);
+}
+
+const file = JSON.stringify({ manifest: pack.manifest, code: pack.code, sources, signature }, null, 2);
 await Bun.write(out, file);
 
 // описание версии для проверки обновлений: выкладывается по адресу updateUrl рядом с файлом мода

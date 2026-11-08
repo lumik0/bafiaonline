@@ -36,13 +36,15 @@ export function openRoom(ctx: GameContext, result: Extract<JoinResult, { status:
 
 /**
  * зайти в комнату: спросить пароль и показать причину отказа.
- * Если в эту комнату уже входили с паролем, он сохранён и второй раз не спрашивается; перестал подходить - забываем и спрашиваем снова
+ * Если в эту комнату уже входили с паролем, он сохранён и второй раз не спрашивается; перестал подходить - забываем и спрашиваем снова.
+ * `knownPassword` - пароль, заданный заранее: пробуем его, а не спрашиваем
  */
-export async function enterRoom(ctx: GameContext, roomId: string, hasPassword: boolean): Promise<void> {
+export async function enterRoom(ctx: GameContext, roomId: string, hasPassword: boolean, knownPassword = ""): Promise<void> {
   let hash = "";
   let saved = false;
   if(hasPassword) {
-    hash = savedRoomPassword(ctx.settings, roomId) ?? "";
+    // пароль, который игрок указал заранее (ожидание комнаты), важнее сохранённого и вводить его второй раз не нужно
+    hash = knownPassword ? md5salt(knownPassword) : savedRoomPassword(ctx.settings, roomId) ?? "";
     saved = !!hash;
     if(!hash) {
       const password = (await ctx.dialogs.prompt({

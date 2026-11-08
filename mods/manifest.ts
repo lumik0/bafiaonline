@@ -1,4 +1,5 @@
 import { isPermission, type Permission } from "./permissions";
+import { parseSignature, type ModSignature } from "./signing";
 
 export interface Manifest {
   id: string
@@ -19,6 +20,8 @@ export interface ModPackage {
   code: string
   /** исходники для чтения (путь → текст); игра не проверяет их соответствие `code` */
   sources?: Record<string, string>
+  /** подпись автора (см. signing.ts); без неё мод считается неподписанным */
+  signature?: ModSignature
 }
 
 const MAX_CODE = 5 * 1024 * 1024;
@@ -86,7 +89,7 @@ function parseSources(raw: unknown): Record<string, string> | undefined {
   return entries.length ? Object.fromEntries(entries) as Record<string, string> : undefined;
 }
 
-/** файл мода: JSON `{ "manifest": {...}, "code": "...", "sources": {...} }` */
+/** файл мода: JSON `{ "manifest": {...}, "code": "...", "sources": {...}, "signature": { "key", "value" } }` (подпись необязательна) */
 export function parsePackage(json: string): ModPackage {
   let raw: unknown;
   try {
@@ -97,5 +100,5 @@ export function parsePackage(json: string): ModPackage {
   const data = (typeof raw == "object" && raw !== null ? raw : {}) as Record<string, unknown>;
   if(typeof data.code != "string" || !data.code.trim()) throw new Error("В файле мода нет кода");
   if(data.code.length > MAX_CODE) throw new Error("Код мода слишком большой (больше 5 МБ)");
-  return { manifest: parseManifest(data.manifest), code: data.code, sources: parseSources(data.sources) };
+  return { manifest: parseManifest(data.manifest), code: data.code, sources: parseSources(data.sources), signature: parseSignature(data.signature) };
 }

@@ -686,6 +686,32 @@ describe("игра", () => {
     expect(game.ctx.settings.data.roomPasswords["r2"]).toBeUndefined();
   });
 
+  test("ожидание комнаты с паролем: заранее заданный пароль пробуется без вопроса; не подошёл - обычный вопрос", async() => {
+    const { network, text, game } = await launch({ email: "a@b.c", password: "правильный" });
+    await tick(10);
+    const base = network.respond!;
+    const entered: string[] = [];
+    network.respond = (packet, socket) => {
+      if(packet.ty == "re") { entered.push(String(packet.psw)); socket.receive(packet.psw == md5salt("секрет") ? { ty: "re", rr: { o: "r5" } } : { ty: "rpiw" }); }
+      else base(packet, socket);
+    };
+    const { enterRoom } = await import("./domain/rooms/enter");
+
+    void enterRoom(game.ctx, "r5", true, "секрет");
+    await tick(20);
+    expect(text()).not.toContain("Эта комната под замком");
+    expect(game.ctx.nav.top?.name).toBe("room");
+    expect(entered).toEqual([md5salt("секрет")]);
+    expect(game.ctx.settings.data.roomPasswords["r5"]?.hash).toBe(md5salt("секрет"));   // и запоминается
+
+    game.ctx.nav.pop();
+    await tick(350);
+    void enterRoom(game.ctx, "r6", true, "не тот");
+    await tick(20);
+    expect(text()).not.toContain("Неправильный пароль");   // заранее заданный пароль не подошёл: сразу обычный вопрос
+    expect(text()).toContain("Эта комната под замком");
+  });
+
   test("создание комнаты: параметры и хеш пароля уходят на сервер, дальше - экран комнаты", async() => {
     const { network, window, click, text, game } = await launch({ email: "a@b.c", password: "правильный" });
     await tick(10);

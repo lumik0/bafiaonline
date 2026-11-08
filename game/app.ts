@@ -67,6 +67,8 @@ export interface StartOptions {
   createBafiaSocket?: (url: string) => SocketLike
   /** воркеры модов; по умолчанию настоящие Web Worker (в тестах подставляется заглушка) */
   spawnWorker?: (source: string) => WorkerLike
+  /** адрес списка проверенных модов; по умолчанию - сервер Бафии (в тестах и со своим сервером Бафии не запрашивается) */
+  modRegistryUrl?: string
   /** через сколько мс без связи сказать об этом игроку */
   slowConnectionAfter?: number
   /** через сколько мс без связи сказать, что сервер не отвечает и ждать зря не стоит */
@@ -121,6 +123,8 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const mods = new ModManager({
     client, files: host.storage.files, theme: host.theme, user, nav,
     builtIn: [officialMod], spawn: options.spawnWorker,
+    registryUrl: options.modRegistryUrl ?? (options.bafiaUrl ? undefined : BAFIA_SERVER_URL.replace(/^ws/, "http") + "/mods/registry.json"),
+    submitMod: pack => ctx.bafia.submitMod(pack),
     notify: options => host.notifications.show(options),
     alert: (title, text) => dialogs.alert(text, { title }),
     actions: {

@@ -53,7 +53,10 @@ export const BAFIA_LIMITS = {
   feedbackCooldown: 20_000,
   feedbackPerDay: 10,
   /** отчёт о краше игры: длина текста */
-  crash: 60_000
+  crash: 60_000,
+  /** мод на проверку: суммарный размер кода и исходников (символов), отправок в сутки с одной установки */
+  modBytes: 2 * 1024 * 1024,
+  modPerDay: 5
 } as const;
 
 /** что игрок отправил администратору: ответ на сообщение всем или запись из экрана «Идеи и баги» */
@@ -232,6 +235,8 @@ export type ClientMessage =
   /** идея, баг, предложение или ответ (`reply`) на сообщение администратора (`notice` - сообщение всем, `direct` - личное) */
   /** отчёт о краше игры (текст без трафика и сообщений): уходит сам */
   | { t: "crash", n: number, text: string }
+  /** мод на проверку: файл мода (манифест, код, исходники, подпись автора); отправить может только подписавший автор */
+  | { t: "modSubmit", n: number, pack: Record<string, unknown> }
   /** мои обращения со статусом */
   | { t: "myFeedback", n: number }
   /** сколько я провёл в Бафии (по моему нику): время, дней и с какого дня считается */
@@ -309,12 +314,13 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
   // снимок игры и гифка большие, остальные сообщения нет; размер проверяется ещё раз по типу ниже
   if(raw.length > Math.ceil(BAFIA_LIMITS.gifBytes * 4 / 3) + 1000) return undefined;
   // большое сообщение допустимо только трёх типов: тип стоит в начале, поэтому лишнее отбрасываем до разбора JSON (иначе поток мусора по 20 МБ грузил бы процессор)
-  if(raw.length > BAFIA_LIMITS.message && !/"t":\s*"(histPut|gifUpload|avatarSet|bannerSet|crash)"/.test(raw.slice(0, 200))) return undefined;
+  if(raw.length > BAFIA_LIMITS.message && !/"t":\s*"(histPut|gifUpload|avatarSet|bannerSet|crash|modSubmit)"/.test(raw.slice(0, 200))) return undefined;
   let value: unknown;
   try { value = JSON.parse(raw); } catch { return undefined; }
   if(!isRecord(value) || typeof value.n != "number" || !Number.isSafeInteger(value.n)) return undefined;
   const n = value.n;
-  if(value.t != "histPut" && value.t != "gifUpload" && value.t != "avatarSet" && value.t != "bannerSet" && value.t != "crash" && raw.length > BAFIA_LIMITS.message) return undefined;
+  if(value.t != "histPut" && value.t != "gifUpload" && value.t != "avatarSet" && value.t != "bannerSet" && value.t != "crash" && value.t != "modSubmit" && raw.length > BAFIA_LIMITS.message) return undefined;
+  if(value.t == "modSubmit" && raw.length > BAFIA_LIMITS.modBytes * 2 + 4000) return undefined;
   if(value.t == "crash" && raw.length > BAFIA_LIMITS.crash * 2 + 200) return undefined;
   if(value.t == "avatarSet" && raw.length > Math.ceil(BAFIA_LIMITS.avatarBytes * 4 / 3) + 1000) return undefined;
   if(value.t == "bannerSet" && raw.length > Math.ceil(BAFIA_LIMITS.bannerBytes * 4 / 3) + 1000) return undefined;
@@ -390,6 +396,8 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return typeof value.code == "string" && /^[A-Za-z0-9-]{6,32}$/.test(value.code) ? { t: "redeem", n, code: value.code.toUpperCase() } : undefined;
     case "histPut":
       return typeof value.data == "string" && value.data.length > 2 && value.data.length <= BAFIA_LIMITS.premiumHistory ? { t: "histPut", n, data: value.data } : undefined;
+    case "modSubmit":
+      return isRecord(value.pack) && !Array.isArray(value.pack) ? { t: "modSubmit", n, pack: value.pack } : undefined;
     case "crash":
       return typeof value.text == "string" && value.text.trim().length > 0 && value.text.length <= BAFIA_LIMITS.crash && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value.text) ? { t: "crash", n, text: value.text } : undefined;
     case "feedback": {

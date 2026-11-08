@@ -2,11 +2,16 @@ import { fromEvents } from "@common/ui";
 import { highestRisk, parsePackage, permissions, riskLabels, type Permission, type Risk } from "@mods/index";
 import { ModCode } from "../ui/dialogs/ModCode.tsrx";
 import { ModPermissions } from "../ui/dialogs/ModPermissions.tsrx";
+import { modProblems } from "../domain/bafia";
 import type { ModInfo } from "../mods/manager";
+import { trustText, type ModTrust } from "../mods/trust";
 import { AppBar } from "../ui/AppBar.tsrx";
 import type { GameContext } from "../context";
 
 const RISK_COLORS: Record<Risk, string> = { critical: "#e5484d", high: "#f5a524", medium: "#e5c82e", low: "#3dd68c" };
+/** цвет значка доверия: зелёный - проверен, серый - просто подписан, оранжевый - не подписан, красный - запрещён или подделан */
+const TRUST_COLORS: Record<ModTrust["level"], string> = { official: "#3c78dc", verified: "#2fb44c", author: "#2fb44c", signed: "#8a909c", unsigned: "#d98200", invalid: "#d94452", blocked: "#d94452" };
+const TRUST_NAMES: Record<ModTrust["level"], string> = { official: "встроенный", verified: "✓ проверен", author: "✓ проверенный автор", signed: "подписан", unsigned: "не подписан", invalid: "подпись не сходится", blocked: "запрещён" };
 const STATUS: Record<ModInfo["status"], string> = { running: "Работает", stopped: "Выключен", crashed: "Остановлен из-за ошибки" };
 
 /** моды: установка из файла, включение, разрешения по одному, панель мода и его сообщения */
@@ -30,8 +35,10 @@ export function ModsScreen({ ctx }: { ctx: GameContext }) @{
 				const pack = parsePackage(await file.text());
 				const old = ctx.mods.find(pack.manifest.id);
 				const fresh = pack.manifest.permissions.filter(permission => !old?.granted.includes(permission));
+				const trust = await ctx.mods.trustOfPackage(pack);
+				if(trust.level == "blocked") return void await ctx.dialogs.alert(trustText(trust), { title: "Мод запрещён" });
 				const ok = await ctx.dialogs.confirm(
-					`${old ? "Обновить" : "Установить"} мод «${pack.manifest.name}» ${pack.manifest.version}?\n\nОн просит:\n${describe(fresh)}\n\nМод работает в изолированной песочнице. Разрешения можно отключить в любой момент.`,
+					`${old ? "Обновить" : "Установить"} мод «${pack.manifest.name}» ${pack.manifest.version}?\n${pack.manifest.author ? "Автор: " + pack.manifest.author + "\n" : ""}${trustText(trust)}\n\nОн просит:\n${describe(fresh)}\n\nМод работает в изолированной песочнице. Разрешения можно отключить в любой момент.`,
 					{ title: "МОД", yes: old ? "Обновить" : "Установить" }
 				);
 				if(ok) await ctx.mods.install(pack, true);
@@ -68,6 +75,17 @@ export function ModsScreen({ ctx }: { ctx: GameContext }) @{
 		render: close => ModCode({ mod: info.mod, close })
 	});
 
+	/** автор отправляет свой подписанный мод на проверку Бафии */
+	const submit = async (info: ModInfo) => {
+		if(!await ctx.dialogs.confirm(`Отправить мод «${info.mod.manifest.name}» ${info.mod.manifest.version} на проверку? Код, исходники и твой ник автора увидит администратор Бафии. Пока мод не проверен, он остаётся рабочим, но у игроков, которые его ставят, показывается как «подписан, автор не проверен».`, { yes: "Отправить", title: "НА ПРОВЕРКУ" })) return;
+		const result = await ctx.mods.submitForReview(info.mod.manifest.id);
+		await ctx.dialogs.alert("ok" in result ? "Отправлено. Когда мод проверят, у игроков появится значок «Проверен»." : modProblems[result.error] ?? "Не получилось отправить мод.", { title: "На проверку" });
+	};
+
+	const toggle = async (id: string, enabled: boolean) => {
+		try { await ctx.mods.setEnabled(id, enabled); } catch(error) { await ctx.dialogs.alert(error instanceof Error ? error.message : String(error), { title: "Мод запрещён" }); }
+	};
+
 	const remove = async (info: ModInfo) => {
 		if(await ctx.dialogs.confirm(`Удалить мод «${info.mod.manifest.name}» вместе с его данными?`, { yes: "Удалить" })) await ctx.mods.remove(info.mod.manifest.id);
 	};
@@ -91,6 +109,7 @@ export function ModsScreen({ ctx }: { ctx: GameContext }) @{
 			.panel b { font-size: 13px; }
 			.empty { padding: 40px 14px; text-align: center; opacity: .8; line-height: 1.5; white-space: pre-line; }
 			.official { font-size: 11px; padding: 1px 7px; border-radius: 8px; background: rgba(60, 120, 220, .35); }
+			.trust { font-size: 11px; padding: 1px 7px; border-radius: 8px; color: #fff; white-space: nowrap; }
 			.risk { font-size: 11px; padding: 1px 7px; border-radius: 8px; color: #1b1b1b; background: var(--risk); }
 		</style>
 		<div class="page">
@@ -99,14 +118,18 @@ export function ModsScreen({ ctx }: { ctx: GameContext }) @{
 				@for (const info of mods()) {
 					<div class="card" style={{ "--risk": RISK_COLORS[info.risk] }}>
 						<div class="head">
-							<input type="checkbox" checked={info.mod.enabled} onChange={(event) => void ctx.mods.setEnabled(info.mod.manifest.id, event.currentTarget.checked)} />
+							<input type="checkbox" checked={info.mod.enabled} onChange={(event) => void toggle(info.mod.manifest.id, event.currentTarget.checked)} />
 							<span class="name" data-keep>{info.mod.manifest.name}</span>
 							@if (info.builtIn) {
 								<span class="official" title="Есть у каждого игрока. Можно выключить, но не удалить">{"встроенный"}</span>
 							}
+							<span class="trust" style={{ background: TRUST_COLORS[info.trust.level] }} title={trustText(info.trust)}>{TRUST_NAMES[info.trust.level]}</span>
 							<span class="risk">{riskLabels[info.risk]}</span>
 							<span class="version">{info.mod.manifest.version}</span>
 						</div>
+						@if (info.mod.manifest.author && !info.builtIn) {
+							<div class="sub">{"Автор: " + info.mod.manifest.author}</div>
+						}
 						<div class={"sub " + info.status}>{(info.error ? STATUS[info.status] + ": " + info.error : STATUS[info.status]) + (info.mod.manifest.description ? " - " + info.mod.manifest.description : "")}</div>
 						@if (info.update) {
 							<div class="update">
@@ -132,6 +155,9 @@ export function ModsScreen({ ctx }: { ctx: GameContext }) @{
 						<div class="actions">
 							<button onClick={() => showPermissions(info)}>{"Разрешения (" + info.mod.granted.length + "/" + info.mod.manifest.permissions.length + ")"}</button>
 							<button onClick={() => showCode(info)}>{"Код"}</button>
+							@if (info.canSubmit) {
+								<button onClick={() => void submit(info)} title="Автор может отправить подписанный мод на проверку Бафии">{"На проверку"}</button>
+							}
 							@if (!info.builtIn) {
 								<button onClick={() => void remove(info)}>{"Удалить"}</button>
 							}

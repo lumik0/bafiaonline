@@ -3,4 +3,5 @@ export { ModRuntime, type ModBackend, type ModStorage, type ModStatus, type Menu
 export { permissions, highestRisk, riskLabels, riskOf, isPermission, type Permission, type Risk, type ModEvent } from "./permissions";
 export { workerSource } from "./runtime";
 export { hashText, sameHash } from "./hash";
+export { generateAuthorKey, keyId, parseSignature, signMod, verifyMod, type AuthorKey, type ModSignature } from "./signing";
 export { checkForUpdate, downloadUpdate, isNewer, parseUpdateInfo, type UpdateInfo, type FetchText } from "./update";

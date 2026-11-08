@@ -4,7 +4,7 @@ import { copyText } from "@common/utils/clipboard";
 import { JsonDocument, type FileStore } from "@common/storage";
 import type { ThemeManager } from "@common/ui/theme";
 import Events from "@common/utils/emitter";
-import { checkForUpdate, downloadUpdate, hashText, ModRuntime, type ModBackend, type ModPackage, type ModStatus, type MenuItem, type Panel, type ProfileRow, type UpdateInfo, type WorkerLike } from "@mods/index";
+import { checkForUpdate, downloadUpdate, hashText, keyId, ModRuntime, parseSignature, verifyMod, type ModBackend, type ModPackage, type ModStatus, type MenuItem, type Panel, type ProfileRow, type UpdateInfo, type WorkerLike } from "@mods/index";
 import { isMenuTarget, isPermission, type MenuTarget, type Permission } from "@mods/permissions";
 import { workerSource } from "@mods/runtime";
 import type { Navigator } from "@common/ui/nav/navigator";
@@ -12,6 +12,7 @@ import type { RoomSession } from "../domain/room/session";
 import type { Routes } from "../routes";
 import { roomSnapshot } from "./snapshot";
 import type { User } from "../domain/user";
+import { canSubmitForReview, evaluateTrust, parseRegistry, trustText, type ModRegistry, type ModTrust } from "./trust";
 
 /** установленный мод: пакет, включён ли он и какие разрешения игрок оставил включёнными */
 export interface InstalledMod extends ModPackage {
@@ -37,7 +38,7 @@ const document = (files: FileStore) => new JsonDocument<ModsFile>(files, {
     return {
       version: 1,
       mods: list.filter(mod => typeof mod?.code == "string" && typeof mod.manifest?.id == "string").map(mod => ({
-        manifest: mod.manifest, code: mod.code, sources: mod.sources, enabled: !!mod.enabled, sha256: typeof mod.sha256 == "string" ? mod.sha256 : "",
+        manifest: mod.manifest, code: mod.code, sources: mod.sources, signature: parseSignature(mod.signature), enabled: !!mod.enabled, sha256: typeof mod.sha256 == "string" ? mod.sha256 : "",
         granted: (mod.granted ?? []).filter(permission => isPermission(permission) && mod.manifest.permissions.includes(permission))
       }))
     };
@@ -72,6 +73,10 @@ export interface ModDeps {
   builtIn?: ModPackage[]
   /** воркер для кода мода; в тестах подставляется заглушка */
   spawn?(source: string): WorkerLike
+  /** адрес открытого списка проверенных и запрещённых модов; нет - проверка не работает, моды просто «не проверены» */
+  registryUrl?: string
+  /** отправить мод на проверку (только подписанный, только автором); ответ - `ok` или причина отказа */
+  submitMod?(pack: ModPackage): Promise<{ ok: true } | { error: string }>
 }
 
 export interface ModInfo {
@@ -85,6 +90,10 @@ export interface ModInfo {
   updateError?: string
   /** встроенный мод: удалить нельзя */
   builtIn: boolean
+  /** кому и насколько верить: проверен ли мод, подписан ли, не запрещён ли */
+  trust: ModTrust
+  /** автор может отправить этот мод на проверку */
+  canSubmit: boolean
 }
 
 /** пункт меню от конкретного мода */
@@ -127,6 +136,11 @@ export class ModManager extends Events<{ change: () => void }> {
   private updateErrors = new Map<string, string>();
   private lastCheck = 0;
   private handles: { remove(): void }[] = [];
+  /** список проверенных и запрещённых модов с сервера; `undefined`, пока не скачан или недоступен */
+  private registry?: ModRegistry;
+  /** результат проверки подписи у каждого установленного мода: верна ли и отпечаток ключа автора */
+  private signatures = new Map<string, { valid: boolean, keyId: string }>();
+  private warnedBlocked = new Set<string>();
 
   constructor(private deps: ModDeps) {
     super();
@@ -137,7 +151,10 @@ export class ModManager extends Events<{ change: () => void }> {
     this.installed = (await this.doc.read()).mods;
     for(const mod of this.installed) mod.sha256 ||= await hashText(mod.code);
     await this.syncBuiltIn();
-    for(const mod of this.installed) if(mod.enabled) await this.launch(mod);
+    for(const mod of this.installed) await this.checkSignature(mod);
+    for(const mod of this.installed) if(mod.enabled && !this.isBlocked(mod)) await this.launch(mod);
+    // список проверенных и запрещённых скачиваем в фоне: без связи моды просто остаются «не проверенными»
+    void this.refreshRegistry();
 
     this.handles.push(this.deps.nav.on("change", transition => { this.emitAll("screen:change", { name: transition.to.name }); }));
     this.handles.push(this.deps.client.on("message", message => {
@@ -165,7 +182,8 @@ export class ModManager extends Events<{ change: () => void }> {
       const id = mod.manifest.id;
       return {
         mod, status: runtime?.status ?? "stopped", panel: runtime?.panel, error: runtime?.error, log: runtime?.log ?? [],
-        update: this.updates.get(id), updateError: this.updateErrors.get(id), builtIn: this.isBuiltIn(id)
+        update: this.updates.get(id), updateError: this.updateErrors.get(id), builtIn: this.isBuiltIn(id),
+        trust: this.trustOf(mod), canSubmit: this.canSubmit(mod)
       };
     });
   }
@@ -194,14 +212,75 @@ export class ModManager extends Events<{ change: () => void }> {
 
   find(id: string) { return this.installed.find(mod => mod.manifest.id == id); }
 
+  // --- доверие к модам: подпись автора и список проверенных ---
+
+  /** проверяет подпись мода и запоминает результат; нет подписи - нет и записи */
+  private async checkSignature(mod: ModPackage & { manifest: { id: string } }): Promise<{ valid: boolean, keyId: string } | undefined> {
+    if(!mod.signature) { this.signatures.delete(mod.manifest.id); return undefined; }
+    const result = { valid: await verifyMod(mod.manifest, mod.code, mod.signature), keyId: await keyId(mod.signature.key) };
+    this.signatures.set(mod.manifest.id, result);
+    return result;
+  }
+
+  /** кому и насколько верить установленному моду */
+  trustOf(mod: InstalledMod): ModTrust {
+    return evaluateTrust(mod, this.signatures.get(mod.manifest.id), this.registry, this.isBuiltIn(mod.manifest.id));
+  }
+
+  /** то же для файла, который ещё не установлен (окно установки) */
+  async trustOfPackage(pack: ModPackage): Promise<ModTrust> {
+    return evaluateTrust({ manifest: pack.manifest, sha256: await hashText(pack.code) }, pack.signature ? { valid: await verifyMod(pack.manifest, pack.code, pack.signature), keyId: await keyId(pack.signature.key) } : undefined, this.registry, this.isBuiltIn(pack.manifest.id));
+  }
+
+  trustText = trustText;
+
+  private isBlocked(mod: InstalledMod) { return this.trustOf(mod).level == "blocked"; }
+
+  /** скачивает список проверенных и запрещённых; запрещённые моды отключаются сразу, игрок получает уведомление */
+  async refreshRegistry(): Promise<void> {
+    if(!this.deps.registryUrl) return;
+    try {
+      const registry = parseRegistry(JSON.parse(await (this.deps.fetchText ?? fetchPlain)(this.deps.registryUrl)));
+      if(!registry) return;
+      this.registry = registry;
+    } catch { return; }
+    let changed = false;
+    for(const mod of this.installed) {
+      const trust = this.trustOf(mod);
+      if(trust.level != "blocked" || !mod.enabled) continue;
+      mod.enabled = false;
+      this.runtimes.get(mod.manifest.id)?.stop();
+      this.runtimes.delete(mod.manifest.id);
+      changed = true;
+      if(!this.warnedBlocked.has(mod.sha256)) {
+        this.warnedBlocked.add(mod.sha256);
+        this.deps.notify({ title: `Мод «${mod.manifest.name}» отключён`, text: trustText(trust), kind: "warning", timeout: 12_000 });
+      }
+    }
+    if(changed) await this.save();
+    this.emit("change");
+  }
+
+  /** отправить мод на проверку: только подписавший его автор с ником игрока; ответ сервера - `ok` или причина */
+  canSubmit(mod: InstalledMod): boolean { return !!this.deps.submitMod && canSubmitForReview(mod, this.trustOf(mod), this.deps.user.username); }
+
+  async submitForReview(id: string): Promise<{ ok: true } | { error: string }> {
+    const mod = this.find(id);
+    if(!mod || !this.canSubmit(mod)) return { error: "not-allowed" };
+    return this.deps.submitMod!({ manifest: mod.manifest, code: mod.code, sources: mod.sources, signature: mod.signature });
+  }
+
   /** добавляет или обновляет мод; новые разрешения выключены, пока игрок не подтвердит */
   async install(pack: ModPackage, grantAll: boolean): Promise<void> {
     if(this.isBuiltIn(pack.manifest.id)) throw new Error("Этот id занят встроенным модом");
     const old = this.find(pack.manifest.id);
     if(!old && this.installed.length >= MAX_MODS) throw new Error("Установлено слишком много модов");
 
+    const trust = await this.trustOfPackage(pack);
+    if(trust.level == "blocked") throw new Error(trustText(trust));
     const granted = grantAll ? [...pack.manifest.permissions] : (old?.granted ?? []).filter(permission => pack.manifest.permissions.includes(permission));
     const mod: InstalledMod = { ...pack, enabled: old?.enabled ?? false, granted, sha256: await hashText(pack.code) };
+    await this.checkSignature(mod);
     this.updates.delete(mod.manifest.id);
 
     this.runtimes.get(mod.manifest.id)?.stop();
@@ -219,6 +298,7 @@ export class ModManager extends Events<{ change: () => void }> {
   async checkUpdates(force = false) {
     if(!force && Date.now() - this.lastCheck < CHECK_INTERVAL) return;
     this.lastCheck = Date.now();
+    void this.refreshRegistry();
     const fetchText = this.deps.fetchText ?? fetchPlain;
 
     await Promise.all(this.installed.filter(mod => mod.manifest.updateUrl).map(async mod => {
@@ -244,6 +324,7 @@ export class ModManager extends Events<{ change: () => void }> {
   async setEnabled(id: string, enabled: boolean) {
     const mod = this.find(id);
     if(!mod) return;
+    if(enabled && this.isBlocked(mod)) throw new Error(trustText(this.trustOf(mod)));
     mod.enabled = enabled;
     await this.relaunch(mod);
   }
