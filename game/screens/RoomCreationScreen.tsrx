@@ -40,7 +40,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 	const [own, setOwn] = createSignal(load("own", { title: "", dayTime: 0, minPlayers: 12, maxPlayers: 16, minLevel: 1, selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10], password: "", vip: false }));
 	// роли с числом (+/-): сколько игроков каждой роли; общий предел зависит от минимума игроков
 	const [counts, setCounts] = createSignal<Record<number, number>>(load("counts", { 9: 1, 11: 1, 2: 1, 3: 1, 5: 1, 7: 1, 10: 1 }));
-	const [timers, setTimers] = createSignal(Object.fromEntries(Object.entries(load("timers", { registration: 60, lover: 20, night: 40, day: 60, vote: 40 })).map(([key, value]) => [key, Math.min(150, value as number)])) as { registration: number, lover: number, night: number, day: number, vote: number });
+	const [timers, setTimers] = createSignal(Object.fromEntries(Object.entries(load("timers", { registration: 60, lover: 35, night: 30, day: 75, vote: 30 })).map(([key, value]) => [key, Math.min(150, value as number)])) as { registration: number, lover: number, night: number, day: number, vote: number });
 	const [calmFirstNight, setCalmFirstNight] = createSignal(load("calmFirstNight", false));
 	const [hideRoles, setHideRoles] = createSignal(load("hideRoles", false));
 	const [noLastWord, setNoLastWord] = createSignal(load("noLastWord", false));
@@ -75,7 +75,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 	/** сколько дополнительных ролей можно взять: мафия (четверть) занимает свои места, остальное - любые роли, овощей может и не быть; мафия остаётся меньше остальных на полном столе. Если за столом окажется меньше игроков, сервер лишнее не выдаст */
 	const roomMafia = () => Math.max(1, Math.floor(own().minPlayers / 4));
 	const roleCap = () => Math.max(0, own().minPlayers - roomMafia());
-	const mafiaCap = () => Math.max(0, Math.ceil(own().maxPlayers / 2) - 1 - Math.max(1, Math.floor(own().maxPlayers / 4)));
+	const mafiaCap = () => roleCap();
 	// в эпидемии мафия заражает, а в королевской битве её нет: роли команды мафии там не нужны
 	const noMafiaRoles = () => preset() == "epidemic" || preset() == "royale";
 	const roleTotal = (list: Record<number, number> = counts()) => Object.entries(list).reduce((sum, [id, value]) => sum + ((noMafiaRoles() && MAFIA.some(role => role.id == Number(id))) || locked(Number(id)) ? 0 : value), 0);

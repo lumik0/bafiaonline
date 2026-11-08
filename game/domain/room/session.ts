@@ -33,7 +33,10 @@ export interface KickVote {
  * участие в одной комнате: подписка на пакеты, действия игрока и сохранение истории
  * создаётся сразу при входе, ещё до показа экрана, чтобы не потерять пакеты во время анимации перехода
  */
-export class RoomSession extends Events<{ change: () => void, ended: (reason: EndReason) => void, over: () => void, notice: (text: string) => void }> {
+/** состав игры: сколько игроков, какие роли были включены в комнате и сколько каких раздано */
+export interface RoleComposition { room: string, players: number, enabled: number[], counts: Record<number, number> }
+
+export class RoomSession extends Events<{ change: () => void, ended: (reason: EndReason) => void, over: () => void, notice: (text: string) => void, roles: (composition: RoleComposition) => void }> {
   readonly state: RoomState;
   kickVote?: KickVote;
   private handle?: Handle;
@@ -130,7 +133,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
       case "gameStatus": state.applyStatus(message.data.status); state.changed(); return this.maybeSave();
       case "gameDayTime": return state.setDayTime(message.data.dayTime, message.data.timer);
       case "userData": return state.applyPlayersData(message.data.players);
-      case "rolesRevealed": state.revealRoles(message.data.roles); return this.refreshRecord();
+      case "rolesRevealed": state.revealRoles(message.data.roles); this.refreshRecord(); return this.shareComposition();
       case "knownRoles": return state.setKnownRoles(message.data.players, !!message.data.reset);
       case "kickVoteStarted": return this.startKickVote(message.data.playerObjectId, message.data.timer ?? 10);
       case "kickVoteTimer": return this.kickTimer(message.data.timer);
@@ -270,6 +273,19 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   }
 
   // --- история ---
+
+  private compositionSent = false;
+
+  /** роли раскрыты в конце игры: состав стола (без ников) уходит один раз; для комнат официального сервера, не Бафии */
+  private shareComposition() {
+    if(this.compositionSent || this.replay || this.bafia) return;
+    const players = this.state.players;
+    if(players.length < 3 || players.some(player => player.role === undefined)) return;
+    this.compositionSent = true;
+    const counts: Record<number, number> = {};
+    for(const player of players) counts[player.role!] = (counts[player.role!] ?? 0) + 1;
+    this.emit("roles", { room: this.roomId, players: players.length, enabled: [...this.state.settings.roles], counts });
+  }
 
   /** игра закончилась: сохраняем в историю, если включено в настройках (один раз) */
   private maybeSave() {

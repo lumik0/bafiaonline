@@ -195,6 +195,8 @@ export type ClientMessage =
   | { t: "banned", n: number, id: string, nick: string, seconds: number }
   /** сыграна партия */
   | { t: "played", n: number, won?: boolean }
+  /** состав игры в официальной комнате (без ников и текстов): сколько игроков, какие роли были включены и сколько кого раздали */
+  | { t: "gameRoles", n: number, room: string, players: number, enabled: number[], counts: Record<string, number> }
   /** эти игроки замечены под такими никами (из комнат, чатов и профилей) */
   | { t: "seen", n: number, players: SeenPlayer[] }
   /** история ников игрока */
@@ -342,7 +344,7 @@ export type BafiaRoomEvent =
   | { kind: "stat", mafiaAll: number, mafiaAlive: number, civilianAll: number, civilianAlive: number }
   /** сколько голосов набрал каждый игрок в дневном голосовании (у кого нет голосов - не указан) */
   | { kind: "votes", counts: Record<string, number> }
-  | { kind: "end", winner: "mafia" | "peaceful", roles: { id: string, role: number }[] }
+  | { kind: "end", winner: "mafia" | "peaceful" | "draw", roles: { id: string, role: number }[] }
 
 /** обращение игрока: `sent` - отправлено, `answered` - администратор ответил лично, `done` - разобрано */
 export type FeedbackStatus = "sent" | "answered" | "done";
@@ -454,6 +456,13 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "marks": {
       if(!Array.isArray(value.nicks) || value.nicks.length > BAFIA_LIMITS.players) return undefined;
       return value.nicks.every(nick => text(nick, BAFIA_LIMITS.nick) && clean(nick)) ? { t: "marks", n, nicks: value.nicks as string[] } : undefined;
+    }
+    case "gameRoles": {
+      const counts = isRecord(value.counts) ? Object.entries(value.counts) : [];
+      const roles = counts.filter(([key, count]) => /^(?:[1-9]|1[01])$/.test(key) && typeof count == "number" && Number.isInteger(count) && count > 0 && count <= 60);
+      const enabled = Array.isArray(value.enabled) ? value.enabled.filter((role): role is number => typeof role == "number" && Number.isInteger(role) && role >= 2 && role <= 11) : [];
+      return text(value.room, 64) && /^[A-Za-z0-9_-]{1,64}$/.test(value.room) && typeof value.players == "number" && Number.isInteger(value.players) && value.players >= 3 && value.players <= 60 && roles.length && roles.length == counts.length && Array.isArray(value.enabled) && enabled.length == value.enabled.length && enabled.length <= 12
+        ? { t: "gameRoles", n, room: value.room, players: value.players, enabled: [...new Set(enabled)], counts: Object.fromEntries(roles) as Record<string, number> } : undefined;
     }
     case "played":
       return value.won === undefined || typeof value.won == "boolean" ? { t: "played", n, won: value.won } : undefined;

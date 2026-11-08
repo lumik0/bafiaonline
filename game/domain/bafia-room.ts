@@ -203,7 +203,7 @@ export class BafiaRoomAdapter {
           this.status = 4;
           for(const player of event.roles) this.known.set(player.id, player.role);
           this.deliver({ ty: "gs", gs: { s: 4, t: 0 } });
-          this.deliver({ ty: "gf", t: event.winner == "peaceful" ? 1 : 2 });
+          this.deliver({ ty: "gf", t: event.winner == "peaceful" ? 1 : event.winner == "mafia" ? 2 : 3 });
           this.deliver({ ty: "roles", roles: event.roles.map(player => ({ uo: player.id, r: player.role })) });
           this.deliver({ ty: "ud", data: event.roles.map(player => ({ puo: player.id, r: player.role })) });
           break;

@@ -652,6 +652,11 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** сыграна партия */
+  /** состав игры для изучения раздачи ролей */
+  async gameRoles(composition: { room: string, players: number, enabled: number[], counts: Record<number, number> }) {
+    if(this.ready) await this.request({ t: "gameRoles", ...composition });
+  }
+
   async played(won: boolean | undefined) {
     if(this.ready) await this.request({ t: "played", won });
   }
@@ -1129,6 +1134,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   loadHistory(id: string) { return this.consented?.loadHistory(id) ?? Promise.resolve(undefined); }
 
   played(won: boolean | undefined) { void this.link?.played(won); }
+  gameRoles(composition: { room: string, players: number, enabled: number[], counts: Record<number, number> }) { void this.link?.gameRoles(composition); }
 
   nicks(id: string) { return this.consented?.nicks(id) ?? Promise.resolve(undefined); }
 

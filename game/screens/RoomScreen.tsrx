@@ -65,6 +65,8 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	const bafiaOnline = fromEvents(ctx.bafia, "change", () => ctx.bafia.online);
 	const bafiaPremium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumOnline);
 	createEffect(() => ctx.bafia.watch(lobby().map(user => ({ id: user.playerObjectId, nick: user.username }))));
+	const composition = session.on("roles", info => ctx.bafia.gameRoles(info));
+	onCleanup(() => composition.remove());
 	const over = session.on("over", () => { ctx.bafia.played(state.won); void ctx.dialogs.manager.open({ title: "ИГРА ОКОНЧЕНА", render: close => GameOverDialog({ ctx, session, close }) }); });
 
 	// подсказки: кто-то в чате называет себя шерифом - подсвечиваем его на столе (только новые сообщения, не старая история)
