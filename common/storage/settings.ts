@@ -62,6 +62,8 @@ export const defaultGameSettings = (mobile: boolean) => ({
     showIndexPlChat: false,
     barmanEffect: "!"
   },
+  /** последние настройки комнаты Бафии (экран создания сам кладёт сюда всё, что выбрано) */
+  bafiaRoom: {} as Record<string, unknown>,
   roomCreate: {
     title: "",
     dayTime: 0,

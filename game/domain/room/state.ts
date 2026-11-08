@@ -303,9 +303,12 @@ export class RoomState extends Events<{ change: () => void }> {
     return this.inGame ? `Игроки в комнате: ${this.players.length}` : `Игроки в комнате: ${this.lobby.length} [${this.settings.minPlayers}/${this.settings.maxPlayers}]`;
   }
 
+  /** комната Бафии: пока игроков меньше минимума, вместо «Регистрация» пишем, сколько ещё нужно */
+  waitText = false;
+
   /** строка над списком игроков до начала игры */
   get info(): string {
-    if(this.phase == "registration" && this.timer <= 0) return "Регистрация";
+    if(this.phase == "registration" && this.timer <= 0) return this.waitText && this.lobby.length < this.settings.minPlayers ? `Ожидание игроков: нужно ещё ${this.settings.minPlayers - this.lobby.length}` : "Регистрация";
     return this.status == 2 ? `Подготовка через ${this.timer}` : this.timer > 0 ? `Игра начнётся через ${this.timer}` : "Регистрация";
   }
 

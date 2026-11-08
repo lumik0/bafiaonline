@@ -66,7 +66,7 @@ export interface ReplyTarget { notice?: number, direct?: number }
 
 export interface BafiaStats { games: number, wins: number, roles: { role: number, games: number, wins: number }[], recent: { at: number, title: string, role: number, won: boolean }[], top: { nick: string, games: number, wins: number }[] }
 
-export class BafiaLink extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, premium: (code?: string) => void, official: (status: OfficialStatus) => void }> {
+export class BafiaLink extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, premium: (code?: string) => void, official: (status: OfficialStatus) => void, invite: (invite: { room: string, title: string, password?: string }) => void }> {
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
@@ -303,6 +303,8 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     // события комнаты Бафии и её закрытие приходят сами
     if(message.t == "roomEvents") return void this.roomHandlers.get(message.room)?.onEvents(message.events);
     if(message.t == "roomClosed") return void this.roomHandlers.get(message.room)?.onClosed();
+    // администратор приглашает в комнату: игра показывает баннер, нажатие заходит сразу
+    if(message.t == "invite" && message.n === 0) { if(typeof message.room == "string" && typeof message.title == "string") this.emit("invite", { room: message.room, title: message.title.slice(0, 60), ...(typeof message.password == "string" ? { password: message.password } : {}) }); return; }
     // бот подтвердил привязку Telegram
     if(message.t == "tgLinked") return void this.onTgLinked?.(message.nick);
     // состояние официального сервера изменилось: приходит само
@@ -694,7 +696,7 @@ export function newKey(): string {
  * сервер Бафии для окна игры. Всегда работает «кто играет» и значок премиума (твой ник и id, число партий, id видимых игроков),
  * остальное (ники других игроков, гифки, игры, аватарки) - только с согласием в настройках
  */
-export class Bafia extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, official: () => void }> {
+export class Bafia extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, official: () => void, invite: (invite: { room: string, title: string, password?: string }) => void }> {
   private link?: BafiaLink;
   /** гифки из сообщений: скачиваются сразу, живут в памяти 5 минут */
   readonly images = new GifCache();
@@ -853,6 +855,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
       // одноразовое сообщение администратора: игра показывает его баннером
       link.on("notice", (text, reply) => this.emit("notice", text, reply));
       link.on("official", () => this.emit("official"));
+      link.on("invite", invite => this.emit("invite", invite));
       link.on("premium", code => { if(code) this.deps.settings.update(data => { data.bafia.code = code; }); });
       link.start();
     }

@@ -1,3 +1,4 @@
+import { bafiaRoomProblems, openBafiaRoom } from "./domain/rooms/bafia-open";
 import { ConnectionError, Connection, RequestTimeoutError, ServerClient, type SocketLike } from "@common/net";
 import { Bafia, BAFIA_CONSENT, feedbackProblems } from "./domain/bafia";
 import { MessageAlerts } from "./domain/message-alerts";
@@ -313,6 +314,18 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
       send: async reply => { const result = await ctx.bafia.sendFeedback("reply", reply, target); return "ok" in result ? undefined : feedbackProblems[result.error]; }
     }
   }));
+  // приглашение в комнату Бафии от администратора: баннер, нажатие - сразу в комнату (во время игры не мешаем)
+  ctx.bafia.on("invite", invite => {
+    if(nav.top?.name == "room") return;
+    host.notifications.show({
+      key: "bafia-invite-" + invite.room, title: "Приглашение в комнату Бафии", text: `«${invite.title}» - нажми, чтобы зайти`, kind: "info", timeout: 60_000,
+      action: async() => {
+        const result = await ctx.bafia.joinRoom(invite.room, invite.password);
+        if("error" in result) return void await dialogs.alert(bafiaRoomProblems[result.error] ?? "Не получилось зайти.", { title: "Комната Бафии" });
+        openBafiaRoom(ctx, result.adapter);
+      }
+    });
+  });
   const alerts = new MessageAlerts({ client, user, notifier: host.notifications, chatOpen: () => nav.top?.name == "privateChat", canPoll: () => nav.top?.name == "menu", requestsOutsideMenu: () => settings.data.game.pollRequests });
   alerts.start();
   // вернулись в меню: значки заявок и сообщений обновляем сразу, а не ждём таймера

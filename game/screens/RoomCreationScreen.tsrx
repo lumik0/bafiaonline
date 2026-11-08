@@ -1,4 +1,4 @@
-import { fromEvents } from "@common/ui";
+import { createEffect, fromEvents } from "@common/ui";
 import { createSignal } from "@common/ui";
 import { openRoom } from "../domain/rooms/enter";
 import { rememberRoomPassword } from "../domain/rooms/passwords";
@@ -20,37 +20,49 @@ const PRESETS = [
 
 const MAFIA = [{ id: 6, name: "Террорист" }, { id: 9, name: "Бармен" }, { id: 11, name: "Информатор" }];
 const TIMERS = [
-	{ key: "registration" as const, name: "Сбор", min: 15, max: 300 }, { key: "lover" as const, name: "Любовница", min: 10, max: 120 }, { key: "night" as const, name: "Ночь", min: 15, max: 180 },
-	{ key: "day" as const, name: "День", min: 15, max: 600 }, { key: "vote" as const, name: "Голосование", min: 10, max: 180 }
+	{ key: "registration" as const, name: "Сбор", min: 15, max: 150 }, { key: "lover" as const, name: "Ночь", min: 10, max: 150 }, { key: "night" as const, name: "Ночное голосование", min: 15, max: 150 },
+	{ key: "day" as const, name: "День", min: 15, max: 150 }, { key: "vote" as const, name: "Голосование", min: 10, max: 150 }
 ];
+/** как в официальной игре: эти роли бывают только за столом от 12 игроков */
+const LATE = [6, 7, 8];
 const TEAM = [{ id: 4, name: "Мафия" }, ...MAFIA];
 const PEACEFUL = [{ id: 2, name: "Доктор" }, { id: 3, name: "Шериф" }, { id: 5, name: "Любовница" }, { id: 7, name: "Журналист" }, { id: 8, name: "Телохранитель" }, { id: 10, name: "Шпион" }];
 
 /** создание комнаты. Выбранное запоминается и подставляется в следующий раз (как в старой версии) */
 export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, bafia?: boolean }) @{
 	// комната Бафии: те же поля, но свои значения (не трогают настройки официальной), игроков до 50, вместо VIP - только для премиума
-	const [own, setOwn] = createSignal({ title: "", dayTime: 0, minPlayers: 6, maxPlayers: 12, minLevel: 1, selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10], password: "", vip: false });
+	// настройки комнаты Бафии запоминаются: в следующий раз экран открывается с тем, что было выбрано
+	const stored = ctx.settings.data.bafiaRoom;
+	const load = <T,>(key: string, fallback: T): T => {
+		const value = stored[key];
+		return value !== null && value !== undefined && typeof value == typeof fallback && Array.isArray(value) == Array.isArray(fallback) ? value as T : fallback;
+	};
+	const [own, setOwn] = createSignal(load("own", { title: "", dayTime: 0, minPlayers: 12, maxPlayers: 16, minLevel: 1, selectedRoles: [6, 9, 11, 2, 5, 7, 8, 10], password: "", vip: false }));
 	// роли с числом (+/-): сколько игроков каждой роли; общий предел зависит от минимума игроков
-	const [counts, setCounts] = createSignal<Record<number, number>>({ 2: 1, 3: 1 });
-	const [timers, setTimers] = createSignal({ registration: 60, lover: 20, night: 40, day: 60, vote: 40 });
-	const [calmFirstNight, setCalmFirstNight] = createSignal(false);
-	const [hideRoles, setHideRoles] = createSignal(false);
-	const [noLastWord, setNoLastWord] = createSignal(false);
-	const [blindVote, setBlindVote] = createSignal(false);
-	const [bloodbath, setBloodbath] = createSignal(false);
-	const [killable, setKillable] = createSignal<number[]>([4, 6, 9, 11]);
-	const [blindMafia, setBlindMafia] = createSignal(false);
+	const [counts, setCounts] = createSignal<Record<number, number>>(load("counts", { 9: 1, 11: 1, 2: 1, 3: 1, 5: 1, 7: 1, 10: 1 }));
+	const [timers, setTimers] = createSignal(Object.fromEntries(Object.entries(load("timers", { registration: 60, lover: 20, night: 40, day: 60, vote: 40 })).map(([key, value]) => [key, Math.min(150, value as number)])) as { registration: number, lover: number, night: number, day: number, vote: number });
+	const [calmFirstNight, setCalmFirstNight] = createSignal(load("calmFirstNight", false));
+	const [hideRoles, setHideRoles] = createSignal(load("hideRoles", false));
+	const [noLastWord, setNoLastWord] = createSignal(load("noLastWord", false));
+	const [blindVote, setBlindVote] = createSignal(load("blindVote", false));
+	const [bloodbath, setBloodbath] = createSignal(load("bloodbath", false));
+	const [killable, setKillable] = createSignal<number[]>(load("killable", [4, 6, 9, 11]));
+	const [blindMafia, setBlindMafia] = createSignal(load("blindMafia", false));
 	const KINDS = [{ id: 1, name: "Овощ" }, ...PEACEFUL];
 	const ALL_KINDS = KINDS.map(role => role.id);
-	const [peacefulKnow, setPeacefulKnow] = createSignal(false);
-	const [peacefulMatrix, setPeacefulMatrix] = createSignal<Record<number, number[]>>(Object.fromEntries(ALL_KINDS.map(id => [id, []])));
-	const [peacefulChat, setPeacefulChat] = createSignal(false);
-	const [chatRoles, setChatRoles] = createSignal<number[]>(ALL_KINDS);
-	const [openKnow, setOpenKnow] = createSignal(false);
-	const [know, setKnow] = createSignal<Record<number, number[]>>({ 4: [4, 6], 6: [], 9: [], 11: [] });
-	const [preset, setPreset] = createSignal("classic");
-	const [voteChat, setVoteChat] = createSignal(false);
-	const [selfProtect, setSelfProtect] = createSignal(false);
+	const [peacefulKnow, setPeacefulKnow] = createSignal(load("peacefulKnow", false));
+	const [peacefulMatrix, setPeacefulMatrix] = createSignal<Record<number, number[]>>(load("peacefulMatrix", Object.fromEntries(ALL_KINDS.map(id => [id, []]))));
+	const [peacefulChat, setPeacefulChat] = createSignal(load("peacefulChat", false));
+	const [chatRoles, setChatRoles] = createSignal<number[]>(load("chatRoles", ALL_KINDS));
+	const [openKnow, setOpenKnow] = createSignal(load("openKnow", false));
+	const [know, setKnow] = createSignal<Record<number, number[]>>(load("know", { 4: [4, 6], 6: [], 9: [], 11: [] }));
+	const [preset, setPreset] = createSignal(load("preset", "classic"));
+	const [voteChat, setVoteChat] = createSignal(load("voteChat", false));
+	const [selfProtect, setSelfProtect] = createSignal(load("selfProtect", false));
+	if(bafia) createEffect(() => {
+		const snapshot = { own: own(), counts: counts(), blindVote: blindVote(), bloodbath: bloodbath(), killable: killable(), blindMafia: blindMafia(), peacefulKnow: peacefulKnow(), peacefulMatrix: peacefulMatrix(), peacefulChat: peacefulChat(), chatRoles: chatRoles(), openKnow: openKnow(), know: know(), preset: preset(), voteChat: voteChat(), selfProtect: selfProtect(), timers: timers(), calmFirstNight: calmFirstNight(), hideRoles: hideRoles(), noLastWord: noLastWord() };
+		ctx.settings.update(settings => { settings.bafiaRoom = JSON.parse(JSON.stringify(snapshot)); });
+	});
 	const official = fromEvents(ctx.settings, "change", () => ({ ...ctx.settings.data.roomCreate, selectedRoles: [...ctx.settings.data.roomCreate.selectedRoles] }));
 	const draft = () => bafia ? own() : official();
 	const limit = bafia ? 50 : 21;
@@ -66,9 +78,10 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 	const mafiaCap = () => Math.max(0, Math.ceil(own().minPlayers / 2) - 1 - roomMafia());
 	// в эпидемии мафия заражает, а в королевской битве её нет: роли команды мафии там не нужны
 	const noMafiaRoles = () => preset() == "epidemic" || preset() == "royale";
-	const roleTotal = (list: Record<number, number> = counts()) => Object.entries(list).reduce((sum, [id, value]) => sum + (noMafiaRoles() && MAFIA.some(role => role.id == Number(id)) ? 0 : value), 0);
+	const roleTotal = (list: Record<number, number> = counts()) => Object.entries(list).reduce((sum, [id, value]) => sum + ((noMafiaRoles() && MAFIA.some(role => role.id == Number(id))) || locked(Number(id)) ? 0 : value), 0);
 	const mafiaTotal = (list: Record<number, number> = counts()) => MAFIA.reduce((sum, role) => sum + (list[role.id] ?? 0), 0);
-	const canAdd = (id: number) => roleTotal() < roleCap() && (!MAFIA.some(role => role.id == id) || mafiaTotal() < mafiaCap());
+	const locked = (id: number) => LATE.includes(id) && own().maxPlayers < 12;
+	const canAdd = (id: number) => !locked(id) && roleTotal() < roleCap() && (!MAFIA.some(role => role.id == id) || mafiaTotal() < mafiaCap());
 	const step = (id: number, delta: number) => {
 		if(delta > 0 ? !canAdd(id) : !(counts()[id] > 0)) return;
 		setCounts({ ...counts(), [id]: (counts()[id] ?? 0) + delta });
@@ -99,7 +112,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 			if(bafia) {
 				const made = await ctx.bafia.createRoom({
 					title: data.title.trim(), minPlayers: data.minPlayers, maxPlayers: data.maxPlayers, preset: preset(), voteChat: voteChat(), selfProtect: selfProtect(),
-					timers: timers(), calmFirstNight: calmFirstNight(), hideRoles: hideRoles(), noLastWord: noLastWord(), extraCounts: Object.fromEntries(Object.entries(counts()).filter(([id]) => !noMafiaRoles() || !MAFIA.some(role => role.id == Number(id)))), modifiers: blindVote() ? ["blindVote"] : [], ...(bloodbath() ? { killable: killable() } : {}), knowledge: { ...(blindMafia() ? { 4: [], 6: [], 9: [], 11: [] } : openKnow() ? know() : {}), ...(peacefulKnow() ? peacefulMatrix() : {}) }, ...(blindMafia() ? { circles: [] } : {}), peacefulChat: peacefulChat() ? chatRoles() : [], password: data.password, premiumOnly: data.vip
+					timers: timers(), calmFirstNight: calmFirstNight(), hideRoles: hideRoles(), noLastWord: noLastWord(), extraCounts: Object.fromEntries(Object.entries(counts()).filter(([id]) => (!noMafiaRoles() || !MAFIA.some(role => role.id == Number(id))) && !locked(Number(id)))), modifiers: blindVote() ? ["blindVote"] : [], ...(bloodbath() ? { killable: killable() } : {}), knowledge: { ...(blindMafia() ? { 4: [], 6: [], 9: [], 11: [] } : openKnow() ? know() : {}), ...(peacefulKnow() ? peacefulMatrix() : {}) }, ...(blindMafia() ? { circles: [] } : {}), peacefulChat: peacefulChat() ? chatRoles() : [], password: data.password, premiumOnly: data.vip
 				});
 				if("error" in made) await ctx.dialogs.alert(bafiaRoomProblems[made.error] ?? "Не получилось создать комнату.");
 				else { ctx.nav.pop(); openBafiaRoom(ctx, made.adapter); }
@@ -142,7 +155,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 			select { width: 100%; box-sizing: border-box; padding: 10px 36px 10px 12px; font-size: 15px; border-radius: 10px; color: inherit; cursor: pointer; appearance: none; -webkit-appearance: none; background-color: rgba(128, 128, 128, .18); background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; border: 2px solid transparent; }
 			select:focus { outline: none; border-color: var(--accent); }
 			select option { color: #222; background: #fff; }
-			.slider { display: grid; grid-template-columns: 84px 1fr 38px; align-items: center; gap: 10px; font-size: 13px; }
+			.slider { display: grid; grid-template-columns: 130px 1fr 38px; align-items: center; gap: 10px; font-size: 13px; }
 			.slider input { accent-color: var(--accent); margin: 0; }
 			.slider output { min-width: 28px; padding: 2px 0; text-align: center; border-radius: 8px; background: rgba(128, 128, 128, .2); font-weight: 700; }
 			.switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 15px; cursor: pointer; }
@@ -282,7 +295,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 								<span class="team mafia">{"Команда мафии"}<small>{" · " + mafiaTotal() + " из " + mafiaCap()}</small></span>
 								<div class="roles">
 									@for (const role of MAFIA) {
-										<div class={(counts()[role.id] ?? 0) > 0 ? "role on" : "role"}><img src={images().roles[role.id]} alt="" />{role.name}<span class="counter"><button disabled={!(counts()[role.id] > 0)} onClick={() => step(role.id, -1)}>{"−"}</button><b>{counts()[role.id] ?? 0}</b><button disabled={!canAdd(role.id)} onClick={() => step(role.id, 1)}>{"+"}</button></span></div>
+										<div class={(counts()[role.id] ?? 0) > 0 ? "role on" : "role"}><img src={images().roles[role.id]} alt="" />{role.name}{locked(role.id) ? <small>{"от 12 игроков"}</small> : null}<span class="counter"><button disabled={!(counts()[role.id] > 0)} onClick={() => step(role.id, -1)}>{"−"}</button><b>{counts()[role.id] ?? 0}</b><button disabled={!canAdd(role.id)} onClick={() => step(role.id, 1)}>{"+"}</button></span></div>
 									}
 								</div>
 							</>
@@ -290,7 +303,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 						<span class="team peaceful">{"Команда мирных жителей"}</span>
 						<div class="roles">
 							@for (const role of PEACEFUL) {
-								<div class={(counts()[role.id] ?? 0) > 0 ? "role on" : "role"}><img src={images().roles[role.id]} alt="" />{role.name}<span class="counter"><button disabled={!(counts()[role.id] > 0)} onClick={() => step(role.id, -1)}>{"−"}</button><b>{counts()[role.id] ?? 0}</b><button disabled={!canAdd(role.id)} onClick={() => step(role.id, 1)}>{"+"}</button></span></div>
+								<div class={(counts()[role.id] ?? 0) > 0 ? "role on" : "role"}><img src={images().roles[role.id]} alt="" />{role.name}{locked(role.id) ? <small>{"от 12 игроков"}</small> : null}<span class="counter"><button disabled={!(counts()[role.id] > 0)} onClick={() => step(role.id, -1)}>{"−"}</button><b>{counts()[role.id] ?? 0}</b><button disabled={!canAdd(role.id)} onClick={() => step(role.id, 1)}>{"+"}</button></span></div>
 							}
 						</div>
 					</div>

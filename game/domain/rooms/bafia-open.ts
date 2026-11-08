@@ -24,6 +24,7 @@ export const bafiaRoomProblems: Record<string, string> = {
 export function openBafiaRoom(ctx: GameContext, adapter: BafiaRoomAdapter) {
   const session = new RoomSession({ ...sessionDeps(ctx), client: adapter.client as never, myPlayerObjectId: adapter.you }, adapter.settings());
   session.bafia = adapter;
+  session.state.waitText = true;
   session.start();
   ctx.nav.push("room", { session });
 }

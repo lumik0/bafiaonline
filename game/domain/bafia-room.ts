@@ -221,6 +221,11 @@ export class BafiaRoomAdapter {
       case "createPlayer": return void queueMicrotask(() => {
         if(this.closed) return;
         this.deliver(this.full());
+        // прежний чат комнаты: вышел и вернулся, или пришёл зрителем
+        for(const message of this.snapshot.history ?? []) {
+          const user = message.anonymous ? undefined : this.user(message.from);
+          this.deliver({ ty: "m", m: { tx: message.text, t: message.type, ...(user ? { uu: user } : {}) } });
+        }
         const stat = this.snapshot.stat;
         if(stat) this.deliver({ ty: "ps", m: stat.mafiaAlive, ma: stat.mafiaAll, c: stat.civilianAlive, ca: stat.civilianAll });
       });

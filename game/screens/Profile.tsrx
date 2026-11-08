@@ -30,7 +30,8 @@ export function Profile({ ctx, playerObjectId, close }: { ctx: GameContext, play
 
 	const load = async () => {
 		setState("loading");
-		setState(await ctx.profile.loadProfile(playerObjectId) ?? "failed");
+		// любая ошибка запроса - «не удалось», а не вечная загрузка
+		setState(await ctx.profile.loadProfile(playerObjectId).catch(() => undefined) ?? "failed");
 	};
 	onMount(load);
 

@@ -314,6 +314,8 @@ export interface BafiaRoomState {
   roleCounts?: Record<number, number>
   /** можно ли писать в чат во время голосования */
   voteChat: boolean
+  /** сообщения чата, которые игрок мог прочитать до этого (вышел и вернулся, или пришёл зрителем) */
+  history?: { type: number, text: string, from?: string, anonymous?: boolean }[]
   /** ты смотришь игру со стороны: писать и ходить нельзя */
   spectator?: boolean
   /** сколько человек в командах и сколько живы (после начала игры) */
@@ -388,6 +390,8 @@ export type ServerMessage =
   | { t: "roomClosed", n: 0, room: string }
   /** состояние официального сервера изменилось (приходит само, `n` всегда 0) */
   | { t: "official", n: 0, down: boolean, text?: string }
+  /** приглашение в комнату Бафии от администратора (приходит само): нажать - зайти сразу; `password` - если у комнаты он есть */
+  | { t: "invite", n: 0, room: string, title: string, password?: string }
   /** ответ на premium/redeem; без запроса (`n` 0) приходит, когда премиум включили: `code` игра сохраняет, чтобы он вернулся и на новой установке */
   | { t: "premium", n: number, until?: number, code?: string }
   | { t: "mine", n: number, items: (GifItem & { status: "pending" | "approved" })[] }
