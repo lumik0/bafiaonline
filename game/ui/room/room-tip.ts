@@ -13,7 +13,7 @@ export class RoomTip extends Events<{ change: () => void }> {
   step: TipStep = "hold"
   private timer?: ReturnType<typeof setTimeout>
 
-  constructor(private ctx: Pick<GameContext, "settings">) { super(); }
+  constructor(private ctx: Pick<GameContext, "settings"> & { bafia?: Pick<GameContext["bafia"], "track"> }) { super(); }
 
   /** режим экономии ресурсов: без искр и конфетти */
   get calm() { return this.ctx.settings.data.lowPower; }
@@ -56,6 +56,7 @@ export class RoomTip extends Events<{ change: () => void }> {
     const was = this.active;
     completeTip(this.ctx.settings, "markRole");
     if(!was) return;
+    this.ctx.bafia?.track("feature:tipDone");
     clearTimeout(this.timer);
     this.step = "done";
     this.emit("change");

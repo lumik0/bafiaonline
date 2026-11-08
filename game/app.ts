@@ -16,7 +16,8 @@ import { Friends } from "./domain/friends";
 import type { WorkerLike } from "@mods/index";
 import { ConnectionMonitor } from "./domain/connection-monitor";
 import { ForegroundWatch } from "./domain/foreground";
-import { enterRoom } from "./domain/rooms/enter";
+import { enterRoom, openRoom } from "./domain/rooms/enter";
+import { inviteFromSearch } from "./domain/invite";
 import type { RoomSession } from "./domain/room/session";
 import { isMobile } from "@common/utils/mobile";
 import { ModManager } from "./mods/manager";
@@ -34,7 +35,7 @@ import { BackpackScreen } from "./screens/BackpackScreen.tsrx";
 import { CompetitiveScreen } from "./screens/CompetitiveScreen.tsrx";
 import { historyDocument } from "./domain/history";
 import { filterDocument } from "./domain/rooms/filter";
-import { RoomsList } from "./domain/rooms/rooms";
+import { joinProblems, RoomsList } from "./domain/rooms/rooms";
 import { DocumentStore } from "./domain/store";
 import { ProfileService, usernameProblems } from "./domain/profile";
 import { SettingsStore } from "./domain/settings";
@@ -201,12 +202,30 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     }
   }
 
+  // ссылка-приглашение: адрес вида ?room=номер, после входа заходим в комнату; из адреса номер убираем, чтобы обновление страницы не повторяло вход
+  let invite = inviteFromSearch(location.search);
+  if(invite) { const params = new URLSearchParams(location.search); params.delete("room"); window.history.replaceState(null, "", location.pathname + ([...params].length ? "?" + params : "") + location.hash); }
+  async function openInvite() {
+    const roomId = invite;
+    invite = undefined;
+    if(!roomId) return;
+    ctx.bafia.track("feature:inviteOpen");
+    try {
+      const result = await ctx.rooms.join(roomId, "");
+      if(result.status == "ok") openRoom(ctx, result, { fallbackId: roomId });
+      else if(result.status == "wrongPassword") await enterRoom(ctx, roomId, true);
+      else await dialogs.alert(joinProblems[result.status], { title: "Ссылка-приглашение" });
+    } catch {
+      await dialogs.alert("Не получилось зайти по ссылке: сервер не ответил или комнаты уже нет.", { title: "Ссылка-приглашение" });
+    }
+  }
+
   async function signIn(email: string, password: string): Promise<string | undefined> {
     try {
       const problem = signInProblem(await auth.signIn({ email, password }));
       if(!problem) {
         nav.reset("menu");
-        void ensureUsername();
+        void ensureUsername().then(openInvite);
       }
       return problem;
     } catch(error) {
@@ -257,17 +276,20 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   // личные сообщения и заявки в друзья: баннер, если игрок не в личном чате
   // сообщение от администратора (например, «вышла новая версия, обнови страницу»): баннер, который не мешает игре
   // на сообщение администратора можно ответить кнопкой «Ответить» (как в macOS), ответ видит только он
-  ctx.bafia.on("notice", (text, id) => host.notifications.show({
-    key: "bafia-notice", title: "Сообщение от Бафии", text, kind: "info", timeout: 40_000,
-    reply: id === undefined ? undefined : {
+  // личное сообщение (от администратора только тебе) приходит отдельным баннером, на него тоже можно ответить
+  ctx.bafia.on("notice", (text, target) => host.notifications.show({
+    key: target?.direct ? "bafia-direct-" + target.direct : "bafia-notice", title: target?.direct ? "Личное сообщение от Бафии" : "Сообщение от Бафии", text, kind: "info", timeout: target?.direct ? 0 : 40_000,
+    reply: target === undefined ? undefined : {
       placeholder: "Ответить",
-      send: async reply => { const result = await ctx.bafia.sendFeedback("reply", reply, id); return "ok" in result ? undefined : feedbackProblems[result.error]; }
+      send: async reply => { const result = await ctx.bafia.sendFeedback("reply", reply, target); return "ok" in result ? undefined : feedbackProblems[result.error]; }
     }
   }));
   const alerts = new MessageAlerts({ client, user, notifier: host.notifications, chatOpen: () => nav.top?.name == "privateChat", canPoll: () => nav.top?.name == "menu", requestsOutsideMenu: () => settings.data.game.pollRequests });
   alerts.start();
   // вернулись в меню: значки заявок и сообщений обновляем сразу, а не ждём таймера
-  nav.on("change", transition => { if(transition.to.name == "menu") void alerts.poll(); });
+  // вкладку закрывают или сворачивают: накопленные счётчики «что открывали» отправляем сразу
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState == "hidden") void ctx.bafia.flushUsage(); });
+  nav.on("change", transition => { ctx.bafia.track("screen:" + transition.to.name); if(transition.to.name == "menu") void alerts.poll(); });
 
   // связь пропала, интернета нет, сервер молчит - игрок должен это видеть, а не смотреть на замерший таймер
   const monitor = new ConnectionMonitor({

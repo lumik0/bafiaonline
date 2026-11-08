@@ -1,6 +1,7 @@
-import { createSignal } from "@common/ui";
+import { createSignal, fromEvents, onMount } from "@common/ui";
 import { BAFIA_LIMITS, type FeedbackKind } from "@common/bafia/protocol";
 import { feedbackProblems } from "../domain/bafia";
+import { formatDateTime } from "@common/utils/format";
 import { AppBar } from "../ui/AppBar.tsrx";
 import type { GameContext } from "../context";
 
@@ -17,6 +18,12 @@ export function FeedbackScreen({ ctx }: { ctx: GameContext }) @{
 	const [busy, setBusy] = createSignal(false);
 	const [status, setStatus] = createSignal<{ ok: boolean, text: string } | undefined>(undefined);
 	const current = () => KINDS.find(entry => entry.kind == kind())!;
+
+	// мои обращения: что с ними стало; новые статусы считаются увиденными, как только экран открыт
+	const mine = fromEvents(ctx.bafia, "change", () => ctx.bafia.feedback);
+	onMount(() => { void ctx.bafia.refreshFeedback().then(() => ctx.bafia.markFeedbackSeen()); });
+	const kindName = (kind: string) => KINDS.find(entry => entry.kind == kind)?.name ?? kind;
+	const statusText = { sent: "Отправлено", answered: "Администратор ответил", done: "Разобрано" };
 
 	const send = async () => {
 		const body = text().trim();
@@ -46,6 +53,13 @@ export function FeedbackScreen({ ctx }: { ctx: GameContext }) @{
 			.status.ok { color: #2fb44c; }
 			.status.fail { color: #e5493a; }
 			.note { font-size: 12px; opacity: .65; line-height: 1.35; }
+			h3 { margin: 10px 0 0; font-size: 15px; font-weight: 600; }
+			.item { padding: 8px 10px; border-radius: 10px; background: var(--surface); font-size: 13px; line-height: 1.35; }
+			.item .meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; opacity: .7; margin-bottom: 2px; }
+			.item .text { overflow-wrap: anywhere; white-space: pre-wrap; }
+			.badge { font-weight: 600; }
+			.badge.answered { color: #2fb44c; }
+			.badge.done { color: #0a84ff; }
 		</style>
 		<div class="page">
 			<AppBar title="Идеи и баги" onBack={() => ctx.nav.pop()} />
@@ -61,6 +75,17 @@ export function FeedbackScreen({ ctx }: { ctx: GameContext }) @{
 				<button class="send" disabled={busy() || !text().trim()} onClick={() => void send()}>{busy() ? "Отправляю…" : "Отправить"}</button>
 				@if (status()) {
 					<div class={status()!.ok ? "status ok" : "status fail"}>{status()!.text}</div>
+				}
+				@if (mine().length) {
+					<>
+						<h3>{"Мои обращения"}</h3>
+						@for (const item of mine()) {
+							<div class="item">
+								<div class="meta"><span>{kindName(item.kind) + " · " + formatDateTime(item.created)}</span><span class={"badge " + item.status}>{statusText[item.status]}</span></div>
+								<div class="text">{item.text}</div>
+							</div>
+						}
+					</>
 				}
 				<div class="note">{"Уходят только твой текст и ник в игре, администратор Бафии видит их на своём сайте. Отправлять можно не чаще раза в 20 секунд."}</div>
 			</div>

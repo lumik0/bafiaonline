@@ -21,7 +21,9 @@ const uploadErrors = {
  * выбор гифки: избранное, Giphy, каталог Бафии и «Мои» (свои загрузки)
  * нажатие шлёт `[gif:номер]`, звёздочка добавляет в избранное; своя гифка попадает в каталог после проверки
  */
-export function GifPicker({ bafia, pick }: { bafia: Bafia, pick: (id: string) => void }) @{
+export function GifPicker({ bafia, pick: pickGif }: { bafia: Bafia, pick: (id: string) => void }) @{
+	/** выбранная гифка уходит в чат; для статистики запоминаем, что выбором пользуются */
+	const pick = (id: string) => { bafia.track("feature:gifPick"); pickGif(id); };
 	// есть избранное - открываемся на нём: ради него и ищем не заново каждый раз
 	const [source, setSource] = createSignal<Source>(bafia.favorites.length ? "favorites" : "giphy");
 	const favorite = fromEvents(bafia, "change", () => new Set(bafia.favorites.map(item => item.id)));

@@ -1,3 +1,4 @@
+import { inviteUrl } from "../domain/invite";
 import { rehostBlocked } from "../domain/rooms/rehost";
 import type { PlayerProfile } from "../domain/profile";
 import type { RoomItem } from "../domain/rooms/room";
@@ -7,7 +8,7 @@ import type { RoomSession } from "../domain/room/session";
 
 export const roomMenuData = (room: RoomItem) => ({
   id: room.id, title: room.title, playersNum: room.playersNum, minPlayers: room.minPlayers, maxPlayers: room.maxPlayers,
-  minLevel: room.minLevel, status: room.status, hasPassword: room.hasPassword, vip: room.vip, friendsInRoom: room.friendsInRoom
+  minLevel: room.minLevel, status: room.status, hasPassword: room.hasPassword, vip: room.vip, friendsInRoom: room.friendsInRoom, inviteUrl: inviteUrl(room.id)
 });
 
 export const playerMenuData = (view: PlayerView) => ({
@@ -29,7 +30,7 @@ export const profileData = (profile: PlayerProfile, playerObjectId: string, isMe
 
 export const roomInfoData = (session: RoomSession) => {
   const { settings, host } = session.state;
-  return { id: settings.id, title: settings.title, minPlayers: settings.minPlayers, maxPlayers: settings.maxPlayers, minLevel: settings.minLevel, vip: settings.vip, roles: settings.roles, host, playing: rehostBlocked(session) };
+  return { id: settings.id, title: settings.title, minPlayers: settings.minPlayers, maxPlayers: settings.maxPlayers, minLevel: settings.minLevel, vip: settings.vip, roles: settings.roles, host, playing: rehostBlocked(session), inviteUrl: inviteUrl(settings.id) };
 };
 
 export const gameOverData = (session: RoomSession) => {

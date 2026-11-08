@@ -10,12 +10,14 @@ mod.menu.add("room", {
     { id: "join", label: "Зайти" },
     { id: "wait", label: `Зайти, когда будет ${room.maxPlayers - 1} игроков` },
     { id: "copy", label: "Скопировать id комнаты" },
+    { id: "invite", label: "Скопировать ссылку-приглашение" },
     { id: "rehost", label: "Рехост" }
   ],
   select(id, room) {
     if(id == "join") void mod.rooms.enter(room.id);
     else if(id == "wait") void mod.rooms.waitAndJoin(room.id);
     else if(id == "copy") void mod.clipboard.write(room.id);
+    else if(id == "invite") void mod.clipboard.write(room.inviteUrl);
     else if(id == "rehost") void mod.rooms.rehost(room.id);
   }
 });

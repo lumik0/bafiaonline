@@ -51,7 +51,9 @@ export const BAFIA_LIMITS = {
   /** идея, баг, предложение или ответ на сообщение администратора: длина текста, пауза между отправками (мс) и сколько в сутки с одной установки */
   feedback: 1000,
   feedbackCooldown: 20_000,
-  feedbackPerDay: 10
+  feedbackPerDay: 10,
+  /** отчёт о краше игры: длина текста */
+  crash: 60_000
 } as const;
 
 /** что игрок отправил администратору: ответ на сообщение всем или запись из экрана «Идеи и баги» */
@@ -227,8 +229,14 @@ export type ClientMessage =
   | { t: "histPut", n: number, data: string }
   /** получить снимок по номеру из ссылки */
   | { t: "histGet", n: number, id: string }
-  /** идея, баг, предложение или ответ (`reply`) на сообщение администратора `notice`: видит только администратор */
-  | { t: "feedback", n: number, kind: FeedbackKind, text: string, notice?: number };
+  /** идея, баг, предложение или ответ (`reply`) на сообщение администратора (`notice` - сообщение всем, `direct` - личное): видит только администратор */
+  /** отчёт о краше игры (текст без трафика и сообщений): уходит сам, видит только администратор */
+  | { t: "crash", n: number, text: string }
+  /** мои обращения со статусом */
+  | { t: "myFeedback", n: number }
+  /** какие экраны и функции открывались: название -> сколько раз (пачкой, только счётчики) */
+  | { t: "usage", n: number, counts: Record<string, number> }
+  | { t: "feedback", n: number, kind: FeedbackKind, text: string, notice?: number, direct?: number };
 
 /** гифка каталога: готовая ссылка на разрешённый хост */
 export interface GifItem {
@@ -239,6 +247,13 @@ export interface GifItem {
   thumb?: string
 }
 
+/** обращение игрока: `sent` - отправлено, `answered` - администратор ответил лично, `done` - разобрано */
+export type FeedbackStatus = "sent" | "answered" | "done";
+export interface FeedbackItem { id: number, kind: FeedbackKind, text: string, created: number, status: FeedbackStatus }
+
+/** название экрана или функции для статистики использования: латиница, цифры и `.:_-` */
+export const USAGE_KEY = /^[a-z][A-Za-z0-9:._-]{0,39}$/;
+
 export interface NickRecord { nick: string, first: number, last: number }
 
 export type ServerMessage =
@@ -246,8 +261,8 @@ export type ServerMessage =
   /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
   | { t: "ok", n: number, /** гифка опубликована сразу (премиум), а не ушла на проверку */ approved?: boolean, gifKey?: string, premium?: number, avatar?: string, banner?: string, profileBg?: string, look?: ProfileLook }
   /** одноразовое сообщение администратора всем, кто сейчас в сети (приходит само, `n` всегда 0); позже зашедшие его не получают */
-  /** сообщение администратора; `id` нужен, чтобы на него можно было ответить */
-  | { t: "notice", n: 0, text: string, id?: number }
+  /** сообщение администратора; `id` (сообщение всем) или `direct` (личное, только тебе) нужны, чтобы на него можно было ответить */
+  | { t: "notice", n: 0, text: string, id?: number, direct?: number }
   | { t: "error", n: number, reason: string }
   /** `avatars` - пути аватарок игроков (id → `/a/номер`) */
   /** `banners` - пути баннеров профиля (id → `/b/номер`), `backs` - цвета фона профиля; только у игроков с премиумом */
@@ -257,6 +272,8 @@ export type ServerMessage =
   | { t: "onlineNicks", n: number, nicks: string[] }
   | { t: "marks", n: number, shame?: Record<string, number>, bans?: Record<string, number> }
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
+  /** мои обращения (последние 30) со статусом */
+  | { t: "myFeedback", n: number, items: FeedbackItem[] }
   /** `url` нет, если такой гифки в каталоге нет */
   | { t: "gif", n: number, id: string, url?: string, title?: string }
   | { t: "gifs", n: number, items: GifItem[] }
@@ -287,12 +304,13 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
   // снимок игры и гифка большие, остальные сообщения нет; размер проверяется ещё раз по типу ниже
   if(raw.length > Math.ceil(BAFIA_LIMITS.gifBytes * 4 / 3) + 1000) return undefined;
   // большое сообщение допустимо только трёх типов: тип стоит в начале, поэтому лишнее отбрасываем до разбора JSON (иначе поток мусора по 20 МБ грузил бы процессор)
-  if(raw.length > BAFIA_LIMITS.message && !/"t":\s*"(histPut|gifUpload|avatarSet|bannerSet)"/.test(raw.slice(0, 200))) return undefined;
+  if(raw.length > BAFIA_LIMITS.message && !/"t":\s*"(histPut|gifUpload|avatarSet|bannerSet|crash)"/.test(raw.slice(0, 200))) return undefined;
   let value: unknown;
   try { value = JSON.parse(raw); } catch { return undefined; }
   if(!isRecord(value) || typeof value.n != "number" || !Number.isSafeInteger(value.n)) return undefined;
   const n = value.n;
-  if(value.t != "histPut" && value.t != "gifUpload" && value.t != "avatarSet" && value.t != "bannerSet" && raw.length > BAFIA_LIMITS.message) return undefined;
+  if(value.t != "histPut" && value.t != "gifUpload" && value.t != "avatarSet" && value.t != "bannerSet" && value.t != "crash" && raw.length > BAFIA_LIMITS.message) return undefined;
+  if(value.t == "crash" && raw.length > BAFIA_LIMITS.crash * 2 + 200) return undefined;
   if(value.t == "avatarSet" && raw.length > Math.ceil(BAFIA_LIMITS.avatarBytes * 4 / 3) + 1000) return undefined;
   if(value.t == "bannerSet" && raw.length > Math.ceil(BAFIA_LIMITS.bannerBytes * 4 / 3) + 1000) return undefined;
   if(value.t == "histPut" && raw.length > BAFIA_LIMITS.premiumHistory + 200) return undefined;
@@ -350,18 +368,34 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     }
     case "premium": return { t: "premium", n };
     case "mine": return { t: "mine", n };
+    case "myFeedback": return { t: "myFeedback", n };
+    case "usage": {
+      if(!isRecord(value.counts)) return undefined;
+      const entries = Object.entries(value.counts);
+      if(!entries.length || entries.length > 60) return undefined;
+      const counts: Record<string, number> = {};
+      for(const [key, count] of entries) {
+        if(!USAGE_KEY.test(key) || typeof count != "number" || !Number.isInteger(count) || count < 1 || count > 1000) return undefined;
+        counts[key] = count;
+      }
+      return { t: "usage", n, counts };
+    }
     case "redeem":
       return typeof value.code == "string" && /^[A-Za-z0-9-]{6,32}$/.test(value.code) ? { t: "redeem", n, code: value.code.toUpperCase() } : undefined;
     case "histPut":
       return typeof value.data == "string" && value.data.length > 2 && value.data.length <= BAFIA_LIMITS.premiumHistory ? { t: "histPut", n, data: value.data } : undefined;
+    case "crash":
+      return typeof value.text == "string" && value.text.trim().length > 0 && value.text.length <= BAFIA_LIMITS.crash && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value.text) ? { t: "crash", n, text: value.text } : undefined;
     case "feedback": {
       const body = typeof value.text == "string" ? value.text.trim() : "";
       if(!body || body.length > BAFIA_LIMITS.feedback || /[\u0000-\u0008\u000b-\u001f\u007f]/.test(body)) return undefined;
       if(!(FEEDBACK_KINDS as readonly unknown[]).includes(value.kind)) return undefined;
-      const notice = typeof value.notice == "number" && Number.isSafeInteger(value.notice) && value.notice > 0 ? value.notice : undefined;
-      // ответ без сообщения, на которое отвечают, бессмыслен
-      if(value.kind == "reply" && notice === undefined) return undefined;
-      return { t: "feedback", n, kind: value.kind as FeedbackKind, text: body, ...(notice !== undefined ? { notice } : {}) };
+      const id = (field: unknown) => typeof field == "number" && Number.isSafeInteger(field) && field > 0 ? field : undefined;
+      const notice = id(value.notice), direct = id(value.direct);
+      // ответ без сообщения, на которое отвечают, бессмыслен, и отвечают на одно сообщение, а не на два
+      if(value.kind == "reply" && notice === undefined && direct === undefined) return undefined;
+      if(notice !== undefined && direct !== undefined) return undefined;
+      return { t: "feedback", n, kind: value.kind as FeedbackKind, text: body, ...(notice !== undefined ? { notice } : {}), ...(direct !== undefined ? { direct } : {}) };
     }
     case "histGet":
       return typeof value.id == "string" && HIST_ID.test(value.id) ? { t: "histGet", n, id: value.id } : undefined;

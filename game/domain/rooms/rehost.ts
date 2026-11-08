@@ -36,9 +36,13 @@ export async function rehostRoom(ctx: GameContext, session: RoomSession): Promis
   if(session.replay) throw new Error("Это просмотр сохранённой игры");
   if(rehostBlocked(session)) throw new Error("Игра идёт: рехост сейчас недоступен");
   const settings = session.state.settings;
+  ctx.bafia.track("feature:rehost");
   session.leave();
   await createCopy(ctx, { ...settings, roles: settings.roles });
 }
 
 /** рехост из списка комнат (всегда доступен): создать комнату с такими же настройками, как у этой */
-export const rehostListed = (ctx: GameContext, room: RoomItem): Promise<void> => createCopy(ctx, room);
+export function rehostListed(ctx: GameContext, room: RoomItem): Promise<void> {
+  ctx.bafia.track("feature:rehost");
+  return createCopy(ctx, room);
+}

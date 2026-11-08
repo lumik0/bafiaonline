@@ -73,6 +73,8 @@ export interface RoomMenuData {
   hasPassword: boolean
   vip: boolean
   friendsInRoom: number
+  /** ссылка-приглашение: открывший её после входа сам заходит в комнату */
+  inviteUrl: string
 }
 
 /** игрок за столом (данные для меню игрока) */
@@ -98,6 +100,8 @@ export interface RoomInfoData {
   roles: number[]
   /** идёт игра, и ты в ней играешь: выйти из комнаты и создать её заново нельзя */
   playing: boolean
+  /** ссылка-приглашение в эту комнату */
+  inviteUrl: string
   /** сервер хоста не сообщает: это первый игрок комнаты по порядку */
   host?: { playerObjectId: string, username: string }
 }

@@ -31,7 +31,10 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 
 	const view = fromEvents(session, "change", () => ({
 		title: state.settings.title, playersLine: state.playersLine, loaded: state.loaded, inGame: state.inGame, night: state.inGame && state.isNight, info: state.info,
-		roles: state.roleCounts ? Object.entries(state.roleCounts).map(([role, count]) => ({ role: Number(role), count })) : sortRoles(state.settings.roles).map(role => ({ role, count: 1 })),
+		// в игре - роли, которые выданы, и по сколько (как в окне «Роли в комнате»); до игры - те, что могут выпасть
+		roles: state.inGame && state.roleCounts
+			? Object.entries(state.roleCounts).map(([role, count]) => ({ role: Number(role), count })).filter(item => item.count > 0).sort((a, b) => a.role - b.role)
+			: sortRoles(state.settings.roles).map(role => ({ role, count: undefined as number | undefined })),
 		meAlive: state.me?.alive ?? true
 	}));
 	const entries = fromEvents(session, "change", () => state.messages.entries);
@@ -182,7 +185,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 				stretch
 				subtitle={view().playersLine}
 				onBack={() => void back()}
-				right={<><RoleIcons roles={view().roles} images={images().roles} onClick={showRoles} phone={isMobile()} />{hasSettings() ? <button class="gear" onClick={showSettings} aria-label="Настройки комнаты"><Icon name="gear" size={24} /></button> : null}</>}
+				right={<><RoleIcons roles={() => view().roles} images={() => images().roles} onClick={showRoles} phone={isMobile()} />{hasSettings() ? <button class="gear" onClick={showSettings} aria-label="Настройки комнаты"><Icon name="gear" size={24} /></button> : null}</>}
 			/>
 			@if (!view().loaded) {
 				<div class="loading"><img src={images().loading} alt="" /></div>
@@ -218,20 +221,26 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 }
 
 /** роли комнаты в шапке; роли, которых в этой игре нет, бледнее */
-function RoleIcons({ roles, images, onClick, phone }: { roles: { role: number, count: number }[], images: Record<number, string>, onClick: () => void, phone: boolean }) @{
+function RoleIcons({ roles, images, onClick, phone }: { roles: () => { role: number, count: number | undefined }[], images: () => Record<number, string>, onClick: () => void, phone: boolean }) @{
 	<>
 		<style>
 			/* на компьютере видны все роли и занимают всю свободную ширину шапки (если не хватило места, переносятся) */
 			.roles { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 2px; cursor: pointer; }
-			.roles img { flex: none; width: 25px; height: 35px; object-fit: contain; }
-			.roles img.none { opacity: .5; }
+			.roles .item { position: relative; flex: none; width: 25px; height: 35px; }
+			.roles img { width: 100%; height: 100%; object-fit: contain; }
+			.roles .count { position: absolute; right: -2px; bottom: -2px; min-width: 12px; padding: 0 3px; box-sizing: border-box; border-radius: 7px; background: rgba(0, 0, 0, .75); color: #fff; font-size: 10px; line-height: 13px; font-weight: 700; text-align: center; pointer-events: none; }
 			/* на телефоне ровно одна строка: иконки сжимаются, пока не поместятся все */
 			.roles.phone { flex-wrap: nowrap; }
-			.roles.phone img { flex: 0 1 25px; min-width: 10px; width: auto; }
+			.roles.phone .item { flex: 0 1 25px; min-width: 10px; width: auto; }
 		</style>
 		<div class={phone ? "roles phone" : "roles"} onClick={onClick}>
-			@for (const item of roles) {
-				<img class={item.count == 0 ? "none" : ""} src={images[item.role]} alt="" />
+			@for (const item of roles()) {
+				<div class="item">
+					<img src={images()[item.role]} alt="" />
+					@if (item.count !== undefined) {
+						<span class="count">{item.count}</span>
+					}
+				</div>
 			}
 		</div>
 	</>

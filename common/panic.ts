@@ -59,11 +59,33 @@ export interface ReportEnvironment {
 
 /** текст, который игрок присылает разработчику. Токены и пароли в нём не встречаются: журнал их скрывает */
 export function buildReport(crash: CrashInfo, environment: ReportEnvironment): string {
-  const { error } = crash;
   return `Скопируй весь текст и отправь
 -------------------------------
 
-Время: ${(environment.now ?? new Date()).toUTCString()}
+${reportBody(crash, environment)}`;
+}
+
+/** строки журнала, которые можно отправлять сами: без трафика (там чаты, личные сообщения и имена) и с обрезанными длинными строками */
+export function remoteLogs(logs: readonly string[]): string[] {
+  return logs.filter(line => !/^\[[^\]]*\] [A-Z]+ [←→]( |$)/.test(line)).map(line => line.length > 400 ? line.slice(0, 400) + "…" : line);
+}
+
+/**
+ * отчёт, который уходит сам: тот же текст, но без заголовка «скопируй», без трафика в журнале, а устройство и адрес сайта грубо
+ * (платформа, браузер и хост без путей, версий и параметров), как и всё остальное, что игра отправляет серверу Бафии
+ */
+export function buildRemoteReport(crash: CrashInfo, environment: ReportEnvironment & { platform?: string, browser?: string, site?: string }): string {
+  return reportBody(crash, {
+    ...environment,
+    location: environment.site || "?",
+    userAgent: [environment.platform, environment.browser].filter(Boolean).join(", ") || "?",
+    logs: remoteLogs(environment.logs ?? getReportLogs())
+  });
+}
+
+function reportBody(crash: CrashInfo, environment: ReportEnvironment): string {
+  const { error } = crash;
+  return `Время: ${(environment.now ?? new Date()).toUTCString()}
 Описание: ${crash.description}
 
 

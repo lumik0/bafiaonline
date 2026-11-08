@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildReport, describeCrash, getId64, normalizeError } from "./panic";
+import { buildRemoteReport, buildReport, describeCrash, remoteLogs, getId64, normalizeError } from "./panic";
 
 describe("паника", () => {
   test("ID отчёта одинаков для одинаковых ошибок и различается для разных", () => {
@@ -38,5 +38,29 @@ describe("паника", () => {
     expect(report).toContain("Размер окна: 1280x800");
     expect(report).toContain("строка журнала 1\nстрока журнала 2");
     expect(report).toContain(`ID отчёта: ${getId64("Error: m\n    at Комната.tsrx:10")}`);
+  });
+
+  test("отчёт, который уходит сам: без трафика в журнале, без заголовка «скопируй», устройство и адрес грубо", () => {
+    const logs = [
+      "[12:00:00] INFO Бафия: связь с сервером восстановлена",
+      "[12:00:01] INFO ← chatMessage {\"text\":\"привет, это личное\"}",
+      "[12:00:02] INFO → sendRoomMessage {\"text\":\"секрет\"}",
+      "[12:00:03] ERROR Необработанная ошибка: " + "x".repeat(600)
+    ];
+    expect(remoteLogs(logs)).toHaveLength(2);
+
+    const report = buildRemoteReport(
+      { error: { message: "m", stack: "Error: m\n    at Комната.tsrx:10" }, description: "тест", screen: "room" },
+      { version: "Beta 2.2.3", width: 390, height: 844, pixelRatio: 3, platform: "ios", browser: "safari", site: "lumik0.github.io", logs }
+    );
+    expect(report).not.toContain("Скопируй");
+    expect(report).not.toContain("привет, это личное");
+    expect(report).not.toContain("секрет");
+    expect(report).toContain("Браузер: ios, safari");
+    expect(report).toContain("Адрес: lumik0.github.io");
+    expect(report).toContain("Описание: тест");
+    expect(report).toContain("связь с сервером восстановлена");
+    expect(report).toMatch(/ID отчёта: [0-9a-f]{16}/);
+    expect(report).toContain("…");
   });
 });

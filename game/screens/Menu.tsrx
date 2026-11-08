@@ -18,6 +18,8 @@ const rankOf = (level: number) => Math.min(8, Math.max(1, Math.round(level / 2))
 export function Menu({ user, assets, settings, actions, bafia }: { user: User, assets: Assets, settings: SettingsStore, actions: MenuActions, bafia?: Bafia }) @{
 	// своя gif-аватарка (премиум Бафии)
 	const myGif = bafia ? fromEvents(bafia, "change", () => bafia.myAvatarUrl) : () => undefined;
+	// есть ответы на обращения, которых игрок ещё не видел: число на кнопке «Идеи и баги»
+	const feedbackNews = bafia ? fromEvents(bafia, "change", () => bafia.feedbackNews) : () => 0;
 	const me = fromEvents(user, "change", () => ({
 		username: user.username, photo: user.photo, decorations: user.decorations, level: user.level, experience: user.experience,
 		next: user.nextLevelExperience, gold: user.goldCoins, silver: user.silverCoins, rating: user.matchMakingScore,
@@ -82,6 +84,7 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 			.extra { display: flex; gap: 6px; justify-content: flex-end; }
 
 			.bottom { align-self: center; width: min(300px, 100%); display: flex; align-items: stretch; gap: 10px; padding-bottom: 6vh; }
+			.news { margin-left: 6px; padding: 0 6px; border-radius: 9px; background: #e5493a; color: #fff; font-size: 12px; font-weight: 700; }
 			.small { display: flex; flex-direction: column; gap: 4px; width: 46%; }
 			.shop { flex: 1; background: var(--button-shop-bg); color: var(--button-shop-text); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; }
 			.shop:enabled:hover { background: var(--button-shop-bg); filter: brightness(.92); }
@@ -156,7 +159,7 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 						<button onClick={actions.ratings}>{"Рейтинги"}</button>
 						<button onClick={actions.rules}>{"Правила"}</button>
 						<button onClick={actions.history}>{"История игр"}</button>
-						<button onClick={actions.feedback}>{"Идеи и баги"}</button>
+						<button onClick={actions.feedback}>{"Идеи и баги"}{feedbackNews() > 0 ? <span class="news">{feedbackNews()}</span> : null}</button>
 					</div>
 					<button class="shop" onClick={actions.shop}><Icon name="store" />{"Магазин"}</button>
 				</div>

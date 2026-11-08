@@ -27,6 +27,10 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 			<span><b>{"ID комнаты: "}</b>{data.id}</span>
 			<button onClick={() => void copyText(data.id)}>{"Копировать"}</button>
 		</div>
+		<div class="id">
+			<span><b>{"Ссылка: "}</b>{data.inviteUrl}</span>
+			<button onClick={() => { ctx.bafia.track("feature:invite"); void copyText(data.inviteUrl); }}>{"Копировать"}</button>
+		</div>
 		<div class="list">
 			@for (const entry of entries() ?? []) {
 				<button disabled={!!entry.disabled} onClick={() => { close(); ctx.mods.selectMenu(entry, "roomSettings", data); }}>{entry.label}</button>

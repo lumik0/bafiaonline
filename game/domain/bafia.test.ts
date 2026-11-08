@@ -23,6 +23,7 @@ function serverSocket(online: string[], log: Record<string, unknown>[]) {
           : message.t == "histPut" ? (message.data.length > 400 ? { t: "error", n: message.n, reason: "quota" } : { t: "hist", n: message.n, id: "abcdefghij12" })
           : message.t == "histGet" ? { t: "hist", n: message.n, id: message.id, data: message.id == "abcdefghij12" ? JSON.stringify({ messages: [{ x: 1 }, 5], playersData: { p1: { role: 1 }, p2: 3 }, title: "Игра", evil: "x" }) : undefined }
           : message.t == "hello" ? { t: "ok", n: message.n, gifKey: "GKEY" }
+          : message.t == "myFeedback" ? { t: "myFeedback", n: message.n, items: [{ id: 2, kind: "bug", text: "Баг", created: 2, status: "sent" }, { id: 1, kind: "idea", text: "Идея", created: 1, status: "answered" }] }
           : message.t == "style" ? { t: "ok", n: message.n }
           : message.t == "avatarSet" ? (message.data == "AAAAAAAAAAAAAAAAAAAAAAAA" ? { t: "error", n: message.n, reason: "premium" } : { t: "ok", n: message.n, avatar: "/a/newavatar" })
           : message.t == "who" ? { t: "online", n: message.n, ids: message.ids.filter((id: string) => online.includes(id)), premium: message.ids.filter((id: string) => id == "pp"), colors: message.ids.includes("pp") ? { pp: "blue", bad: "нет" } : {}, avatars: message.ids.includes("pp") ? { pp: "/a/abcdef12", p9: "http://evil.example.com/x.gif" } : {} }
@@ -151,12 +152,28 @@ describe("BafiaLink", () => {
     expect(await link.sendFeedback("idea", "  Добавьте тёмную тему  ")).toEqual({ ok: true });
     expect(sent.find(message => message.t == "feedback")).toMatchObject({ kind: "idea", text: "Добавьте тёмную тему" });
     expect(sent.find(message => message.t == "feedback")).not.toHaveProperty("notice");
-    expect(await link.sendFeedback("reply", "Спасибо", 7)).toEqual({ ok: true });
+    expect(await link.sendFeedback("reply", "Спасибо", { notice: 7 })).toEqual({ ok: true });
     expect(sent.filter(message => message.t == "feedback").at(-1)).toMatchObject({ kind: "reply", notice: 7 });
+    expect(await link.sendFeedback("reply", "Ответ лично", { direct: 3 })).toEqual({ ok: true });
+    expect(sent.filter(message => message.t == "feedback").at(-1)).toMatchObject({ kind: "reply", direct: 3 });
+    expect(sent.filter(message => message.t == "feedback").at(-1)).not.toHaveProperty("notice");
     expect(await link.sendFeedback("bug", "   ")).toEqual({ error: "empty" });
     expect(await link.sendFeedback("bug", "я".repeat(BAFIA_LIMITS.feedback + 1))).toEqual({ error: "too-long" });
     link.stop();
     expect(await link.sendFeedback("idea", "оффлайн")).toEqual({ error: "offline" });
+  });
+
+  test("отчёт о краше: уходит, когда есть связь; слишком большой и пустой не отправляются; без связи - false", async() => {
+    const sent: Record<string, unknown>[] = [];
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: serverSocket([], sent).create, crashWait: 1 });
+    link.start();
+    await tick();
+    expect(await link.sendCrash("Описание: тест\nВерсия: Beta 2.2.3")).toBe(true);
+    expect(sent.find(message => message.t == "crash")).toMatchObject({ text: "Описание: тест\nВерсия: Beta 2.2.3" });
+    expect(await link.sendCrash("  ")).toBe(false);
+    expect(await link.sendCrash("я".repeat(BAFIA_LIMITS.crash + 1))).toBe(false);
+    link.stop();
+    expect(await link.sendCrash("ещё")).toBe(false);
   });
 
   test("история игры: отправка даёт номер, получение очищает чужие данные, нет - null", async() => {
@@ -293,6 +310,22 @@ describe("BafiaLink", () => {
     link.stop();
   });
 
+  test("сообщение администратора несёт, на что можно ответить: всем (id) или личное (direct); без номера ответить нельзя", async() => {
+    const server = serverSocket([], []);
+    const link = new BafiaLink({ url: "ws://test", key: KEY, createSocket: server.create });
+    const got: [string, unknown][] = [];
+    link.on("notice", (text, reply) => got.push([text, reply]));
+    link.start();
+    await tick();
+    server.push({ t: "notice", n: 0, text: "Всем", id: 5 });
+    server.push({ t: "notice", n: 0, text: "Лично", direct: 9 });
+    server.push({ t: "notice", n: 0, text: "Без номера" });
+    server.push({ t: "notice", n: 0, text: "Мусор", id: -1, direct: "x" });
+    await tick();
+    expect(got).toEqual([["Всем", { notice: 5 }], ["Лично", { direct: 9 }], ["Без номера", undefined], ["Мусор", undefined]]);
+    link.stop();
+  });
+
   test("игра получает сообщение администратора событием notice от Bafia", async() => {
     const data = { bafia: { enabled: false, asked: true, key: "k".repeat(24), code: "", color: "gold", favorites: [] } };
     const settings = new class extends Events<{ change: () => void }> {
@@ -395,6 +428,34 @@ describe("Bafia", () => {
     return { bafia, settings, user, log, server, data };
   }
 
+  test("что открывают: счётчики копятся и уходят пачкой (только названия), плохие названия отбрасываются, без связи остаются до следующего раза", async() => {
+    const { bafia, log } = setup();
+    await tick();
+    bafia.track("screen:menu"); bafia.track("screen:menu"); bafia.track("feature:rehost");
+    bafia.track("Плохое название"); bafia.track("");
+    await bafia.flushUsage();
+    const usage = log.filter(message => message.t == "usage");
+    expect(usage).toHaveLength(1);
+    expect(usage[0]!.counts).toEqual({ "screen:menu": 2, "feature:rehost": 1 });
+    await bafia.flushUsage();               // пусто - ничего не отправляется
+    expect(log.filter(message => message.t == "usage")).toHaveLength(1);
+    bafia.dispose();
+  });
+
+  test("мои обращения: список с сервера, значок на кнопке считает новые статусы (не «отправлено»), после просмотра сбрасывается и снова растёт при новом статусе", async() => {
+    const { bafia, data } = setup();
+    await tick(); await tick();
+    expect(bafia.feedback.map(item => [item.id, item.status])).toEqual([[2, "sent"], [1, "answered"]]);
+    expect(bafia.feedbackNews).toBe(1);
+    bafia.markFeedbackSeen();
+    expect(bafia.feedbackNews).toBe(0);
+    expect(data.bafia).toHaveProperty("feedbackSeen", { "2": "sent", "1": "answered" });
+    // у первого обращения новый статус - значок возвращается
+    (data.bafia as { feedbackSeen?: Record<string, string> }).feedbackSeen = { "2": "sent", "1": "sent" };
+    expect(bafia.feedbackNews).toBe(1);
+    bafia.dispose();
+  });
+
   test("без согласия работает только «кто играет» (ник, id, партии, id видимых игроков); с согласием добавляются ники других, гифки и история ников", async() => {
     const { bafia, user, log, server, data } = setup();
     // ключ создаётся сам, но пока игрок не назван, на сервер ничего не уходит
@@ -407,8 +468,9 @@ describe("Bafia", () => {
     user.emit("change");
     await tick();
     expect(server.sockets).toHaveLength(1);
-    expect(log.map(message => message.t)).toEqual(["hello", "presence"]);
-    expect(log[1]).toMatchObject({ id: "p1", nick: "Euaek", platform: expect.stringMatching(/^(ios|android|windows|macos|linux|other)$/), version: versionNumber });
+    // myFeedback - запрос только своих обращений, ничего чужого не передаёт
+    expect(log.map(message => message.t)).toEqual(["hello", "myFeedback", "presence"]);
+    expect(log[2]).toMatchObject({ id: "p1", nick: "Euaek", platform: expect.stringMatching(/^(ios|android|windows|macos|linux|other)$/), version: versionNumber });
 
     log.length = 0;
     bafia.watch([{ id: "p2", nick: "Друг" }]);

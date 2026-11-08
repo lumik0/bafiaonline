@@ -39,7 +39,7 @@ async function setup(files = new MemoryFileStore()) {
   return { manager, files, network, client, log, user };
 }
 
-const room = { id: "r1", title: "Комната", playersNum: 5, minPlayers: 5, maxPlayers: 21, minLevel: 1, status: 0, hasPassword: false, vip: false, friendsInRoom: 0 };
+const room = { id: "r1", title: "Комната", playersNum: 5, minPlayers: 5, maxPlayers: 21, minLevel: 1, status: 0, hasPassword: false, vip: false, friendsInRoom: 0, inviteUrl: "https://x/play.html?room=r1" };
 
 describe("официальный мод", () => {
   test("есть у каждого: включён, все разрешения, не удаляется, но выключается", async() => {
@@ -81,12 +81,12 @@ describe("официальный мод", () => {
   test("меню комнаты: зайти, зайти когда освободится место, скопировать id, рехост (всегда доступен)", async() => {
     const { manager, log } = await setup();
     const entries = await manager.menuItems("room", room);
-    expect(entries.map(entry => entry.label)).toEqual(["Зайти", "Зайти, когда будет 20 игроков", "Скопировать id комнаты", "Рехост"]);
+    expect(entries.map(entry => entry.label)).toEqual(["Зайти", "Зайти, когда будет 20 игроков", "Скопировать id комнаты", "Скопировать ссылку-приглашение", "Рехост"]);
     expect(entries.every(entry => !entry.disabled)).toBe(true);
 
     for(const entry of entries) manager.selectMenu(entry, "room", room);
     await tick(4);
-    expect(log).toEqual(["enter r1", "wait r1", "copy r1", "rehost r1"]);
+    expect(log).toEqual(["enter r1", "wait r1", "copy r1", "copy https://x/play.html?room=r1", "rehost r1"]);
   });
 
   test("профиль: расширенная статистика, кнопка винрейта открывает окно с подсказкой", async() => {

@@ -120,6 +120,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			text: textColor(), banner: banner(), avatar: gifAvatar() ?? (player.photo ? `${PHOTO_BASE}/${player.photo}` : undefined)
 		});
 		if(!blob) return void await ctx.dialogs.alert("Не получилось нарисовать визитку.", { title: "Ошибка" });
+		ctx.bafia.track("feature:profileCard");
 		await shareImage(blob, `${player.username ?? "profile"}.png`);
 	};
 	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "" }]));

@@ -1,7 +1,7 @@
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
-import { isPremiumColor, nickKey, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type FeedbackItem, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -22,6 +22,8 @@ export interface BafiaLinkOptions {
   timeout?: number
   backoff?: number[]
   delay?: (ms: number) => Promise<void>
+  /** сколько ждать связи между попытками отправить отчёт о краше, мс (по умолчанию 500) */
+  crashWait?: number
   /** проверка связи раз в `interval` мс; нет ответа за `timeout` мс два раза подряд - переподключаемся (по умолчанию 30 и 5 секунд) */
   heartbeat?: { interval?: number, timeout?: number }
 }
@@ -42,7 +44,10 @@ export const feedbackProblems: Record<FeedbackError, string> = {
 
 export type FeedbackError = "empty" | "too-long" | "offline" | "slow-down" | "quota" | "presence-first" | "bad-request";
 
-export class BafiaLink extends Events<{ change: () => void, notice: (text: string, id?: number) => void }> {
+/** на какое сообщение администратора можно ответить: сообщение всем (`notice`) или личное (`direct`) */
+export interface ReplyTarget { notice?: number, direct?: number }
+
+export class BafiaLink extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void }> {
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
@@ -190,8 +195,12 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** сообщение администратора: только настоящее (непустой текст нужной длины) */
-  private announce(text: unknown, id?: unknown) {
-    if(typeof text == "string" && text.length > 0 && text.length <= BAFIA_LIMITS.notice) this.emit("notice", text, typeof id == "number" && Number.isSafeInteger(id) && id > 0 ? id : undefined);
+  private announce(text: unknown, id?: unknown, direct?: unknown) {
+    const valid = (value: unknown) => typeof value == "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+    if(typeof text == "string" && text.length > 0 && text.length <= BAFIA_LIMITS.notice) {
+      const reply: ReplyTarget = valid(direct) !== undefined ? { direct: valid(direct) } : valid(id) !== undefined ? { notice: valid(id) } : {};
+      this.emit("notice", text, "notice" in reply || "direct" in reply ? reply : undefined);
+    }
   }
 
   private drop() {
@@ -206,7 +215,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     try { message = JSON.parse(text); } catch { return; }
     if(typeof message?.n != "number") return;
     // сообщение администратора приходит само, без запроса
-    if(message.t == "notice") return this.announce(message.text, message.id);
+    if(message.t == "notice") return this.announce(message.text, message.id, message.direct);
     this.pending.get(message.n)?.(message);
   }
 
@@ -336,13 +345,34 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     return { error: reason == "premium" || reason == "too-big" || reason == "bad-format" || reason == "duplicate" || reason == "quota" || reason == "slow-down" || reason == "full" || reason == "presence-first" ? reason : "offline" };
   }
 
-  /** отправить администратору идею, баг, предложение или ответ на его сообщение (`notice` - номер сообщения) */
-  async sendFeedback(kind: FeedbackKind, text: string, notice?: number): Promise<{ ok: true } | { error: FeedbackError }> {
+  /** пачка счётчиков «что открывали» (только названия экранов и функций, без текстов); `true` - принято сервером */
+  async sendUsage(counts: Record<string, number>): Promise<boolean> {
+    if(!this.ready) return false;
+    return (await this.request({ t: "usage", counts }))?.t == "ok";
+  }
+
+  /** мои обращения (идеи, баги, предложения) и что с ними стало; `undefined` - нет связи */
+  async myFeedback(): Promise<FeedbackItem[] | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "myFeedback" });
+    return answer?.t == "myFeedback" && Array.isArray(answer.items) ? answer.items : undefined;
+  }
+
+  /** отчёт о краше: уходит сам, без согласия (в нём нет ни сообщений, ни трафика); связи могло ещё не быть, поэтому ждём её до пяти секунд */
+  async sendCrash(text: string): Promise<boolean> {
+    if(!text.trim() || text.length > BAFIA_LIMITS.crash) return false;
+    for(let wait = 0; !this.ready && wait < 10; wait++) await new Promise(resolve => setTimeout(resolve, this.options.crashWait ?? 500));
+    if(!this.ready) return false;
+    return (await this.request({ t: "crash", text }, 15_000))?.t == "ok";
+  }
+
+  /** отправить администратору идею, баг, предложение или ответ на его сообщение (`reply` - на какое) */
+  async sendFeedback(kind: FeedbackKind, text: string, reply?: ReplyTarget): Promise<{ ok: true } | { error: FeedbackError }> {
     const body = text.trim();
     if(!body) return { error: "empty" };
     if(body.length > BAFIA_LIMITS.feedback) return { error: "too-long" };
     if(!this.ready) return { error: "offline" };
-    const answer = await this.request({ t: "feedback", kind, text: body, ...(notice !== undefined ? { notice } : {}) });
+    const answer = await this.request({ t: "feedback", kind, text: body, ...(reply?.notice !== undefined ? { notice: reply.notice } : {}), ...(reply?.direct !== undefined ? { direct: reply.direct } : {}) });
     if(answer?.t == "ok") return { ok: true };
     const reason = answer?.t == "error" ? answer.reason : "";
     return { error: reason == "slow-down" || reason == "quota" || reason == "presence-first" || reason == "bad-request" ? reason : "offline" };
@@ -504,7 +534,7 @@ export interface FavoriteGif { id: string, title: string }
 /** сколько гифок можно хранить в избранном */
 export const FAVORITES_MAX = 200;
 
-export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[], watched?: string[], expiryWarned?: number }
+export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[], watched?: string[], expiryWarned?: number, feedbackSeen?: Record<string, string> }
 
 export interface BafiaDeps {
   settings: { data: { bafia: BafiaSettings, lowPower?: boolean }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
@@ -519,6 +549,8 @@ export interface BafiaDeps {
   site?: string
   /** версия игры, уходит в статистику; по умолчанию текущая */
   version?: string
+  /** через сколько мс накопленные счётчики «что открывали» уходят на сервер (по умолчанию минута) */
+  usageDelay?: number
 }
 
 /** случайный ключ установки (hex), не связан с аккаунтом, нужен серверу для различения клиентов */
@@ -530,7 +562,7 @@ export function newKey(): string {
  * сервер Бафии для окна игры. Всегда работает «кто играет» и значок премиума (твой ник и id, число партий, id видимых игроков),
  * остальное (ники других игроков, гифки, игры, аватарки) - только с согласием в настройках
  */
-export class Bafia extends Events<{ change: () => void, notice: (text: string, id?: number) => void }> {
+export class Bafia extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void }> {
   private link?: BafiaLink;
   /** гифки из сообщений: скачиваются сразу, живут в памяти 5 минут */
   readonly images = new GifCache();
@@ -678,9 +710,13 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, i
       const link = this.link = new BafiaLink({ url: this.deps.url, fileBase: this.deps.url.replace(/^ws/, "http"), key, createSocket: this.deps.createSocket, timeout: this.deps.timeout });
       link.savedCode = this.deps.settings.data.bafia.code || undefined;
       link.color = this.deps.settings.data.bafia.color;
-      link.on("change", () => { this.scheduleExpiry(); this.warnExpiry(); this.emit("change"); });
+      link.on("change", () => {
+        this.scheduleExpiry(); this.warnExpiry(); this.emit("change");
+        // связь появилась: список обращений подтягиваем один раз
+        if(link.isReady && !this.feedbackLoaded) { this.feedbackLoaded = true; void this.refreshFeedback(); }
+      });
       // одноразовое сообщение администратора: игра показывает его баннером
-      link.on("notice", (text, id) => this.emit("notice", text, id));
+      link.on("notice", (text, reply) => this.emit("notice", text, reply));
       link.start();
     }
     const { playerObjectId, username } = this.deps.user;
@@ -745,7 +781,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, i
   /** ввести код премиума; при успехе код запоминается */
   async redeem(code: string) {
     const result = await (this.link?.redeem(code) ?? Promise.resolve({ error: "offline" } as const));
-    if("until" in result) this.deps.settings.update(data => { data.bafia.code = code.trim().toUpperCase(); });
+    if("until" in result) { this.deps.settings.update(data => { data.bafia.code = code.trim().toUpperCase(); }); this.track("feature:redeem"); }
     return result;
   }
 
@@ -788,23 +824,84 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, i
     // сервер каталога ещё недоступен, а показать нечего: пусть панель повторит запрос, когда связь появится
     return !items.length && list.length && !this.ready ? undefined : items;
   }
-  setAvatar(bytes: Uint8Array) { return this.consented?.setAvatar(bytes) ?? Promise.resolve({ error: "offline" } as const); }
+  async setAvatar(bytes: Uint8Array) { const result = await (this.consented?.setAvatar(bytes) ?? Promise.resolve({ error: "offline" } as const)); if("ok" in result) this.track("feature:avatarSet"); return result; }
   clearAvatar() { return this.consented?.clearAvatar() ?? Promise.resolve(false); }
   setBanner(bytes: Uint8Array) { return this.consented?.setBanner(bytes) ?? Promise.resolve({ error: "offline" } as const); }
   clearBanner() { return this.consented?.clearBanner() ?? Promise.resolve(false); }
   setProfileBg(color: string) { return this.consented?.setProfileBg(color) ?? Promise.resolve("offline" as const); }
-  /** идеи и ответы - осознанное действие игрока, согласие на «гифки и историю ников» для них не нужно (уходят только текст и ник) */
-  sendFeedback(kind: FeedbackKind, text: string, notice?: number) { return this.link?.sendFeedback(kind, text, notice) ?? Promise.resolve({ error: "offline" } as const); }
-  uploadGif(title: string, bytes: Uint8Array) { return this.consented?.uploadGif(title, bytes) ?? Promise.resolve({ error: "offline" } as const); }
+  /** отчёт о краше игры (см. BafiaLink.sendCrash): связь поднимается, даже если игрок ещё не вошёл */
+  reportCrash(text: string): Promise<boolean> {
+    this.sync();
+    return this.link?.sendCrash(text) ?? Promise.resolve(false);
+  }
 
-  shareHistory(record: HistoryRecord) { return this.consented?.shareHistory(record) ?? Promise.resolve({ error: "offline" } as const); }
+  // --- что открывают и чем пользуются ---
+
+  private usage: Record<string, number> = {};
+  private usageTimer?: ReturnType<typeof setTimeout>;
+
+  /** запоминает «открыт экран» или «нажата функция» (`screen:menu`, `feature:rehost`); раз в минуту уходит пачкой, только названия и счётчики */
+  track(key: string) {
+    if(!USAGE_KEY.test(key)) return;
+    this.usage[key] = Math.min(1000, (this.usage[key] ?? 0) + 1);
+    if(Object.keys(this.usage).length >= 40) return void this.flushUsage();
+    this.usageTimer ??= setTimeout(() => void this.flushUsage(), this.deps.usageDelay ?? 60_000);
+  }
+
+  /** отправляет накопленное; не вышло (нет связи) - остаётся до следующего раза */
+  async flushUsage(): Promise<void> {
+    clearTimeout(this.usageTimer);
+    this.usageTimer = undefined;
+    const counts = this.usage;
+    if(!Object.keys(counts).length) return;
+    this.usage = {};
+    if(await (this.link?.sendUsage(counts) ?? Promise.resolve(false))) return;
+    for(const [key, count] of Object.entries(counts)) this.usage[key] = Math.min(1000, (this.usage[key] ?? 0) + count);
+    this.usageTimer ??= setTimeout(() => void this.flushUsage(), (this.deps.usageDelay ?? 60_000) * 5);
+  }
+
+  // --- мои обращения ---
+
+  private feedbackItems: FeedbackItem[] = [];
+  private feedbackLoaded = false;
+
+  get feedback(): readonly FeedbackItem[] { return this.feedbackItems; }
+
+  /** сколько обращений получили ответ или разобраны, а игрок ещё этого не видел: значок на кнопке «Идеи и баги» */
+  get feedbackNews(): number {
+    const seen = this.deps.settings.data.bafia.feedbackSeen ?? {};
+    return this.feedbackItems.filter(item => item.status != "sent" && seen[String(item.id)] != item.status).length;
+  }
+
+  /** обновляет список обращений с сервера; без связи остаётся прежний */
+  async refreshFeedback(): Promise<readonly FeedbackItem[]> {
+    const items = await this.link?.myFeedback();
+    if(items) { this.feedbackItems = items; this.emit("change"); }
+    return this.feedbackItems;
+  }
+
+  /** игрок открыл экран: все статусы, которые сейчас есть, считаются увиденными */
+  markFeedbackSeen() {
+    this.deps.settings.update(data => { const seen = data.bafia.feedbackSeen ??= {}; for(const item of this.feedbackItems) seen[String(item.id)] = item.status; });
+    this.emit("change");
+  }
+
+  /** идеи и ответы - осознанное действие игрока, согласие на «гифки и историю ников» для них не нужно (уходят только текст и ник) */
+  async sendFeedback(kind: FeedbackKind, text: string, reply?: ReplyTarget) {
+    const result = await (this.link?.sendFeedback(kind, text, reply) ?? Promise.resolve({ error: "offline" } as const));
+    if("ok" in result) { this.track(kind == "reply" ? "feature:reply" : "feature:feedbackSend"); if(kind != "reply") void this.refreshFeedback(); }
+    return result;
+  }
+  async uploadGif(title: string, bytes: Uint8Array) { const result = await (this.consented?.uploadGif(title, bytes) ?? Promise.resolve({ error: "offline" } as const)); if("ok" in result) this.track("feature:gifUpload"); return result; }
+
+  async shareHistory(record: HistoryRecord) { const result = await (this.consented?.shareHistory(record) ?? Promise.resolve({ error: "offline" } as const)); if("id" in result) this.track("feature:historyShare"); return result; }
   loadHistory(id: string) { return this.consented?.loadHistory(id) ?? Promise.resolve(undefined); }
 
   played(won: boolean | undefined) { void this.link?.played(won); }
 
   nicks(id: string) { return this.consented?.nicks(id) ?? Promise.resolve(undefined); }
 
-  dispose() { clearInterval(this.watchTimer); clearTimeout(this.expiryTimer); this.expiryAt = 0; this.link?.stop(); this.link = undefined; this.images.clear(); }
+  dispose() { clearInterval(this.watchTimer); clearTimeout(this.expiryTimer); clearTimeout(this.usageTimer); this.expiryAt = 0; this.link?.stop(); this.link = undefined; this.images.clear(); }
 }
 
 /** что уходит на сервер Бафии: показывается при первом заходе и при включении в настройках */
@@ -815,6 +912,8 @@ export const BAFIA_CONSENT =
   "• сколько партий ты сыграл и выиграл;\n" +
   "• если игра не пустила тебя при входе (бан), твой ник и сколько осталось, чтобы у других был виден значок «БАН»;\n" +
   "• id игроков, которых ты видишь (без ников), чтобы узнать, кто из них в Бафии;\n" +
+  "• если игра крашнулась, отчёт об ошибке: текст ошибки, версия игры, экран, грубое устройство и журнал без трафика и сообщений;\n" +
+  "• какие экраны и функции игры ты открываешь: только их названия и счётчики, без текстов и ников;\n" +
   "• случайный ключ этой установки (с аккаунтом игры не связан).\n\n" +
   "Если согласишься, то ещё:\n" +
   "• ники игроков, которых ты видишь: для истории ников и значков «Позор» и «БАН» у нарушителей;\n" +

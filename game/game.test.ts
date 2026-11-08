@@ -709,6 +709,9 @@ describe("игра", () => {
     await tick(20);
     expect(text()).toContain("Наступила ночь [МАФИЯ в чате]");
     expect(text()).toContain("Мафия: 0 | 0");
+    // роли в шапке во время игры - выданные и по сколько, а не выбранные в комнате
+    const dealt = [...window.content.querySelectorAll<HTMLElement>(".bar .right .roles .item")];
+    expect(dealt.map(item => item.querySelector(".count")?.textContent)).toEqual(["6", "2"]);
     expect(window.content.querySelectorAll(".cell")).toHaveLength(7);             // стол без вас
     expect(window.content.querySelectorAll(".cell .action")).toHaveLength(7);     // мафия ночью может ходить на всех мирных
 
@@ -779,10 +782,12 @@ describe("игра", () => {
     console.error = originalError;
 
     expect(text()).toContain("Упс.. Бафия крашнулась");
-    expect(window.content.querySelector<HTMLTextAreaElement>("textarea")!.value).toContain("Описание: при открытии комнаты");
-    expect(window.content.querySelector<HTMLTextAreaElement>("textarea")!.value).toContain("что-то пошло не так");
-    expect(window.content.querySelector<HTMLTextAreaElement>("textarea")!.value).not.toContain("второй вызов");
-    expect(window.content.querySelector<HTMLTextAreaElement>("textarea")!.value).toContain("Экран игры: menu");
+    // копировать нечего: отчёт уходит сам, поэтому на экране нет ни поля с текстом, ни кнопки «Скопировать»
+    expect(window.content.querySelector("textarea")).toBeNull();
+    expect(text()).not.toContain("Скопировать");
+    expect(text()).toContain("Закрыть окно");
+    expect(game.ctx.crash()).toMatchObject({ description: "при открытии комнаты", screen: "menu" });
+    expect(game.ctx.crash()!.error.message).toBe("что-то пошло не так");
     expect(text()).not.toContain("Висящее окно");
     expect(network.sockets.every(socket => socket.closed)).toBe(true);
   });
