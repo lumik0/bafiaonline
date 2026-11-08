@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { belongsTo, HISTORY_LIMIT, noteHint, ownRecords, recordTitle, sanitizeRecord, sharedForm, withRecord, type HistoryRecord } from "./history";
+import { belongsTo, claimRecords, HISTORY_LIMIT, noteHint, ownRecords, recordTitle, sanitizeRecord, sharedForm, unclaimedRecords, withRecord, type HistoryRecord } from "./history";
 
 const valid = { messages: [{ a: 1 }], playersData: { p1: { role: 1 } }, modelType: 1, title: "Игра", maxPlayers: 8, minPlayers: 5, minLevel: 1, isVipEnabled: false, selectedRoles: [1, 2], gameDayTime: 60, createdAt: 5 };
 
@@ -89,3 +89,35 @@ describe("история у каждого аккаунта своя", () => {
   });
 });
 
+
+describe("история: защита от потери", () => {
+  const record = (extra: Partial<HistoryRecord> = {}): HistoryRecord => ({ messages: [], playersData: {}, modelType: 0, title: "Т", maxPlayers: 8, minPlayers: 5, minLevel: 1, isVipEnabled: false, selectedRoles: [], gameDayTime: 0, createdAt: 1, ...extra });
+
+  test("новая игра обрезает только историю своего аккаунта: чужие записи и записи без владельца остаются", () => {
+    const old = Array.from({ length: 150 }, (_, i) => record({ createdAt: i }));            // без владельца, как после старой общей истории
+    const other = Array.from({ length: 120 }, (_, i) => record({ createdAt: 1000 + i, owner: "u2" }));
+    const mine = Array.from({ length: 100 }, (_, i) => record({ createdAt: 2000 + i, owner: "u1" }));
+    const next = withRecord([...old, ...other, ...mine], record({ createdAt: 9999, owner: "u1" }));
+    expect(next.filter(item => !item.owner)).toHaveLength(150);
+    expect(next.filter(item => item.owner == "u2")).toHaveLength(120);
+    expect(next.filter(item => item.owner == "u1")).toHaveLength(HISTORY_LIMIT);
+    expect(next[0]!.createdAt).toBe(9999);
+  });
+
+  test("записи без владельца, которые аккаунт не опознал, можно вернуть: берутся только такие, чужие и опознанные не меняются", () => {
+    const viewer = { userObjectId: "u1", playerObjectId: "new-id" };
+    const rooms = [
+      record({ createdAt: 1, playersData: { "old-id": {} } }),                 // без владельца, id не совпал: прячется
+      record({ createdAt: 2, playersData: { "new-id": {} } }),                 // без владельца, но опознана
+      record({ createdAt: 3, owner: "u2" }),                                    // чужая
+      record({ createdAt: 4, owner: "u1" })
+    ];
+    expect(ownRecords(rooms, viewer).map(item => item.createdAt)).toEqual([2, 4]);
+    expect(unclaimedRecords(rooms, viewer).map(item => item.createdAt)).toEqual([1]);
+    const claimed = claimRecords(rooms, viewer);
+    expect(claimed.map(item => item.owner)).toEqual(["u1", undefined, "u2", "u1"]);
+    expect(ownRecords(claimed, viewer).map(item => item.createdAt)).toEqual([1, 2, 4]);
+    expect(unclaimedRecords(claimed, viewer)).toEqual([]);
+    expect(claimRecords(rooms, { userObjectId: "", playerObjectId: "x" })[0]!.owner).toBeUndefined();   // без аккаунта никому не отдаём
+  });
+});

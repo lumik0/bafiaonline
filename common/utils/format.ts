@@ -26,3 +26,19 @@ export function formatDateTime(timestamp: number): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+/** 1700000000000 → "14.11.2023" (по местному времени) */
+export function formatDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
+}
+
+/** 93784 → "1 д 2 ч", 3700 → "1 ч 1 мин", 40 → "меньше минуты": коротко, до двух крупных частей */
+export function formatPlayTime(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(seconds / 86400), hours = Math.floor(seconds % 86400 / 3600), minutes = Math.floor(seconds % 3600 / 60);
+  if(days) return `${days} д${hours ? ` ${hours} ч` : ""}`;
+  if(hours) return `${hours} ч${minutes ? ` ${minutes} мин` : ""}`;
+  return minutes ? `${minutes} мин` : "меньше минуты";
+}

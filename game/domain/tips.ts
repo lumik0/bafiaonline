@@ -10,9 +10,14 @@ export const MAX_TIP_SHOWS = 3;
 
 export type TipSettings = { data: Pick<GameSettings, "tips"> };
 
-/** в сообщении слово «шер» или «шериф» целиком: «я шер, чек Вася маф» (без «шерсть», «шершавый») */
-const SHERIFF = /(^|[^а-яёa-z])(шер|шериф(?:а|у|ом|е|ы)?)(?![а-яёa-z])/i;
-export const claimsSheriff = (text: string) => SHERIFF.test(text);
+/**
+ * игрок называет себя шерифом: «я шер», «я шериф», «я точно шериф», «шериф я» (слово целиком, без «шерсть», «шершавый»).
+ * Просто «шер» или «шериф» без «я» не считается: так пишут и в шутку, и как оскорбление, и когда спрашивают «кто шер?».
+ * «Я не шер» - тоже нет: это отказ
+ */
+const SELF_FIRST = /(^|[^а-яёa-z])я[\s,.:;!-]+(?:(?!не(?![а-яё]))[а-яё]+[\s,.:;!-]+){0,2}(?:шер|шериф)(?![а-яёa-z])/i;
+const SELF_LAST = /(^|[^а-яёa-z])(?:шер|шериф)[\s,.:;!-]+я(?![а-яёa-z])/i;
+export const claimsSheriff = (text: string) => SELF_FIRST.test(text) || SELF_LAST.test(text);
 
 export function tipActive(settings: TipSettings, id: TipId) {
   const { enabled, done, shown } = settings.data.tips;

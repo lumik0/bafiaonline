@@ -1,5 +1,5 @@
 import { createEffect, createSignal, fromEvents, onMount } from "@common/ui";
-import { formatNumber } from "@common/utils/format";
+import { formatDate, formatNumber, formatPlayTime } from "@common/utils/format";
 import { PHOTO_BASE } from "@common/constants";
 import type { PlayerProfile } from "../domain/profile";
 import type { RoomSession } from "../domain/room/session";
@@ -78,6 +78,10 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	// расширенную статистику добавляют моды (официальный): она приходит чуть позже основной
 	const [sections, setSections] = createSignal<ProfileSection[]>([]);
 	onMount(() => void ctx.mods.profileSections(data).then(setSections));
+	// только в своём профиле: дата регистрации и сколько времени в Бафии (у других игроков этого не показываем)
+	const [playTime, setPlayTime] = createSignal<{ seconds: number, days: number, since?: string } | undefined>(undefined);
+	const registered = isMe ? ctx.user.created : undefined;
+	onMount(() => { if(isMe) void ctx.bafia.myStats().then(setPlayTime); });
 	// премиум Бафии: спрашиваем сервер, в Бафии ли этот игрок и какой у него значок (если сервер включён)
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
 	const premiumColor = () => { bafiaVersion(); return ctx.bafia.premiumColor(player.playerObjectId ?? playerObjectId); };
@@ -305,6 +309,26 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				<div class="stat"><span>{"Побед за Мафию"}</span><b>{player.winsAsMafia ?? 0}</b></div>
 				<div class="stat"><span>{"Побед за Мирных"}</span><b>{player.winsAsPeaceful ?? 0}</b></div>
 			</div>
+
+			@if (isMe && (registered || playTime())) {
+				<>
+					<h4>{"Аккаунт"}</h4>
+					<div class="stats">
+						@if (registered) {
+							<div class="stat"><span>{"Дата регистрации"}</span><b>{formatDate(registered)}</b></div>
+						}
+						@if (playTime()) {
+							<>
+								<div class="stat"><span>{"Время в Бафии"}</span><b>{formatPlayTime(playTime()!.seconds)}</b></div>
+								<div class="stat"><span>{"Дней в Бафии"}</span><b>{playTime()!.days}</b></div>
+								@if (playTime()!.since) {
+									<div class="stat"><span>{"Считается с"}</span><b>{playTime()!.since!.split("-").reverse().join(".")}</b></div>
+								}
+							</>
+						}
+					</div>
+				</>
+			}
 
 			@for (const section of sections()) {
 				<>

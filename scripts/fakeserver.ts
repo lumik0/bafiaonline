@@ -54,7 +54,7 @@ Bun.serve({
       console.log("<-", JSON.stringify(packet));
       for(const answer of reply(packet)) socket.send(JSON.stringify(answer));
       // сценарий подсказки про шерифа: в комнате двое по очереди называют себя шерифом
-      if(packet.ty == "cp") for(const [delay, name, puo, tx] of [[5000, "Игрок2", "p2", "я шер, чек Игрок3 маф"], [40000, "Игрок5", "p5", "шериф тут, всем привет"]] as const)
+      if(packet.ty == "cp") for(const [delay, name, puo, tx] of [[5000, "Игрок2", "p2", "я шер, чек Игрок3 маф"], [40000, "Игрок5", "p5", "я шериф, всем привет"]] as const)
         setTimeout(() => socket.send(JSON.stringify({ ty: "m", m: { tx, uu: { u: name, puo } } })), delay);
     },
     open() { console.log("[fakeserver] клиент подключился"); },

@@ -10,9 +10,9 @@ const settings = () => {
 const player = (extra: Partial<GamePlayer> = {}) => ({ playerObjectId: "p1", username: "Вася", alive: true, role: 0, ...extra }) as GamePlayer;
 
 describe("подсказки", () => {
-  test("слова шер и шериф целиком, в любом регистре", () => {
-    for(const text of ["Я шер", "я шер чек Вася маф", "ШЕРИФ тут", "шерифа проверяйте", "я шериф, чекнул 3 - мир"]) expect(claimsSheriff(text)).toBe(true);
-    for(const text of ["шерсть", "шершавый", "ашер", "привет", "шериффф"]) expect(claimsSheriff(text)).toBe(false);
+  test("игрок называет себя шерифом («я шер», «я шериф», «шериф я»); просто слово, отказ и похожие слова - нет", () => {
+    for(const text of ["Я шер", "я шер чек Вася маф", "Я шериф, чекнул 3 - мир", "я точно шериф", "я - шер", "ШЕРИФ я", "шер, я", "я тут шер"]) expect(claimsSheriff(text)).toBe(true);
+    for(const text of ["шер ёблан", "шер ебл ан", "шериф тут", "кто шериф?", "шерсть", "шершавый", "ашер", "привет", "шериффф", "я не шер", "я не шериф", "я шерсть", "ярко шер", "шер яблоко"]) expect(claimsSheriff(text)).toBe(false);
   });
 
   test("цель: живой чужой игрок с неизвестной ролью, ещё не отмеченный шерифом", () => {

@@ -234,6 +234,8 @@ export type ClientMessage =
   | { t: "crash", n: number, text: string }
   /** мои обращения со статусом */
   | { t: "myFeedback", n: number }
+  /** сколько я провёл в Бафии (по моему нику): время, дней и с какого дня считается */
+  | { t: "myStats", n: number }
   /** какие экраны и функции открывались: название -> сколько раз (пачкой, только счётчики) */
   | { t: "usage", n: number, counts: Record<string, number> }
   | { t: "feedback", n: number, kind: FeedbackKind, text: string, notice?: number, direct?: number };
@@ -274,6 +276,8 @@ export type ServerMessage =
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
   /** мои обращения (последние 30) со статусом */
   | { t: "myFeedback", n: number, items: FeedbackItem[] }
+  /** `seconds` - время в Бафии, `days` - в сколько разных дней играл, `since` - первый день (ГГГГ-ММ-ДД); `since` нет, если ещё не считалось */
+  | { t: "myStats", n: number, seconds: number, days: number, since?: string }
   /** `url` нет, если такой гифки в каталоге нет */
   | { t: "gif", n: number, id: string, url?: string, title?: string }
   | { t: "gifs", n: number, items: GifItem[] }
@@ -369,6 +373,7 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "premium": return { t: "premium", n };
     case "mine": return { t: "mine", n };
     case "myFeedback": return { t: "myFeedback", n };
+    case "myStats": return { t: "myStats", n };
     case "usage": {
       if(!isRecord(value.counts)) return undefined;
       const entries = Object.entries(value.counts);

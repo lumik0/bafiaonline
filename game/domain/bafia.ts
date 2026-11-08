@@ -351,6 +351,13 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     return (await this.request({ t: "usage", counts }))?.t == "ok";
   }
 
+  /** сколько я в Бафии: время, дней и с какого дня считается; `undefined` - нет связи или сервер ещё не знает меня */
+  async myStats(): Promise<{ seconds: number, days: number, since?: string } | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "myStats" });
+    return answer?.t == "myStats" ? { seconds: answer.seconds, days: answer.days, since: answer.since } : undefined;
+  }
+
   /** мои обращения (идеи, баги, предложения) и что с ними стало; `undefined` - нет связи */
   async myFeedback(): Promise<FeedbackItem[] | undefined> {
     if(!this.ready) return undefined;
@@ -860,6 +867,9 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     this.usageTimer ??= setTimeout(() => void this.flushUsage(), (this.deps.usageDelay ?? 60_000) * 5);
   }
 
+  /** время в Бафии для своего профиля (по моему нику, без согласия: свои данные); `undefined` - нет связи */
+  myStats() { return this.link?.myStats() ?? Promise.resolve(undefined); }
+
   // --- мои обращения ---
 
   private feedbackItems: FeedbackItem[] = [];
@@ -909,7 +919,7 @@ export const BAFIA_CONSENT =
   "Всегда, чтобы было видно, кто играет в Бафии, и значок премиума:\n" +
   "• твой ник и публичный id игрока;\n" +
   "• с какого устройства ты играешь (iOS, Android, Windows, macOS, Linux или другое), в каком браузере (Chrome, Safari и так далее) и с какого сайта открыта игра, без моделей, версий и путей;\n" +
-  "• сколько партий ты сыграл и выиграл;\n" +
+  "• сколько партий ты сыграл и выиграл и сколько времени провёл в Бафии;\n" +
   "• если игра не пустила тебя при входе (бан), твой ник и сколько осталось, чтобы у других был виден значок «БАН»;\n" +
   "• id игроков, которых ты видишь (без ников), чтобы узнать, кто из них в Бафии;\n" +
   "• если игра крашнулась, отчёт об ошибке: текст ошибки, версия игры, экран, грубое устройство и журнал без трафика и сообщений;\n" +

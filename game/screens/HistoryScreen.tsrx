@@ -1,7 +1,7 @@
 import { fromEvents } from "@common/ui";
 import { longPress } from "@common/ui/long-press";
 import { formatDateTime } from "@common/utils/format";
-import { HISTORY_NAME_MAX, HISTORY_NOTE_MAX, outcomeOf, ownRecords, recordTitle, type HistoryRecord, type Outcome } from "../domain/history";
+import { claimRecords, HISTORY_NAME_MAX, HISTORY_NOTE_MAX, outcomeOf, ownRecords, recordTitle, unclaimedRecords, type HistoryRecord, type Outcome } from "../domain/history";
 import { sessionDeps } from "../domain/room/deps";
 import { RoomSession } from "../domain/room/session";
 import { roomRank, sortRoles } from "../domain/rooms/room";
@@ -16,6 +16,12 @@ export function HistoryScreen({ ctx }: { ctx: GameContext }) @{
 	// у каждого аккаунта своя история: чужие игры с этого устройства не показываются
 	const viewer = () => ({ userObjectId: ctx.user.userObjectId, playerObjectId: ctx.user.playerObjectId });
 	const records = fromEvents(ctx.history, "change", () => ownRecords(ctx.history.data.rooms, viewer()));
+	// старые игры без владельца, которые аккаунт не опознал: можно вернуть их в свою историю
+	const unclaimed = fromEvents(ctx.history, "change", () => unclaimedRecords(ctx.history.data.rooms, viewer()).length);
+	const claim = async () => {
+		if(!await ctx.dialogs.confirm(`Вернуть ${unclaimed()} игр без владельца в историю этого аккаунта? Если на устройстве играли и другие аккаунты, часть игр может быть не твоей.`, { yes: "Вернуть" })) return;
+		ctx.history.update(history => { history.rooms = claimRecords(history.rooms, viewer()); });
+	};
 	const saving = fromEvents(ctx.settings, "change", () => ctx.settings.data.game.saveHistory);
 	const images = fromEvents(ctx.assets, "change", () => ({
 		roles: Object.fromEntries(ROLE_IDS.map(id => [id, ctx.assets.url(`textures/roles/${id}.png`)])) as Record<number, string>,
@@ -65,6 +71,8 @@ export function HistoryScreen({ ctx }: { ctx: GameContext }) @{
 	<>
 		<style>
 			.page { display: flex; flex-direction: column; height: 100%; }
+			.found { display: flex; align-items: center; gap: 10px; margin: 8px 10px 0; padding: 8px 10px; border-radius: 10px; background: var(--surface); color: var(--text-dark); font-size: 13px; line-height: 1.35; }
+			.found span { flex: 1; }
 			.list { flex: 1; overflow-y: auto; padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
 			.game { padding: 8px 10px; border-radius: 10px; background: var(--surface); color: var(--text-dark); cursor: pointer; transition: filter .15s; }
 			.game:hover { filter: brightness(1.08); }
@@ -85,6 +93,9 @@ export function HistoryScreen({ ctx }: { ctx: GameContext }) @{
 		</style>
 		<div class="page">
 			<AppBar title={"История игр" + (records().length ? " (" + records().length + ")" : "")} onBack={() => ctx.nav.pop()} />
+			@if (unclaimed() > 0) {
+				<div class="found"><span>{"Нашлось игр без привязки к аккаунту: " + unclaimed() + ". Это старая общая история, этот аккаунт её пока не опознал."}</span><button onClick={() => void claim()}>{"Вернуть"}</button></div>
+			}
 			<div class="list">
 				@for (const record of records()) {
 					<div

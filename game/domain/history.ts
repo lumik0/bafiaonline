@@ -57,16 +57,15 @@ export function noteHint(record: HistoryRecord): string {
 }
 
 /**
- * новая игра - первой в списке; хранится не больше 100 последних у каждого аккаунта, чтобы файл не рос бесконечно
- * (записи без владельца, оставшиеся от старой общей истории, считаются одной группой)
+ * новая игра - первой в списке; у аккаунта, чья это игра, хранится не больше 100 последних, чтобы файл не рос бесконечно.
+ * Чужие записи и записи без владельца не трогаем: они могли просто не опознаться (например, сменился id игрока), и стереть их навсегда нельзя
  */
 export function withRecord(rooms: readonly HistoryRecord[], record: HistoryRecord): HistoryRecord[] {
-  const counts = new Map<string, number>();
+  const owner = record.owner ?? "";
+  let count = 0;
   return [record, ...rooms].filter(item => {
-    const key = item.owner ?? "";
-    const count = (counts.get(key) ?? 0) + 1;
-    counts.set(key, count);
-    return count <= HISTORY_LIMIT;
+    if((item.owner ?? "") != owner) return true;
+    return ++count <= HISTORY_LIMIT;
   });
 }
 
@@ -137,3 +136,11 @@ export function sanitizeRecord(raw: unknown): HistoryRecord | undefined {
       ? { playerObjectId: raw.me.playerObjectId, username: raw.me.username.slice(0, 32) } : undefined
   };
 }
+
+/** записи без владельца (старая общая история), которые этот аккаунт сейчас не опознаёт как свои: по ним можно предложить вернуть их в историю */
+export const unclaimedRecords = (rooms: readonly HistoryRecord[], viewer: HistoryViewer): HistoryRecord[] =>
+  rooms.filter(record => !record.owner && !belongsTo(record, viewer));
+
+/** отдаёт записи без владельца этому аккаунту; записи, у которых владелец уже есть, не меняются */
+export const claimRecords = (rooms: readonly HistoryRecord[], viewer: HistoryViewer): HistoryRecord[] =>
+  rooms.map(record => !record.owner && !belongsTo(record, viewer) && viewer.userObjectId ? { ...record, owner: viewer.userObjectId } : record);

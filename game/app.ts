@@ -268,6 +268,9 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
 
   await mods.start();
   nav.push("loading");
+  // просим браузер не вычищать данные игры (история, настройки) при нехватке места и долгом простое; ответ не важен
+  void navigator.storage?.persist?.().catch(() => {});
+
   const disposeUi = mount(() => GameRoot({ ctx, screens }) as never, host.window.content);
 
   // на телефоне системная кнопка «назад» ходит по экранам игры, а не закрывает вкладку
