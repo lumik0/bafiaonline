@@ -47,7 +47,7 @@ export type FeedbackError = "empty" | "too-long" | "offline" | "slow-down" | "qu
 /** на какое сообщение администратора можно ответить: сообщение всем (`notice`) или личное (`direct`) */
 export interface ReplyTarget { notice?: number, direct?: number }
 
-export class BafiaLink extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void }> {
+export class BafiaLink extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, premium: (code?: string) => void }> {
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
@@ -203,6 +203,14 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     }
   }
 
+  private grantedPremium(until: unknown, code: unknown) {
+    if(typeof until != "number" || !Number.isFinite(until) || until <= Date.now()) return;
+    this.premiumUntil = until;
+    this.emit("premium", typeof code == "string" && /^[A-Za-z0-9-]{6,32}$/.test(code) ? code.toUpperCase() : undefined);
+    this.emit("change");
+    void this.sendColor();
+  }
+
   private drop() {
     this.stopHeartbeat();
     this.ready = false;
@@ -216,6 +224,8 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(typeof message?.n != "number") return;
     // сообщение администратора приходит само, без запроса
     if(message.t == "notice") return this.announce(message.text, message.id, message.direct);
+    // администратор выдал премиум: включается на лету, код запоминается, чтобы вернуться и на новой установке
+    if(message.t == "premium" && message.n === 0) return this.grantedPremium(message.until, message.code);
     this.pending.get(message.n)?.(message);
   }
 
@@ -724,6 +734,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
       });
       // одноразовое сообщение администратора: игра показывает его баннером
       link.on("notice", (text, reply) => this.emit("notice", text, reply));
+      link.on("premium", code => { if(code) this.deps.settings.update(data => { data.bafia.code = code; }); });
       link.start();
     }
     const { playerObjectId, username } = this.deps.user;

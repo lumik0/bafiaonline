@@ -106,7 +106,19 @@ export class RoomState extends Events<{ change: () => void }> {
   get isNight() { return this.dayTime < 2; }
   get me(): GamePlayer | undefined { return this.players.find(player => player.playerObjectId == this.myPlayerObjectId); }
 
-  changed() { this.emit("change"); }
+  changed() {
+    this.rememberHost();
+    this.emit("change");
+  }
+
+  /** кто считался хостом, когда создатель комнаты неизвестен: первый игрок, которого мы увидели; запоминаем его самого, а не место в списке */
+  private presumedHost?: { userObjectId?: string, username: string };
+
+  private rememberHost() {
+    if(this.settings.creator || this.presumedHost) return;
+    const first = (this.inGame ? this.players : this.lobby)[0];
+    if(first) this.presumedHost = { userObjectId: first.userObjectId, username: first.username };
+  }
 
   playerBy(id: string | undefined): GamePlayer | undefined {
     return id ? this.players.find(player => player.playerObjectId == id || player.userObjectId == id) : undefined;
@@ -258,13 +270,16 @@ export class RoomState extends Events<{ change: () => void }> {
   }
 
   /**
-   * хост - создатель комнаты; если неизвестен - первый игрок по порядку;
-   * если известен, но вышел из комнаты - хоста нет
+   * хост - создатель комнаты; если неизвестен - тот, кто был первым в списке, когда мы вошли (узнаём его и после выхода и возвращения,
+   * когда он стоит в списке уже не первым); если он вышел из комнаты - хоста нет, а не «первый попавшийся»
    */
   get host(): { playerObjectId: string, username: string } | undefined {
     const players = this.inGame ? this.players : this.lobby;
     const { creator } = this.settings;
-    const host = creator ? players.find(player => player.playerObjectId == creator || player.userObjectId == creator) : players[0];
+    const presumed = this.presumedHost ?? (players[0] && { userObjectId: players[0].userObjectId, username: players[0].username });
+    const host = creator
+      ? players.find(player => player.playerObjectId == creator || player.userObjectId == creator)
+      : presumed && players.find(player => presumed.userObjectId && player.userObjectId ? player.userObjectId == presumed.userObjectId : player.username == presumed.username);
     return host ? { playerObjectId: host.playerObjectId, username: host.username } : undefined;
   }
 

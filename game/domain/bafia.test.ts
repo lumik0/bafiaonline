@@ -428,6 +428,22 @@ describe("Bafia", () => {
     return { bafia, settings, user, log, server, data };
   }
 
+  test("администратор выдал премиум: включается на лету, код запоминается; мусорные и просроченные не принимаются", async() => {
+    const { bafia, data, server } = setup();
+    await tick();
+    expect(bafia.premiumUntil).toBeUndefined();
+    server.push({ t: "premium", n: 0, until: 1, code: "BAF-OLD" });                       // срок вышел - игнор
+    server.push({ t: "premium", n: 0, until: "x", code: "BAF-BAD" });
+    await tick();
+    expect(bafia.premiumUntil).toBeUndefined();
+    expect(data.bafia.code).toBe("");
+    server.push({ t: "premium", n: 0, until: 4_000_000_000_000, code: "baf-good-code" });
+    await tick();
+    expect(bafia.premiumUntil).toBe(4_000_000_000_000);
+    expect(data.bafia.code).toBe("BAF-GOOD-CODE");
+    bafia.dispose();
+  });
+
   test("что открывают: счётчики копятся и уходят пачкой (только названия), плохие названия отбрасываются, без связи остаются до следующего раза", async() => {
     const { bafia, log } = setup();
     await tick();

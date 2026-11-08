@@ -282,7 +282,8 @@ export type ServerMessage =
   | { t: "gif", n: number, id: string, url?: string, title?: string }
   | { t: "gifs", n: number, items: GifItem[] }
   /** до какого времени (мс) действует премиум; нет - не действует */
-  | { t: "premium", n: number, until?: number }
+  /** ответ на premium/redeem; без запроса (`n` 0) приходит, когда администратор выдал премиум: `code` игра сохраняет, чтобы он вернулся и на новой установке */
+  | { t: "premium", n: number, until?: number, code?: string }
   | { t: "mine", n: number, items: (GifItem & { status: "pending" | "approved" })[] }
   /** ответ на выкладывание (`id`) или на получение (`data`; нет - снимка нет или он устарел) */
   | { t: "hist", n: number, id: string, data?: string };

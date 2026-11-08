@@ -122,6 +122,16 @@ describe("хост комнаты", () => {
     unknown.applyStatistics(stats({ gs: { s: 0, t: 0 }, pls: [pl("o1", "p1", "Я"), pl("o2", "p2", "Друг")] }));
     expect(unknown.host?.username).toBe("Я");
 
+    // создатель неизвестен: хост - тот, кто был первым, и он остаётся хостом, вышел ли и вернулся ли (в списке уже не первым, id игрока новый)
+    const rejoin = new RoomState(settings, "p1");
+    rejoin.applyStatistics(stats({ gs: { s: 0, t: 0 }, pls: [pl("uh", "h1", "Хост"), pl("u1", "p1", "Я"), pl("u3", "p3", "Третий")] }));
+    expect(rejoin.host?.username).toBe("Хост");
+    rejoin.playerLeft("h1");
+    expect(rejoin.host).toBeUndefined();   // хост вышел: «первый в комнате» хостом не становится
+    rejoin.playerJoined({ objectId: "uh", user: { playerUser: { playerObjectId: "h2", username: "Хост" } } });
+    expect(rejoin.host).toEqual({ playerObjectId: "h2", username: "Хост" });
+    expect(rejoin.lobby[0]!.username).toBe("Я");
+
     // создатель может быть записан id пользователя (o), а не публичным id
     const byUser = new RoomState({ ...settings, creator: "o2" }, "p1");
     byUser.applyStatistics(stats({ gs: { s: 0, t: 0 }, pls: [pl("o1", "p1", "Я"), pl("o2", "p2", "Друг")] }));
