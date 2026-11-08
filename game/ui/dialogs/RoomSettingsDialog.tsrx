@@ -44,7 +44,7 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 				<div class="empty">{entries() ? "Нет доступных настроек" : "Загрузка…"}</div>
 			}
 		</div>
-		@if (session.bafia?.isHost) {
+		@if (session.bafia?.isHost && session.state.inGame) {
 			<div class="list"><button onClick={() => void closeRoom()}>{"Закончить игру и удалить комнату"}</button></div>
 		}
 		@if (data.playing) {

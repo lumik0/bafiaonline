@@ -25,7 +25,7 @@ export class BafiaRoomAdapter {
   readonly client: Pick<ServerClient, "on" | "send" | "request"> & { adapter: BafiaRoomAdapter };
   private listeners = new Set<Listener>();
   private names = new Map<string, string>();
-  private roster: { id: string, nick: string, alive: boolean }[];
+  private roster: { id: string, nick: string, alive: boolean, photo?: string }[];
   private role?: number;
   private known = new Map<string, number>();
   private votes: Record<string, number> = {};
@@ -108,11 +108,12 @@ export class BafiaRoomAdapter {
 
   private user(id: string | undefined) {
     const nick = id ? this.names.get(id) : undefined;
-    return id && nick ? { u: nick, puo: id } : undefined;
+    const photo = id ? this.roster.find(player => player.id == id)?.photo : undefined;
+    return id && nick ? { u: nick, puo: id, ...(photo ? { ph: photo } : {}) } : undefined;
   }
 
   private players() {
-    return this.roster.map(player => ({ o: player.id, pu: { puo: player.id, u: player.nick } }));
+    return this.roster.map(player => ({ o: player.id, pu: { puo: player.id, u: player.nick, ...(player.photo ? { ph: player.photo } : {}) } }));
   }
 
   /** состояние игроков для стола: кто жив, моя роль и известные мне, голоса */
@@ -141,7 +142,7 @@ export class BafiaRoomAdapter {
         case "joined":
           this.names.set(event.player.id, event.player.nick);
           if(!this.roster.some(player => player.id == event.player.id)) this.roster.push({ ...event.player });
-          this.deliver({ ty: "ap", p: { o: event.player.id, pu: { puo: event.player.id, u: event.player.nick } } });
+          this.deliver({ ty: "ap", p: { o: event.player.id, pu: { puo: event.player.id, u: event.player.nick, ...(event.player.photo ? { ph: event.player.photo } : {}) } } });
           break;
         case "left":
           this.roster = this.roster.filter(player => player.id != event.id);

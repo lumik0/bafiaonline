@@ -72,10 +72,10 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 	}));
 	const [pending, setPending] = createSignal(false);
 
-	/** сколько дополнительных ролей можно взять при таком минимуме игроков: мафия (четверть) и хотя бы один мирный всегда есть, мафия остаётся меньше остальных */
+	/** сколько дополнительных ролей можно взять: мафия (четверть) занимает свои места, остальное - любые роли, овощей может и не быть; мафия остаётся меньше остальных на полном столе. Если за столом окажется меньше игроков, сервер лишнее не выдаст */
 	const roomMafia = () => Math.max(1, Math.floor(own().minPlayers / 4));
-	const roleCap = () => Math.max(0, own().minPlayers - 1 - roomMafia());
-	const mafiaCap = () => Math.max(0, Math.ceil(own().minPlayers / 2) - 1 - roomMafia());
+	const roleCap = () => Math.max(0, own().minPlayers - roomMafia());
+	const mafiaCap = () => Math.max(0, Math.ceil(own().maxPlayers / 2) - 1 - Math.max(1, Math.floor(own().maxPlayers / 4)));
 	// в эпидемии мафия заражает, а в королевской битве её нет: роли команды мафии там не нужны
 	const noMafiaRoles = () => preset() == "epidemic" || preset() == "royale";
 	const roleTotal = (list: Record<number, number> = counts()) => Object.entries(list).reduce((sum, [id, value]) => sum + ((noMafiaRoles() && MAFIA.some(role => role.id == Number(id))) || locked(Number(id)) ? 0 : value), 0);
@@ -197,7 +197,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 					</div>
 					<div class="field">
 						<label>{"Пароль (можно не ставить)"}</label>
-						<input type="password" placeholder="Без пароля" value={draft().password} onInput={(event) => edit(data => { data.password = event.currentTarget.value; })} />
+						<input type="text" name="room-secret" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Без пароля" style={{ "-webkit-text-security": "disc" }} value={draft().password} onInput={(event) => edit(data => { data.password = event.currentTarget.value; })} />
 					</div>
 					<label class="switch"><span class="name">{bafia ? null : <img src={images().vip} alt="" />}{bafia ? "Только для премиума" : "VIP-комната"}</span><input type="checkbox" checked={draft().vip} onChange={(event) => edit(data => { data.vip = event.currentTarget.checked; })} /></label>
 				</div>
@@ -289,7 +289,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 					</div>
 					<div class="card">
 						<h4>{"Дополнительные роли"}<small>{roleTotal() + " из " + roleCap()}</small></h4>
-						<small>{"Предел зависит от минимума игроков: " + draft().minPlayers + ". Мафия и мирные есть всегда."}</small>
+						<small>{"Предел зависит от числа игроков: " + draft().minPlayers + "-" + draft().maxPlayers + ". Мафия есть всегда, овощей может и не быть. Если за столом игроков окажется меньше, лишние роли не выдаются."}</small>
 						@if (!noMafiaRoles()) {
 							<>
 								<span class="team mafia">{"Команда мафии"}<small>{" · " + mafiaTotal() + " из " + mafiaCap()}</small></span>

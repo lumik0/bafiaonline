@@ -85,7 +85,9 @@ export class ProfileService {
     try {
       return (await this.client.request("getUserProfile", { playerObjectId }, "userProfile", { timeout })).data.profile;
     } catch(error) {
-      if(error instanceof RequestTimeoutError) return undefined;
+      // временный дебаг: в консоли браузера видно, чей профиль и почему не загрузился
+      if(error instanceof RequestTimeoutError) { console.log("[дебаг] ПРОФИЛЬ не ответил за", timeout, "мс:", playerObjectId); return undefined; }
+      console.log("[дебаг] ПРОФИЛЬ ошибка запроса:", playerObjectId, error);
       throw error;
     }
   }

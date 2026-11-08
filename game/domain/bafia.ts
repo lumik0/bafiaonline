@@ -70,7 +70,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
-  private identity?: SeenPlayer & { platform?: Platform, version?: string, browser?: Browser, site?: string };
+  private identity?: SeenPlayer & { platform?: Platform, version?: string, browser?: Browser, site?: string, photo?: string };
   /** до какого времени (мс) действует премиум на этой установке */
   premiumUntil?: number;
   /** официальный сервер игры недоступен (по сообщениям игроков или вручную): сообщение для игрока; `undefined` - всё в порядке */
@@ -176,11 +176,11 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** «Я играю под этим ником»: сервер запоминает до разрыва связи, при переподключении повторяется само */
-  identify(id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string) {
+  identify(id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string, photo?: string) {
     const old = this.identity;
-    if(old?.id == id && old.nick == nick && old.platform == platform && old.version == version && old.browser == browser && old.site == site) return;
-    this.identity = { id, nick, platform, version, browser, site };
-    if(this.ready) void this.request({ t: "presence", id, nick, platform, version, browser, site });
+    if(old?.id == id && old.nick == nick && old.platform == platform && old.version == version && old.browser == browser && old.site == site && old.photo == photo) return;
+    this.identity = { id, nick, platform, version, browser, site, photo };
+    if(this.ready) void this.request({ t: "presence", id, nick, platform, version, browser, site, photo });
   }
 
   private async greet() {
@@ -253,13 +253,14 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   roomWatch(id: string, password?: string) { return this.joined({ t: "roomWatch", id, ...(password ? { password } : {}) }); }
   roomJoin(id: string, password?: string) { return this.joined({ t: "roomJoin", id, ...(password ? { password } : {}) }); }
 
-  private async roomCall(message: { t: "roomLeave" } | { t: "roomClose" } | { t: "roomStart" } | { t: "roomAct", targets: string[] } | { t: "roomBomb", target: string } | { t: "roomChat", text: string }): Promise<{ ok: boolean, reason?: string }> {
+  private async roomCall(message: { t: "roomLeave" } | { t: "roomExtend" } | { t: "roomClose" } | { t: "roomStart" } | { t: "roomAct", targets: string[] } | { t: "roomBomb", target: string } | { t: "roomChat", text: string }): Promise<{ ok: boolean, reason?: string }> {
     if(!this.ready) return { ok: false, reason: "offline" };
     const answer = await this.request(message);
     return answer?.t == "ok" ? { ok: true } : { ok: false, reason: answer?.t == "error" ? answer.reason : "offline" };
   }
 
   roomLeave() { return this.roomCall({ t: "roomLeave" }); }
+  roomExtend() { return this.roomCall({ t: "roomExtend" }); }
   roomClose() { return this.roomCall({ t: "roomClose" }); }
   roomStart() { return this.roomCall({ t: "roomStart" }); }
   roomAct(targets: string[]) { return this.roomCall({ t: "roomAct", targets }); }
@@ -672,7 +673,7 @@ export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, 
 
 export interface BafiaDeps {
   settings: { data: { bafia: BafiaSettings, lowPower?: boolean }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
-  user: { playerObjectId: string, username: string, on(event: "change", listener: () => void): unknown }
+  user: { playerObjectId: string, username: string, photo?: string, on(event: "change", listener: () => void): unknown }
   url: string
   createSocket?: BafiaLinkOptions["createSocket"]
   timeout?: number
@@ -860,7 +861,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
       link.start();
     }
     const { playerObjectId, username } = this.deps.user;
-    if(playerObjectId && username) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber, this.deps.browser ?? detectBrowser(), this.deps.site ?? detectSite());
+    if(playerObjectId && username) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber, this.deps.browser ?? detectBrowser(), this.deps.site ?? detectSite(), this.deps.user.photo || undefined);
   }
 
   /** официальный сервер не пустил игрока (бан): сообщаем серверу Бафии; игрок ещё не вошёл, поэтому ник и id берутся из сохранённого аккаунта */
@@ -1043,6 +1044,9 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     const joined = await (this.link?.roomWatch(id, password) ?? Promise.resolve({ error: "offline" } as const));
     return "error" in joined ? joined : { adapter: this.adapterFor({ ...joined, you: "watch" }) };
   }
+
+  /** создатель добавляет 10 секунд к ожиданию старта */
+  extendRoom() { return this.link?.roomExtend() ?? Promise.resolve({ ok: false, reason: "offline" }); }
 
   /** создатель закрывает и удаляет свою комнату */
   closeRoom() { return this.link?.roomClose() ?? Promise.resolve({ ok: false, reason: "offline" }); }

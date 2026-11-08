@@ -186,7 +186,7 @@ export type ClientMessage =
   /** войти в сеть: ключ клиента и версия протокола */
   | { t: "hello", n: number, key: string, version: number }
   /** «Я играю под этим ником»: появляется в списке «в Бафии» до закрытия соединения */
-  | { t: "presence", n: number, id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string }
+  | { t: "presence", n: number, id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string, /** файл фото профиля игры (для стола в комнате Бафии) */ photo?: string }
   /** кто из этих игроков сейчас в Бафии */
   | { t: "who", n: number, ids: string[] }
   /** значки «Позор» и «БАН» по никам (игрок может быть и не в сети): друзья, чат, комната, профиль */
@@ -254,6 +254,8 @@ export type ClientMessage =
   /** смотреть игру в комнате со стороны */
   | { t: "roomWatch", n: number, id: string, password?: string }
   | { t: "roomStart", n: number }
+  /** создатель добавляет 10 секунд к ожиданию старта */
+  | { t: "roomExtend", n: number }
   /** создатель закрывает и удаляет комнату */
   | { t: "roomClose", n: number }
   | { t: "roomAct", n: number, targets: string[] }
@@ -295,7 +297,7 @@ export interface BafiaRoomInfo {
 }
 
 /** роль и её известность: кто за кого играет, как это видит игрок */
-export interface BafiaRoomPlayer { id: string, nick: string, alive: boolean }
+export interface BafiaRoomPlayer { id: string, nick: string, alive: boolean, /** файл фото профиля (как в игре) */ photo?: string }
 
 /** состояние комнаты для вошедшего или вернувшегося игрока */
 export interface BafiaRoomState {
@@ -438,7 +440,7 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
         ? { t: "hello", n, key: value.key, version: value.version } : undefined;
     case "presence": {
       const self = player({ id: value.id, nick: value.nick });
-      return self && { t: "presence", n, ...self, platform: isPlatform(value.platform) ? value.platform : undefined, browser: isBrowser(value.browser) ? value.browser : undefined, site: isSite(value.site) ? value.site : undefined, version: typeof value.version == "string" && /^[A-Za-z0-9._ -]{1,20}$/.test(value.version) ? value.version : undefined };
+      return self && { t: "presence", n, ...self, platform: isPlatform(value.platform) ? value.platform : undefined, browser: isBrowser(value.browser) ? value.browser : undefined, site: isSite(value.site) ? value.site : undefined, version: typeof value.version == "string" && /^[A-Za-z0-9._ -]{1,20}$/.test(value.version) ? value.version : undefined, photo: typeof value.photo == "string" && /^[A-Za-z0-9._-]{1,80}$/.test(value.photo) ? value.photo : undefined };
     }
     case "banned": {
       const self = player({ id: value.id, nick: value.nick });
@@ -494,6 +496,7 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "roomWatch": return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "roomWatch", n, id: value.id, ...(typeof value.password == "string" && value.password.length <= 40 ? { password: value.password } : {}) } : undefined;
     case "roomStart": return { t: "roomStart", n };
     case "roomClose": return { t: "roomClose", n };
+    case "roomExtend": return { t: "roomExtend", n };
     case "roomCreate": return isRecord(value.config) ? { t: "roomCreate", n, config: value.config } : undefined;
     case "roomJoin": return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "roomJoin", n, id: value.id, ...(typeof value.password == "string" && value.password.length <= 40 ? { password: value.password } : {}) } : undefined;
     case "roomAct": return Array.isArray(value.targets) && value.targets.length <= 2 && value.targets.every(id => text(id, BAFIA_LIMITS.id) && clean(id)) ? { t: "roomAct", n, targets: value.targets as string[] } : undefined;

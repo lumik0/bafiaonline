@@ -219,6 +219,25 @@ describe("игра", () => {
     expect(network.last.sent.filter(packet => packet.ty == "gup")).toHaveLength(2);
   });
 
+  test("свой профиль открывается (дата регистрации, время в Бафии, игры в комнатах не мешают)", async() => {
+    const { network, text, window, game } = await launch({ email: "a@b.c", password: "правильный" });
+    await tick(10);
+    const base = network.respond!;
+    const mine = game.ctx.user.playerObjectId;
+    network.respond = (packet, socket) => {
+      if(packet.ty == "gup") socket.receive({ ty: "uup", uup: { pud: { u: "Я", puo: mine, ph: "dbfb506f.jpg", l: 11, ex: 10, nle: 100, on: true, prst: { "4": 5, "1": 10 }, pg: 20, wim: 3, wip: 7 }, uac: { scns: 1500, gcns: 3 } } });
+      else base(packet, socket);
+    };
+    game.ctx.openProfile(mine);
+    await tick(80);
+    expect(text()).not.toContain("Загрузка профиля");
+    expect(text()).toContain("Я");
+    expect(game.ctx.crash()).toBeUndefined();
+    // фото берётся с сервера игры, а не запасная картинка
+    const sources = [...window.content.querySelectorAll<HTMLImageElement>("img.avatar")].map(image => image.getAttribute("src"));
+    expect(sources.some(source => source?.includes("/mafia/profile_photo/dbfb506f.jpg"))).toBe(true);
+  });
+
   test("профиль: «сейчас играет в комнате» показывается карточкой комнаты как в списке, нажатие входит в комнату", async() => {
     const { network, text, window, game } = await launch({ email: "a@b.c", password: "правильный" });
     await tick(10);
