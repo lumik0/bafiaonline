@@ -16,6 +16,8 @@ export interface MonitorDeps {
    * Вызывается при тишине в игре; паузы между попытками растут (8, 16, 32, 60 секунд), пока не пойдут пакеты
    */
   reconnect?: () => void
+  /** сокет открыт, а данных нет (`true`), и данные снова пошли (`false`): так узнаётся, что сервер игры молчит при «живом» соединении */
+  onStall?: (stalled: boolean) => void
   schedule?: (callback: () => void, ms: number) => unknown
   cancel?: (handle: unknown) => void
 }
@@ -95,6 +97,7 @@ export class ConnectionMonitor {
   }
 
   private recovered() {
+    if(this.stale) this.deps.onStall?.(false);
     this.down = false;
     this.stale = false;
     this.deps.notifier.show({ key: KEY, kind: "success", timeout: 3000, title: "Связь восстановлена" });
@@ -108,6 +111,7 @@ export class ConnectionMonitor {
     if(now - this.lastMessage < staleAfter) return;
     if(!this.stale) {
       this.stale = true;
+      this.deps.onStall?.(true);
       notifier.show({
         key: KEY, kind: "warning", timeout: 0, title: "Нет данных от сервера",
         text: reconnect ? "Таймер мог остановиться: возможно, пропал интернет. Переподключаюсь…" : "Таймер мог остановиться: возможно, пропал интернет. Ждём ответа…"

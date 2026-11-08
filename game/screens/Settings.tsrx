@@ -1,4 +1,4 @@
-import { createSignal, fromEvents, onMount } from "@common/ui";
+import { createSignal, fromEvents, onCleanup, onMount } from "@common/ui";
 import { BAFIA_LIMITS, PREMIUM_COLORS, PROFILE_EFFECTS, PROFILE_THEMES, type ProfileEffect, type ProfileLook, type ProfileTheme } from "@common/bafia/protocol";
 import { avatarFrame, nickEffect, themeBackground } from "../domain/premium-style";
 import { PREMIUM_BOT_URL } from "@common/constants";
@@ -81,6 +81,28 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 			{ title: "ПРЕМИУМ БАФИИ", yes: "Открыть бота", no: "Не сейчас" }
 		);
 		if(agreed) window.open(PREMIUM_BOT_URL, "_blank", "noopener");
+	};
+
+	// привязка Telegram (необязательная): ссылка в бота, подтверждение приходит от сервера само
+	const [tgLinked, setTgLinked] = createSignal<boolean | undefined>(undefined);
+	onMount(() => {
+		void ctx.bafia.tgLink().then(state => setTgLinked(state?.linked));
+		const stop = ctx.bafia.watchTgLink(async nick => {
+			setTgLinked(true);
+			await ctx.dialogs.alert(nick ? `Telegram привязан. Раньше он играл как «${nick}».` : "Telegram привязан.", { title: "TELEGRAM" });
+		});
+		onCleanup(stop);
+	});
+	const linkTelegram = async () => {
+		const state = await ctx.bafia.tgLink();
+		if(!state) return void await ctx.dialogs.alert("Сервер Бафии сейчас недоступен.", { title: "TELEGRAM" });
+		if(state.linked) return void setTgLinked(true);
+		if(!state.url) return void await ctx.dialogs.alert("Привязка сейчас недоступна.", { title: "TELEGRAM" });
+		window.open(state.url, "_blank", "noopener");
+	};
+	const unlinkTelegram = async () => {
+		if(!await ctx.dialogs.confirm("Отвязать Telegram от этой установки?", { yes: "Отвязать" })) return;
+		if(await ctx.bafia.tgUnlink()) setTgLinked(false);
 	};
 
 	/** код премиума от бота, запоминается для восстановления */
@@ -316,6 +338,15 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 						</SettingGroup>
 						@if (bafiaOn()) {
 							<>
+								<SettingGroup title="TELEGRAM">
+									<SettingRow label="Привязка" hint="Необязательно. Нажми, откроется бот: подтверди там привязку и вернись в игру">
+										@if (tgLinked()) {
+											<button onClick={() => void unlinkTelegram()}>{"Отвязать"}</button>
+										} @else {
+											<button disabled={tgLinked() === undefined} onClick={() => void linkTelegram()}>{"Привязать"}</button>
+										}
+									</SettingRow>
+								</SettingGroup>
 								<SettingGroup title="АВАТАРКА">
 									<SettingRow label="GIF-аватарка" hint={premium() ? "Анимированная, до 16 МБ; её видят другие игроки Бафии" : "Нужен премиум; когда он закончится, аватарка скроется, но сохранится"}>
 										@if (myAvatar()) {

@@ -217,6 +217,28 @@ describe("действия по ролям", () => {
     expect(voted(withHost(Role.Mafia, "p1", 1, "Рулетка"))).toEqual([]);
   });
 
+  test("рулетка: авто-клик в меню игрока - мирному и мафии только на «своего», ролям с ночным ходом на любого, хосту «Позора мафии 2.0» без ограничений, вне рулетки всегда", () => {
+    const allowed = (state: RoomState) => state.players.slice(1).filter(player => state.autoClickAllowed(player)).map(player => player.playerObjectId);
+    expect(allowed(startGame(Role.Civilian, 3, "Рулетка"))).toEqual(["p2"]);
+    expect(allowed(startGame(Role.Mafia, 1, "Рулетка"))).toEqual(["p2"]);
+    expect(allowed(startGame(Role.Doctor, 1, "Рулетка"))).toHaveLength(7);
+    expect(allowed(startGame(Role.Sheriff, 1, "Рулетка"))).toHaveLength(7);
+    expect(allowed(startGame(Role.Civilian, 3, "Тест"))).toHaveLength(7);
+
+    const civilian = startGame(Role.Civilian, 3, "Рулетка");
+    civilian.applyPlayersData([{ playerObjectId: "p2", alive: false }]);
+    expect(allowed(civilian)).toEqual(["p3"]);                      // умер «свой» - следующий живой
+
+    const withHost = (creator: string) => {
+      const state = new RoomState({ ...settings, title: "Позор мафии 2.0", creator }, "p1");
+      const players = Array.from({ length: 8 }, (_, i) => pl(`o${i + 1}`, `p${i + 1}`, `Игрок${i + 1}`));
+      state.applyStatistics(stats({ gs: { s: 3, t: 30, d: 3 }, pls: players, data: players.map((p, i) => ({ puo: p.pu.puo, a: true, r: i == 0 ? Role.Civilian : 1 })), rls: { "1": 5, "4": 2 } }));
+      return state;
+    };
+    expect(allowed(withHost("p2"))).toEqual(["p3"]);                // хост не участвует: «свой» - следующий после него
+    expect(allowed(withHost("p1"))).toHaveLength(7);               // я сам хост: правил нет
+  });
+
   test("рулетка: порядок по кругу пропускает мёртвых", () => {
     const table = (alive: boolean[]) => alive.map((isAlive, i) => ({ playerObjectId: `p${i}`, alive: isAlive }));
     // Игрок 1, Игрок 2, Я (2), Игрок 3 мёртв, Игрок 4, Игрок 5

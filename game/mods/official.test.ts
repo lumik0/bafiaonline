@@ -179,6 +179,14 @@ describe("авто-клик (официальный мод)", () => {
     expect(sent()).toHaveLength(1);
   });
 
+  test("рулетка: если авто-клик на этого игрока не разрешён, пункта в меню нет; разрешён или не сказано - есть", async() => {
+    const { manager } = await inRoom();
+    const target = { index: 3, username: "Игрок4", playerObjectId: "p4", alive: true };
+    expect((await manager.menuItems("player", { ...target, autoAllowed: false })).map(entry => entry.label)).toEqual([]);
+    expect((await manager.menuItems("player", { ...target, autoAllowed: true })).map(entry => entry.label)).toEqual(["Авто-клик"]);
+    expect((await manager.menuItems("player", target)).map(entry => entry.label)).toEqual(["Авто-клик"]);
+  });
+
   test("повторный выбор снимает авто-клик; мёртвому пункта нет", async() => {
     const { manager } = await inRoom();
     const target = { index: 3, username: "Игрок4", playerObjectId: "p4", alive: true };

@@ -95,8 +95,23 @@ function serverOverride(): string | undefined {
   }
 }
 
+/** адрес сервера Бафии из ?bafia=ws://... для разработки: только свой компьютер или локальная сеть (там идут комнаты, статистика, гифки) */
+function bafiaOverride(): string | undefined {
+  if(typeof location == "undefined") return undefined;
+  const value = new URLSearchParams(location.search).get("bafia");
+  if(!value) return undefined;
+  try {
+    const { protocol, hostname } = new URL(value);
+    const local = hostname == "localhost" || /^(127|10)\./.test(hostname) || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    return (protocol == "ws:" || protocol == "wss:") && local ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** запуск игры в окне лаунчера: соединение, вход, навигация по экранам */
 export async function startGame(host: GameHost, options: StartOptions = {}): Promise<GameInstance> {
+  const bafiaUrl = options.bafiaUrl ?? bafiaOverride() ?? BAFIA_SERVER_URL;
   const client = new ServerClient(new Connection({ url: options.url ?? serverOverride() ?? SERVER_URLS, createSocket: options.createSocket }));
   const user = new User();
   const auth = new Auth(client, host.storage.accounts, user);
@@ -123,7 +138,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const mods = new ModManager({
     client, files: host.storage.files, theme: host.theme, user, nav,
     builtIn: [officialMod], spawn: options.spawnWorker,
-    registryUrl: options.modRegistryUrl ?? (options.bafiaUrl ? undefined : BAFIA_SERVER_URL.replace(/^ws/, "http") + "/mods/registry.json"),
+    registryUrl: options.modRegistryUrl ?? (options.bafiaUrl ? undefined : bafiaUrl.replace(/^ws/, "http") + "/mods/registry.json"),
     submitMod: pack => ctx.bafia.submitMod(pack),
     notify: options => host.notifications.show(options),
     alert: (title, text) => dialogs.alert(text, { title }),
@@ -161,7 +176,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   settings.on("change", applyLowPower);
   const ctx: GameContext = {
     host, client, auth, user, nav, dialogs, settings, mods,
-    bafia: new Bafia({ settings, user, url: options.bafiaUrl ?? BAFIA_SERVER_URL, createSocket: options.createBafiaSocket }),
+    bafia: new Bafia({ settings, user, url: bafiaUrl, createSocket: options.createBafiaSocket }),
     profile: new ProfileService(client, user, host.storage.accounts),
     friends: new Friends(client),
     rooms: new RoomsList(client),
@@ -227,13 +242,19 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   async function signIn(email: string, password: string): Promise<string | undefined> {
     try {
       const problem = signInProblem(await auth.signIn({ email, password }));
+      // вход прошёл: официальный сервер отвечает (если до этого сообщали, что нет, или так сказано другим, говорим, что всё работает)
+      if(!problem) ctx.bafia.reportOfficial(true);
       if(!problem) {
         nav.reset("menu");
         void ensureUsername().then(openInvite);
       }
       return problem;
     } catch(error) {
-      if(error instanceof ConnectionError || error instanceof RequestTimeoutError) return "Нет связи с сервером. Попробуй ещё раз";
+      if(error instanceof ConnectionError || error instanceof RequestTimeoutError) {
+        // соединение есть, а ответа на вход нет: сообщаем серверу Бафии, пусть остальные не ждут зря
+        ctx.bafia.reportOfficial(false);
+        return "Нет связи с сервером. Попробуй ещё раз";
+      }
       return error instanceof Error ? error.message : String(error);
     }
   }
@@ -266,6 +287,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     mods: () => ModsScreen({ ctx }),
     competitive: () => CompetitiveScreen({ ctx }),
     roomCreation: () => RoomCreationScreen({ ctx }),
+    bafiaRoomCreation: () => RoomCreationScreen({ ctx, bafia: true }),
     room: ({ params }) => RoomScreen({ ctx, session: params.session }),
     privateChat: ({ params }) => PrivateChatScreen({ ctx, ...params })
   };
@@ -301,6 +323,8 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   // связь пропала, интернета нет, сервер молчит - игрок должен это видеть, а не смотреть на замерший таймер
   const monitor = new ConnectionMonitor({
     client, notifier: host.notifications, network: window,
+    // соединение «живое», а сервер игры молчит: сообщаем серверу Бафии, он предупредит остальных, чтобы не ждали зря
+    onStall: stalled => ctx.bafia.reportOfficial(!stalled),
     reconnect: () => client.connection.reset(),
     inGame: () => {
       const session = nav.top?.name == "room" ? (nav.top.params as { session?: RoomSession }).session : undefined;
@@ -333,14 +357,23 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   let failedAttempts = 0;
   let stage: ConnectionStage = "connecting";
   const showConnection = () => {
-    if(nav.top?.name == "loading") setLoadingText(connectionText(stage, failedAttempts, navigator.onLine !== false));
+    // сервер Бафии уже знает, что официальный лежит: говорим это сразу, а не «Подключение…»
+    const official = ctx.bafia.officialDown;
+    if(nav.top?.name == "loading") setLoadingText(official && navigator.onLine !== false ? official.text : connectionText(stage, failedAttempts, navigator.onLine !== false));
   };
+  // сообщение «Сервер Мафии временно недоступен» от сервера Бафии: плашка, пока так, и текст на экране загрузки
+  ctx.bafia.on("official", () => {
+    const official = ctx.bafia.officialDown;
+    if(official) host.notifications.show({ key: "official-down", kind: "warning", timeout: 0, title: "Сервер Мафии недоступен", text: official.text });
+    else host.notifications.show({ key: "official-down", kind: "success", timeout: 4000, title: "Сервер Мафии снова доступен", text: "Можно заходить" });
+    showConnection();
+  });
   client.on("close", willReconnect => {
     if(!willReconnect || nav.top?.name != "loading") return;
     failedAttempts++;
     if(stage != "connecting") showConnection();
   });
-  const advance = (next: ConnectionStage) => () => { stage = next; setServerDown(next == "down"); showConnection(); };
+  const advance = (next: ConnectionStage) => () => { stage = next; setServerDown(next == "down"); showConnection(); if(next == "down") ctx.bafia.reportOfficial(false); };
   const slow = setTimeout(advance("slow"), options.slowConnectionAfter ?? 8000);
   const down = setTimeout(advance("down"), options.serverDownAfter ?? 25_000);
 

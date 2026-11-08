@@ -3,7 +3,8 @@ import { formatDate, formatNumber, formatPlayTime } from "@common/utils/format";
 import { PHOTO_BASE } from "@common/constants";
 import type { PlayerProfile } from "../domain/profile";
 import type { RoomSession } from "../domain/room/session";
-import { Role, Sex } from "../domain/enums";
+import { Role, Sex, roleNames } from "../domain/enums";
+import type { BafiaStats } from "../domain/bafia";
 import { Avatar } from "../ui/Avatar.tsrx";
 import { Lottie } from "../ui/Lottie.tsrx";
 import { PremiumBadge } from "../ui/PremiumBadge.tsrx";
@@ -81,6 +82,9 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	const [playTime, setPlayTime] = createSignal<{ seconds: number, days: number, since?: string } | undefined>(undefined);
 	const registered = isMe ? ctx.user.created : undefined;
 	onMount(() => { if(isMe) void ctx.bafia.myStats().then(setPlayTime); });
+	// игры в комнатах Бафии (свои собственные правила): тоже только у себя
+	const [bafiaStats, setBafiaStats] = createSignal<BafiaStats | undefined>(undefined);
+	onMount(() => { if(isMe) void ctx.bafia.bafiaStats().then(setBafiaStats); });
 	// премиум Бафии: спрашиваем сервер, в Бафии ли этот игрок и какой у него значок (если сервер включён)
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
 	const premiumColor = () => { bafiaVersion(); return ctx.bafia.premiumColor(player.playerObjectId ?? playerObjectId); };
@@ -294,6 +298,29 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				<div class="stat"><span>{"Побед за Мафию"}</span><b>{player.winsAsMafia ?? 0}</b></div>
 				<div class="stat"><span>{"Побед за Мирных"}</span><b>{player.winsAsPeaceful ?? 0}</b></div>
 			</div>
+
+			@if (isMe && bafiaStats() && bafiaStats()!.games > 0) {
+				<>
+					<h4>{"Комнаты Бафии"}</h4>
+					<div class="stats">
+						<div class="stat"><span>{"Игр"}</span><b>{bafiaStats()!.games}</b></div>
+						<div class="stat"><span>{"Побед"}</span><b>{bafiaStats()!.wins + " (" + Math.round(bafiaStats()!.wins * 100 / bafiaStats()!.games) + "%)"}</b></div>
+						@for (const item of bafiaStats()!.roles.slice(0, 5)) {
+							<div class="stat"><span>{roleNames[item.role as Role] ?? "Роль"}</span><b>{item.wins + " / " + item.games}</b></div>
+						}
+					</div>
+					@if (bafiaStats()!.top.length) {
+						<>
+							<h4>{"Лучшие в комнатах Бафии"}</h4>
+							<div class="stats">
+								@for (const [index, item] of bafiaStats()!.top.slice(0, 5).entries()) {
+									<div class="stat"><span>{(index + 1) + ". " + item.nick}</span><b>{Math.round(item.wins * 100 / item.games) + "% (" + item.games + ")"}</b></div>
+								}
+							</div>
+						</>
+					}
+				</>
+			}
 
 			@if (isMe && (registered || playTime())) {
 				<>

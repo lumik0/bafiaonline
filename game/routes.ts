@@ -20,6 +20,7 @@ export type Routes = {
   mods: {}
   competitive: {}
   roomCreation: {}
+  bafiaRoomCreation: {}
   /** игровая комната: сессия создаётся при входе и подписана на пакеты ещё до показа экрана */
   room: { session: RoomSession }
   privateChat: { friendshipId: string, playerObjectId: string, username: string, photo?: string }

@@ -3,7 +3,7 @@ import type { NotificationOptions } from "@common/ui/notifications/center";
 import Events from "@common/utils/emitter";
 import { ConnectionMonitor } from "./connection-monitor";
 
-function setup(inGame = true, withReconnect = false) {
+function setup(inGame = true, withReconnect = false, stalls: boolean[] = []) {
   const client = Object.assign(new Events<{ open: () => void, close: (willReconnect: boolean) => void, message: () => void }>(), { connection: { state: "open" } });
   const shown: NotificationOptions[] = [];
   const dismissed: string[] = [];
@@ -16,7 +16,8 @@ function setup(inGame = true, withReconnect = false) {
     client: client as never, network, inGame: () => state.inGame, now: () => time,
     notifier: { show: o => { shown.push(o); }, dismiss: key => { dismissed.push(key); } },
     schedule: callback => { tick = callback; return 1; }, cancel: () => {},
-    reconnect: withReconnect ? () => { reconnects.push(time); } : undefined
+    reconnect: withReconnect ? () => { reconnects.push(time); } : undefined,
+    onStall: stalled => { stalls.push(stalled); }
   });
   monitor.start();
   return {
@@ -44,6 +45,19 @@ describe("уведомления о связи", () => {
     expect(last()).toMatchObject({ key: "connection", kind: "success", title: "Связь восстановлена", timeout: 3000 });
     client.emit("close", true);
     expect(last().text).toContain("попытка 1");     // счёт начался заново
+  });
+
+  test("тишина при открытом сокете сообщается один раз («сервер молчит»), а когда данные пошли - что всё снова в порядке", () => {
+    const stalls: boolean[] = [];
+    const { client, advance } = setup(true, false, stalls);
+    client.emit("open");
+    advance(9000);
+    advance(3000);
+    expect(stalls).toEqual([true]);
+    client.emit("message");
+    expect(stalls).toEqual([true, false]);
+    client.emit("message");
+    expect(stalls).toEqual([true, false]);
   });
 
   test("закрытие без переподключения (окно игры закрыто) ничего не показывает", () => {

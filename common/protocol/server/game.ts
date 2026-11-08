@@ -69,7 +69,9 @@ export const gameMessages = {
     players: field(K.PLAYER_ROLES, t.array(t.object({
       playerObjectId: optionalField(K.PLAYER_OBJECT_ID, t.string),
       role: optionalField(K.ROLE, t.number)
-    })))
+    }))),
+    /** прежние известные роли отменяются (в комнатах Бафии роли могут меняться по ходу игры) */
+    reset: optionalField("rset", t.flag)
   }),
   /** итог игры (разобрано по клиенту официального приложения): награда и кто победил */
   gameFinished: serverPacket(K.GAME_FINISHED, {

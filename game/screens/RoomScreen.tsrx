@@ -84,6 +84,13 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	});
 	onCleanup(() => tip.stop());
 
+	// комната Бафии: создатель может начать игру раньше автоматического старта, когда набрался минимум
+	const canStartNow = fromEvents(session, "change", () => !!session.bafia && state.settings.creator == session.bafia.you && !state.inGame && state.lobby.length >= state.settings.minPlayers);
+	const startNow = async () => {
+		const result = await ctx.bafia.startRoom();
+		if(!result.ok) await ctx.dialogs.alert(result.reason == "bad-config" ? "Игру не начать: роли в комнате не подходят к числу игроков." : "Не получилось начать игру.", { title: "Комната Бафии" });
+	};
+
 	const showRoles = () => void ctx.dialogs.manager.open({ title: "РОЛИ В КОМНАТЕ", render: close => RoomRolesDialog({ ctx, session, close }) });
 	const mention = (username: string) => controller.mention?.(username);
 	const sendMessage = (text: string) => { if(!ctx.mods.runCommand(text)) session.send(text); };
@@ -162,6 +169,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			.loading { flex: 1; display: flex; align-items: center; justify-content: center; }
 			.loading img { width: 64px; height: 64px; animation: rotate 1s steps(12) infinite; }
 			.info { text-align: center; margin: 6px 0 0; font-size: 14px; color: var(--chat-name); }
+			.start { align-self: center; margin: 6px 0 0; padding: 6px 16px; font-size: 14px; }
 			.body { flex: 1; min-height: 0; display: flex; }
 			.left { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 			.chatbox { flex: 1; min-height: 0; }
@@ -193,6 +201,9 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 				<div class="body">
 					<div class="left">
 						<div class="info">{view().info}</div>
+						@if (canStartNow()) {
+							<button class="start" onClick={() => void startNow()}>{"Начать игру сейчас"}</button>
+						}
 						<PlayersPanel users={lobby} myName={myName} hideName={hideName} assets={ctx.assets} mention={mention} profile={(id: string) => ctx.openProfile(id)} inBafia={(id: string) => bafiaOnline().has(id)} badgeColor={(id: string) => { bafiaPremium(); return ctx.bafia.premiumColor(id); }} avatar={(id: string) => { bafiaPremium(); return ctx.bafia.avatar(id, true); }} bafia={ctx.bafia} />
 						<div class="chatbox"><ChatView ctx={ctx} bafia={ctx.bafia} entries={entries} myName={myName} hideName={hideName} assets={ctx.assets} send={sendMessage} onAvatar={(id: string) => ctx.openProfile(id)} controller={controller} expand={expand} nickPrefix={nickPrefix} readonly={session.replay} externalInput={isMobile()} /></div>
 					</div>

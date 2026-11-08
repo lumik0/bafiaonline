@@ -84,7 +84,7 @@ export function Launcher({ model, openSettings }: { model: LauncherModel, openSe
 				{"Github: "}<a href="https://github.com/lumik0/bafiaonline" target="_blank">{"lumik0/bafiaonline"}</a><br />
 				{"Telegram: "}<a href="https://t.me/bafiaonline" target="_blank">{"t.me/bafiaonline"}</a><br />
 				<br />
-				{"Старая версия: "}<a href="./run/index.html">{"Перейти"}</a>
+				// {"Старая версия: "}<a href="./run/index.html">{"Перейти"}</a>
 				<p class="disclaimer">{DISCLAIMER_SHORT}</p>
 			</div>
 		</div>

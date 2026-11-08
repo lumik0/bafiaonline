@@ -9,6 +9,12 @@ import type { GameContext } from "../../context";
 export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, session: RoomSession, close: () => void }) @{
 	const [entries, setEntries] = createSignal<MenuEntry[] | undefined>(undefined);
 	const data = roomInfoData(session);
+	/** создатель закрывает комнату Бафии (бесконечная или скучная игра): все выходят */
+	const closeRoom = async () => {
+		if(!await ctx.dialogs.confirm("Закончить игру и удалить комнату? Все игроки выйдут из неё.", { yes: "Удалить" })) return;
+		close();
+		await ctx.bafia.closeRoom();
+	};
 	onMount(() => void ctx.mods.menuItems("roomSettings", data).then(setEntries));
 
 	<>
@@ -38,6 +44,9 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 				<div class="empty">{entries() ? "Нет доступных настроек" : "Загрузка…"}</div>
 			}
 		</div>
+		@if (session.bafia?.isHost) {
+			<div class="list"><button onClick={() => void closeRoom()}>{"Закончить игру и удалить комнату"}</button></div>
+		}
 		@if (data.playing) {
 			<div class="hint">{"Рехост недоступен, пока идёт игра"}</div>
 		}

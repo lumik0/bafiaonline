@@ -186,7 +186,12 @@ export class RoomState extends Events<{ change: () => void }> {
   }
 
   /** известные вам роли других игроков (мафия видит своих) */
-  setKnownRoles(roles: readonly { playerObjectId?: string, role?: number }[]) {
+  setKnownRoles(roles: readonly { playerObjectId?: string, role?: number }[], reset = false) {
+    // прежние знания отменяются: роли других игроков за столом снова неизвестны (свою сервер присылает отдельно)
+    if(reset) {
+      this.known.clear();
+      for(const player of this.players) if(player.playerObjectId != this.myPlayerObjectId) player.role = undefined;
+    }
     for(const { playerObjectId, role } of roles) {
       if(playerObjectId && role !== undefined) this.known.set(playerObjectId, role);
     }
@@ -356,6 +361,21 @@ export class RoomState extends Events<{ change: () => void }> {
 
   /** комната в режиме «Рулетка» */
   get roulette(): boolean { return isRoulette(this.settings.title); }
+
+  /**
+   * можно ли в меню игрока включить на него авто-клик. В рулетке тем, у кого нет ходов, кроме голосования (мирный, мафия: она ночью не убивает),
+   * авто-клик разрешён только на «своего» - следующего за ним живого игрока; у ролей с ночным ходом ограничения нет, голосование всё равно идёт по кругу.
+   * Хост «Позора мафии 2.0» и вне рулетки - без ограничений
+   */
+  autoClickAllowed(target: GamePlayer): boolean {
+    const me = this.me;
+    if(!this.roulette || !me) return true;
+    const host = this.rouletteHost;
+    if(me.playerObjectId == host) return true;
+    if(target.playerObjectId == host) return false;
+    const voteOnly = me.role === undefined || me.role == Role.Civilian || me.role == Role.Mafia;
+    return !voteOnly || rouletteTarget(this.players, me.playerObjectId, host)?.playerObjectId == target.playerObjectId;
+  }
 
   /** создатель комнаты, если он известен и комната - «Позор мафии 2.0» (там он не участвует) */
   private get rouletteHost(): string | undefined { return isHostFree(this.settings.title) && this.settings.creator ? this.host?.playerObjectId : undefined; }

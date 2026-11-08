@@ -241,6 +241,26 @@ export type ClientMessage =
   | { t: "myFeedback", n: number }
   /** сколько я провёл в Бафии (по моему нику): время, дней и с какого дня считается */
   | { t: "myStats", n: number }
+  /** привязка Telegram (необязательная): получить код ссылки в бота или узнать, привязан ли уже; отвязать */
+  | { t: "tgLink", n: number }
+  | { t: "tgUnlink", n: number }
+  /** итоги моих игр в комнатах Бафии и рейтинг */
+  | { t: "bafiaStats", n: number }
+  /** комнаты Бафии: список, создание (только тем, кому разрешено), вход, выход, начало, ход, взрыв террориста и сообщение в чат */
+  | { t: "roomList", n: number }
+  | { t: "roomCreate", n: number, config: Record<string, unknown> }
+  | { t: "roomJoin", n: number, id: string, password?: string }
+  | { t: "roomLeave", n: number }
+  /** смотреть игру в комнате со стороны */
+  | { t: "roomWatch", n: number, id: string, password?: string }
+  | { t: "roomStart", n: number }
+  /** создатель закрывает и удаляет комнату */
+  | { t: "roomClose", n: number }
+  | { t: "roomAct", n: number, targets: string[] }
+  | { t: "roomBomb", n: number, target: string }
+  | { t: "roomChat", n: number, text: string }
+  /** официальный сервер игры: отвечает (`ok`) или молчит; игрок сообщает, когда у него это точно видно */
+  | { t: "officialStatus", n: number, ok: boolean }
   /** какие экраны и функции открывались: название -> сколько раз (пачкой, только счётчики) */
   | { t: "usage", n: number, counts: Record<string, number> }
   | { t: "feedback", n: number, kind: FeedbackKind, text: string, notice?: number, direct?: number };
@@ -254,6 +274,72 @@ export interface GifItem {
   thumb?: string
 }
 
+/** состояние официального сервера игры по сообщениям игроков (или вручную): `down` - недоступен, `text` - что показать игрокам */
+export interface OfficialStatus { down: boolean, text?: string }
+
+/** комната Бафии в списке: статус как в игре (0 регистрация, 3 игра, 4 закончена) */
+export interface BafiaRoomInfo {
+  id: string
+  title: string
+  /** ник создателя */
+  host: string
+  players: number
+  minPlayers: number
+  maxPlayers: number
+  status: 0 | 3 | 4
+  /** нужен пароль / только для игроков с премиумом */
+  hasPassword?: boolean
+  premium?: boolean
+  /** до автоматического старта, секунд (только пока идёт регистрация и набралось минимум) */
+  startsIn?: number
+}
+
+/** роль и её известность: кто за кого играет, как это видит игрок */
+export interface BafiaRoomPlayer { id: string, nick: string, alive: boolean }
+
+/** состояние комнаты для вошедшего или вернувшегося игрока */
+export interface BafiaRoomState {
+  /** 0 регистрация, 3 игра, 4 закончена */
+  status: 0 | 3 | 4
+  /** этап игры как в официальной: 0 любовница, 1 ночь, 2 день, 3 голосование */
+  dayTime: number
+  timer: number
+  players: BafiaRoomPlayer[]
+  /** создатель комнаты (id игрока) */
+  host: string
+  /** твоя роль (после начала игры) и роли, которые ты знаешь у других */
+  role?: number
+  known: { id: string, role: number }[]
+  /** сколько игроков каждой роли в игре */
+  roleCounts?: Record<number, number>
+  /** можно ли писать в чат во время голосования */
+  voteChat: boolean
+  /** ты смотришь игру со стороны: писать и ходить нельзя */
+  spectator?: boolean
+  /** сколько человек в командах и сколько живы (после начала игры) */
+  stat?: { mafiaAll: number, mafiaAlive: number, civilianAll: number, civilianAlive: number }
+}
+
+/** то, что происходит в комнате; игрок получает только касающееся его (ролей, проверок, закрытых чатов других он не видит) */
+export type BafiaRoomEvent =
+  | { kind: "joined", player: BafiaRoomPlayer }
+  | { kind: "left", id: string }
+  /** сообщение чата: `type` как в официальной игре, `from` - id автора (нет - от игры), `anonymous` - без ника и фото */
+  | { kind: "message", type: number, text: string, from?: string, anonymous?: boolean }
+  /** этап сменился; `roleCounts` - сколько игроков каждой роли в игре (после начала) */
+  | { kind: "phase", status: 0 | 3 | 4, dayTime: number, timer: number, roleCounts?: Record<number, number> }
+  | { kind: "role", role: number }
+  /** `reset` - прежние знания отменяются (роли перемешались или кто-то сменил команду) */
+  | { kind: "known", players: { id: string, role: number }[], reset?: boolean }
+  | { kind: "check", target: string, role: number }
+  | { kind: "death", id: string, role?: number }
+  | { kind: "timer", timer: number }
+  /** сколько человек в каждой команде и сколько из них живы (как в игре) */
+  | { kind: "stat", mafiaAll: number, mafiaAlive: number, civilianAll: number, civilianAlive: number }
+  /** сколько голосов набрал каждый игрок в дневном голосовании (у кого нет голосов - не указан) */
+  | { kind: "votes", counts: Record<string, number> }
+  | { kind: "end", winner: "mafia" | "peaceful", roles: { id: string, role: number }[] }
+
 /** обращение игрока: `sent` - отправлено, `answered` - администратор ответил лично, `done` - разобрано */
 export type FeedbackStatus = "sent" | "answered" | "done";
 export interface FeedbackItem { id: number, kind: FeedbackKind, text: string, created: number, status: FeedbackStatus }
@@ -266,7 +352,7 @@ export interface NickRecord { nick: string, first: number, last: number }
 export type ServerMessage =
   /** на `hello` сервер может добавить ключ Giphy: поиск гифок игрок делает сам, из своего браузера */
   /** `avatar` - путь моей аватарки (`/a/номер`) в ответе на hello, avatarSet и avatarClear; нет - аватарки нет */
-  | { t: "ok", n: number, /** гифка опубликована сразу (премиум), а не ушла на проверку */ approved?: boolean, gifKey?: string, premium?: number, avatar?: string, banner?: string, profileBg?: string, look?: ProfileLook }
+  | { t: "ok", n: number, /** гифка опубликована сразу (премиум), а не ушла на проверку */ approved?: boolean, gifKey?: string, premium?: number, avatar?: string, banner?: string, profileBg?: string, look?: ProfileLook, official?: OfficialStatus }
   /** одноразовое сообщение администратора всем, кто сейчас в сети (приходит само, `n` всегда 0); позже зашедшие его не получают */
   /** сообщение администратора; `id` (сообщение всем) или `direct` (личное, только тебе) нужны, чтобы на него можно было ответить */
   | { t: "notice", n: 0, text: string, id?: number, direct?: number }
@@ -282,11 +368,26 @@ export type ServerMessage =
   /** мои обращения (последние 30) со статусом */
   | { t: "myFeedback", n: number, items: FeedbackItem[] }
   /** `seconds` - время в Бафии, `days` - в сколько разных дней играл, `since` - первый день (ГГГГ-ММ-ДД); `since` нет, если ещё не считалось */
+  /** `code` и `bot` нужны для ссылки t.me/бот?start=link_код; `linked` - уже привязан */
+  | { t: "tgLink", n: number, linked: boolean, code?: string, bot?: string }
+  /** бот подтвердил привязку; `nick` - ник, с которым этот Telegram играл на другом устройстве */
+  | { t: "tgLinked", n: 0, nick?: string }
+  | { t: "bafiaStats", n: number, games: number, wins: number, roles: { role: number, games: number, wins: number }[], recent: { at: number, title: string, role: number, won: boolean }[], top: { nick: string, games: number, wins: number }[] }
   | { t: "myStats", n: number, seconds: number, days: number, since?: string }
   /** `url` нет, если такой гифки в каталоге нет */
   | { t: "gif", n: number, id: string, url?: string, title?: string }
   | { t: "gifs", n: number, items: GifItem[] }
   /** до какого времени (мс) действует премиум; нет - не действует */
+  /** список комнат Бафии; `canCreate` - можно ли тебе создать свою */
+  | { t: "rooms", n: number, rooms: BafiaRoomInfo[], canCreate: boolean }
+  /** ты в комнате: сама комната, твой id игрока и её состояние */
+  | { t: "roomJoined", n: number, room: BafiaRoomInfo, you: string, state: BafiaRoomState }
+  /** что произошло в твоей комнате (приходит само, пачкой) */
+  | { t: "roomEvents", n: 0, room: string, events: BafiaRoomEvent[] }
+  /** комната закрылась (игра закончена давно или создатель вышел до начала) */
+  | { t: "roomClosed", n: 0, room: string }
+  /** состояние официального сервера изменилось (приходит само, `n` всегда 0) */
+  | { t: "official", n: 0, down: boolean, text?: string }
   /** ответ на premium/redeem; без запроса (`n` 0) приходит, когда премиум включили: `code` игра сохраняет, чтобы он вернулся и на новой установке */
   | { t: "premium", n: number, until?: number, code?: string }
   | { t: "mine", n: number, items: (GifItem & { status: "pending" | "approved" })[] }
@@ -381,6 +482,20 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "mine": return { t: "mine", n };
     case "myFeedback": return { t: "myFeedback", n };
     case "myStats": return { t: "myStats", n };
+    case "bafiaStats": return { t: "bafiaStats", n };
+    case "tgLink": return { t: "tgLink", n };
+    case "tgUnlink": return { t: "tgUnlink", n };
+    case "roomList": return { t: "roomList", n };
+    case "roomLeave": return { t: "roomLeave", n };
+    case "roomWatch": return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "roomWatch", n, id: value.id, ...(typeof value.password == "string" && value.password.length <= 40 ? { password: value.password } : {}) } : undefined;
+    case "roomStart": return { t: "roomStart", n };
+    case "roomClose": return { t: "roomClose", n };
+    case "roomCreate": return isRecord(value.config) ? { t: "roomCreate", n, config: value.config } : undefined;
+    case "roomJoin": return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "roomJoin", n, id: value.id, ...(typeof value.password == "string" && value.password.length <= 40 ? { password: value.password } : {}) } : undefined;
+    case "roomAct": return Array.isArray(value.targets) && value.targets.length <= 2 && value.targets.every(id => text(id, BAFIA_LIMITS.id) && clean(id)) ? { t: "roomAct", n, targets: value.targets as string[] } : undefined;
+    case "roomBomb": return text(value.target, BAFIA_LIMITS.id) && clean(value.target) ? { t: "roomBomb", n, target: value.target } : undefined;
+    case "roomChat": return typeof value.text == "string" && value.text.trim() && value.text.length <= 300 && !/[\u0000-\u0008\u000b-\u001f\u007f]/.test(value.text) ? { t: "roomChat", n, text: value.text } : undefined;
+    case "officialStatus": return typeof value.ok == "boolean" ? { t: "officialStatus", n, ok: value.ok } : undefined;
     case "usage": {
       if(!isRecord(value.counts)) return undefined;
       const entries = Object.entries(value.counts);

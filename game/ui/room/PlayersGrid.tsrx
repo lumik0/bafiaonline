@@ -33,7 +33,7 @@ export function PlayersGrid({ ctx, session, mention, tip }: { ctx: GameContext, 
 		const core = canMark ? ["Профиль", "Отметить роль"] : ["Профиль"];
 		tip?.opened(view.playerObjectId);
 		// остальные пункты добавляют моды (авто-клик - из официального)
-		const data = playerMenuData(view);
+		const data = playerMenuData(view, session.state.autoClickAllowed(session.state.playerBy(view.playerObjectId) ?? { playerObjectId: view.playerObjectId } as never));
 		const extra = await ctx.mods.menuItems("player", data);
 		const choice = await ctx.dialogs.choose(event, { title: view.username, labels: [...core, ...extra.map(entry => entry.label)] });
 		if(choice === undefined) return tip?.cancelled(view.playerObjectId);

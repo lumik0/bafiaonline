@@ -444,6 +444,41 @@ describe("Bafia", () => {
     bafia.dispose();
   });
 
+  test("сервер Мафии недоступен: сообщение приходит само и снимается; игрок сообщает «не отвечает» сразу, «отвечает» - только после своей жалобы или пока так сказано другим", async() => {
+    const { bafia, log, server } = setup();
+    await tick();
+    const sent = () => log.filter(message => message.t == "officialStatus").map(message => message.ok);
+    let changes = 0;
+    bafia.on("official", () => { changes++; });
+
+    bafia.reportOfficial(true);                 // жалоб не было и ничего не сказано: сообщать нечего
+    expect(sent()).toEqual([]);
+    bafia.reportOfficial(false);
+    bafia.reportOfficial(false);                // то же самое чаще, чем раз в 20 секунд, не повторяется
+    await tick();
+    expect(sent()).toEqual([false]);
+
+    server.push({ t: "official", n: 0, down: true, text: "  Идут работы  " });
+    await tick();
+    expect(bafia.officialDown).toEqual({ text: "Идут работы" });
+    server.push({ t: "official", n: 0, down: true, text: "  Идут работы  " });
+    await tick();
+    expect(changes).toBe(1);                    // то же состояние второй раз не будит экран
+
+    bafia.reportOfficial(true);
+    await tick();
+    expect(sent()).toEqual([false, true]);
+
+    server.push({ t: "official", n: 0, down: false });
+    await tick();
+    expect(bafia.officialDown).toBeUndefined();
+    expect(changes).toBe(2);
+    server.push({ t: "official", n: 0, down: true });
+    await tick();
+    expect(bafia.officialDown?.text).toContain("временно недоступен");   // без текста подставляется обычный
+    bafia.dispose();
+  });
+
   test("что открывают: счётчики копятся и уходят пачкой (только названия), плохие названия отбрасываются, без связи остаются до следующего раза", async() => {
     const { bafia, log } = setup();
     await tick();

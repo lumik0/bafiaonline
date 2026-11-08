@@ -50,6 +50,8 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   private left = false;
   /** просмотр сохранённой игры: сети нет, ходить и писать нельзя */
   readonly replay: boolean;
+  /** комната Бафии: адаптер, через который идёт игра (нет - обычная комната официального сервера) */
+  bafia?: { you: string };
   /** в просмотре: ник того, чья это игра (из записи); «твоя роль» и ник рядом с ней показываются его, а не зрителя */
   ownerName?: string;
 
@@ -129,7 +131,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
       case "gameDayTime": return state.setDayTime(message.data.dayTime, message.data.timer);
       case "userData": return state.applyPlayersData(message.data.players);
       case "rolesRevealed": state.revealRoles(message.data.roles); return this.refreshRecord();
-      case "knownRoles": return state.setKnownRoles(message.data.players);
+      case "knownRoles": return state.setKnownRoles(message.data.players, !!message.data.reset);
       case "kickVoteStarted": return this.startKickVote(message.data.playerObjectId, message.data.timer ?? 10);
       case "kickVoteTimer": return this.kickTimer(message.data.timer);
       case "gameFinished": {

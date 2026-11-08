@@ -11,9 +11,9 @@ export const roomMenuData = (room: RoomItem) => ({
   minLevel: room.minLevel, status: room.status, hasPassword: room.hasPassword, vip: room.vip, friendsInRoom: room.friendsInRoom, inviteUrl: inviteUrl(room.id)
 });
 
-export const playerMenuData = (view: PlayerView) => ({
+export const playerMenuData = (view: PlayerView, autoAllowed = true) => ({
   index: view.index, username: view.username, playerObjectId: view.playerObjectId, alive: view.alive,
-  role: view.role || undefined, roleName: view.role ? roleNames[view.role as Role] : undefined, action: view.action
+  role: view.role || undefined, roleName: view.role ? roleNames[view.role as Role] : undefined, action: view.action, autoAllowed
 });
 
 export const profileData = (profile: PlayerProfile, playerObjectId: string, isMe: boolean) => ({

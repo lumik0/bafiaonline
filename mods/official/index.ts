@@ -86,7 +86,8 @@ async function autoClick(room: RoomSnapshot | null) {
 }
 
 mod.menu.add("player", {
-  items: player => player.alive ? [{ id: "auto", label: `${auto.has(player.playerObjectId) ? "✅ " : ""}Авто-клик` }] : [],
+  // в рулетке авто-клик есть только у «своего» игрока: меню остальных пункта не показывает
+  items: player => player.alive && player.autoAllowed !== false ? [{ id: "auto", label: `${auto.has(player.playerObjectId) ? "✅ " : ""}Авто-клик` }] : [],
   async select(id, player) {
     if(id != "auto") return;
     if(auto.has(player.playerObjectId)) auto.delete(player.playerObjectId);

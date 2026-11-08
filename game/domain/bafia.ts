@@ -2,7 +2,8 @@ import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
 import type { ModPackage } from "@mods/index";
-import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type Browser, type FeedbackItem, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { BafiaRoomAdapter } from "./bafia-room";
+import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type BafiaRoomEvent, type BafiaRoomInfo, type BafiaRoomState, type Browser, type FeedbackItem, type OfficialStatus, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -63,13 +64,17 @@ export type FeedbackError = "empty" | "too-long" | "offline" | "slow-down" | "qu
 /** на какое сообщение администратора можно ответить: сообщение всем (`notice`) или личное (`direct`) */
 export interface ReplyTarget { notice?: number, direct?: number }
 
-export class BafiaLink extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, premium: (code?: string) => void }> {
+export interface BafiaStats { games: number, wins: number, roles: { role: number, games: number, wins: number }[], recent: { at: number, title: string, role: number, won: boolean }[], top: { nick: string, games: number, wins: number }[] }
+
+export class BafiaLink extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, premium: (code?: string) => void, official: (status: OfficialStatus) => void }> {
   private connection: Connection;
   private pending = new Map<number, (message: ServerMessage | undefined) => void>();
   private counter = 0;
   private identity?: SeenPlayer & { platform?: Platform, version?: string, browser?: Browser, site?: string };
   /** до какого времени (мс) действует премиум на этой установке */
   premiumUntil?: number;
+  /** официальный сервер игры недоступен (по сообщениям игроков или вручную): сообщение для игрока; `undefined` - всё в порядке */
+  official?: { text: string };
   /** игроки из последних ответов «кто в Бафии», у которых премиум */
   premiumOnline = new Set<string>();
   /** цвета их значков (название из PREMIUM_COLORS) */
@@ -191,6 +196,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.problem = undefined;
     this.gifKey = hello.gifKey;
     this.premiumUntil = hello.premium;
+    this.setOfficial(hello.official);
     this.myAvatar = hello.avatar;
     this.myBanner = typeof hello.banner == "string" && BANNER_FILE_PATH.test(hello.banner) ? hello.banner : undefined;
     this.myBg = PROFILE_BG.test(hello.profileBg ?? "") ? hello.profileBg : undefined;
@@ -219,6 +225,60 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     }
   }
 
+  // --- комнаты Бафии ---
+
+  private roomHandlers = new Map<string, { onEvents: (events: BafiaRoomEvent[]) => void, onClosed: () => void }>();
+
+  /** следить за событиями комнаты; возвращает отписку */
+  subscribeRoom(room: string, onEvents: (events: BafiaRoomEvent[]) => void, onClosed: () => void): () => void {
+    this.roomHandlers.set(room, { onEvents, onClosed });
+    return () => { this.roomHandlers.delete(room); };
+  }
+
+  /** список комнат Бафии и можно ли тебе создать свою; `undefined` - нет связи */
+  async roomList(): Promise<{ rooms: BafiaRoomInfo[], canCreate: boolean } | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "roomList" });
+    return answer?.t == "rooms" ? { rooms: answer.rooms, canCreate: answer.canCreate } : undefined;
+  }
+
+  private async joined(message: { t: "roomCreate", config: Record<string, unknown> } | { t: "roomJoin", id: string, password?: string } | { t: "roomWatch", id: string, password?: string }): Promise<{ room: BafiaRoomInfo, you: string, state: BafiaRoomState } | { error: string }> {
+    if(!this.ready) return { error: "offline" };
+    const answer = await this.request(message);
+    if(answer?.t == "roomJoined") return { room: answer.room, you: answer.you, state: answer.state };
+    return { error: answer?.t == "error" ? answer.reason : "offline" };
+  }
+
+  roomCreate(config: Record<string, unknown>) { return this.joined({ t: "roomCreate", config }); }
+  roomWatch(id: string, password?: string) { return this.joined({ t: "roomWatch", id, ...(password ? { password } : {}) }); }
+  roomJoin(id: string, password?: string) { return this.joined({ t: "roomJoin", id, ...(password ? { password } : {}) }); }
+
+  private async roomCall(message: { t: "roomLeave" } | { t: "roomClose" } | { t: "roomStart" } | { t: "roomAct", targets: string[] } | { t: "roomBomb", target: string } | { t: "roomChat", text: string }): Promise<{ ok: boolean, reason?: string }> {
+    if(!this.ready) return { ok: false, reason: "offline" };
+    const answer = await this.request(message);
+    return answer?.t == "ok" ? { ok: true } : { ok: false, reason: answer?.t == "error" ? answer.reason : "offline" };
+  }
+
+  roomLeave() { return this.roomCall({ t: "roomLeave" }); }
+  roomClose() { return this.roomCall({ t: "roomClose" }); }
+  roomStart() { return this.roomCall({ t: "roomStart" }); }
+  roomAct(targets: string[]) { return this.roomCall({ t: "roomAct", targets }); }
+  roomBomb(target: string) { return this.roomCall({ t: "roomBomb", target }); }
+  roomChat(text: string) { return this.roomCall({ t: "roomChat", text }); }
+
+  private setOfficial(status: OfficialStatus | undefined) {
+    const text = status?.down ? (typeof status.text == "string" && status.text.trim() ? status.text.trim().slice(0, 200) : "Сервер Мафии временно недоступен") : undefined;
+    if(text === this.official?.text) return;
+    this.official = text ? { text } : undefined;
+    this.emit("official", { down: !!text, text });
+    this.emit("change");
+  }
+
+  /** сообщить серверу Бафии, отвечает ли официальный сервер игры: по таким сообщениям игроков он понимает, что тот лежит */
+  async sendOfficial(ok: boolean): Promise<void> {
+    if(this.ready) await this.request({ t: "officialStatus", ok });
+  }
+
   private grantedPremium(until: unknown, code: unknown) {
     if(typeof until != "number" || !Number.isFinite(until) || until <= Date.now()) return;
     this.premiumUntil = until;
@@ -240,6 +300,13 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(typeof message?.n != "number") return;
     // сообщение администратора приходит само, без запроса
     if(message.t == "notice") return this.announce(message.text, message.id, message.direct);
+    // события комнаты Бафии и её закрытие приходят сами
+    if(message.t == "roomEvents") return void this.roomHandlers.get(message.room)?.onEvents(message.events);
+    if(message.t == "roomClosed") return void this.roomHandlers.get(message.room)?.onClosed();
+    // бот подтвердил привязку Telegram
+    if(message.t == "tgLinked") return void this.onTgLinked?.(message.nick);
+    // состояние официального сервера изменилось: приходит само
+    if(message.t == "official" && message.n === 0) return this.setOfficial(message);
     // премиум пришёл без запроса: включается на лету, код запоминается, чтобы вернуться и на новой установке
     if(message.t == "premium" && message.n === 0) return this.grantedPremium(message.until, message.code);
     this.pending.get(message.n)?.(message);
@@ -390,6 +457,30 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(!this.ready) return undefined;
     const answer = await this.request({ t: "myStats" });
     return answer?.t == "myStats" ? { seconds: answer.seconds, days: answer.days, since: answer.since } : undefined;
+  }
+
+  /** привязка Telegram подтверждена ботом */
+  onTgLinked?: (nick?: string) => void;
+
+  /** итоги моих игр в комнатах Бафии и общий рейтинг; `undefined` - нет связи */
+  async bafiaStats(): Promise<BafiaStats | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "bafiaStats" });
+    return answer?.t == "bafiaStats" ? { games: answer.games, wins: answer.wins, roles: answer.roles, recent: answer.recent, top: answer.top } : undefined;
+  }
+
+  /** привязан ли Telegram; если нет - код для ссылки в бота (`undefined` - нет связи или бот не запущен) */
+  async tgLink(): Promise<{ linked: true } | { linked: false, url?: string } | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "tgLink" });
+    if(answer?.t != "tgLink") return undefined;
+    if(answer.linked) return { linked: true };
+    return { linked: false, ...(answer.code && answer.bot ? { url: `https://t.me/${answer.bot}?start=link_${answer.code}` } : {}) };
+  }
+
+  async tgUnlink(): Promise<boolean> {
+    if(!this.ready) return false;
+    return (await this.request({ t: "tgUnlink" }))?.t == "tgLink";
   }
 
   /** мои обращения (идеи, баги, предложения) и что с ними стало; `undefined` - нет связи */
@@ -603,7 +694,7 @@ export function newKey(): string {
  * сервер Бафии для окна игры. Всегда работает «кто играет» и значок премиума (твой ник и id, число партий, id видимых игроков),
  * остальное (ники других игроков, гифки, игры, аватарки) - только с согласием в настройках
  */
-export class Bafia extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void }> {
+export class Bafia extends Events<{ change: () => void, notice: (text: string, reply?: ReplyTarget) => void, official: () => void }> {
   private link?: BafiaLink;
   /** гифки из сообщений: скачиваются сразу, живут в памяти 5 минут */
   readonly images = new GifCache();
@@ -755,9 +846,13 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
         this.scheduleExpiry(); this.warnExpiry(); this.emit("change");
         // связь появилась: список обращений подтягиваем один раз
         if(link.isReady && !this.feedbackLoaded) { this.feedbackLoaded = true; void this.refreshFeedback(); }
+        // связь вернулась после обрыва: садимся в свою комнату Бафии снова
+        if(link.isReady && !this.roomReady && this.activeRoom) void this.resumeRoom();
+        this.roomReady = link.isReady;
       });
       // одноразовое сообщение администратора: игра показывает его баннером
       link.on("notice", (text, reply) => this.emit("notice", text, reply));
+      link.on("official", () => this.emit("official"));
       link.on("premium", code => { if(code) this.deps.settings.update(data => { data.bafia.code = code; }); });
       link.start();
     }
@@ -908,6 +1003,83 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     if("ok" in result) this.track("feature:modSubmit");
     return result;
   }
+
+  // --- комнаты Бафии ---
+
+  private activeRoom?: BafiaRoomAdapter;
+  private roomReady = false;
+
+  private adapterFor(joined: { room: BafiaRoomInfo, you: string, state: BafiaRoomState }): BafiaRoomAdapter {
+    const link = this.link!;
+    const adapter = new BafiaRoomAdapter({
+      act: targets => link.roomAct(targets), bomb: target => link.roomBomb(target), chat: text => link.roomChat(text), leave: () => link.roomLeave(),
+      subscribe: (room, onEvents, onClosed) => link.subscribeRoom(room, onEvents, onClosed)
+    }, joined.room, joined.you, joined.state);
+    adapter.onClosed = () => { if(this.activeRoom === adapter) this.activeRoom = undefined; };
+    this.activeRoom = adapter;
+    this.track("feature:bafiaRoom");
+    return adapter;
+  }
+
+  /** комнаты Бафии (список) и можно ли тебе создать свою; `undefined` - нет связи с сервером Бафии */
+  roomList() { return this.link?.roomList() ?? Promise.resolve(undefined); }
+
+  /** создать комнату Бафии (если разрешено) и сесть в неё: возвращает адаптер для экрана комнаты или причину отказа */
+  async createRoom(config: Record<string, unknown>): Promise<{ adapter: BafiaRoomAdapter } | { error: string }> {
+    const joined = await (this.link?.roomCreate(config) ?? Promise.resolve({ error: "offline" } as const));
+    return "error" in joined ? joined : { adapter: this.adapterFor(joined) };
+  }
+
+  async joinRoom(id: string, password?: string): Promise<{ adapter: BafiaRoomAdapter } | { error: string }> {
+    const joined = await (this.link?.roomJoin(id, password) ?? Promise.resolve({ error: "offline" } as const));
+    return "error" in joined ? joined : { adapter: this.adapterFor(joined) };
+  }
+
+  /** смотреть игру со стороны (в любой комнате, даже начавшейся): общий чат и ход игры, роли только убитых */
+  async watchRoom(id: string, password?: string): Promise<{ adapter: BafiaRoomAdapter } | { error: string }> {
+    const joined = await (this.link?.roomWatch(id, password) ?? Promise.resolve({ error: "offline" } as const));
+    return "error" in joined ? joined : { adapter: this.adapterFor({ ...joined, you: "watch" }) };
+  }
+
+  /** создатель закрывает и удаляет свою комнату */
+  closeRoom() { return this.link?.roomClose() ?? Promise.resolve({ ok: false, reason: "offline" }); }
+
+  /** создатель комнаты начинает игру до автоматического старта */
+  startRoom() { return this.link?.roomStart() ?? Promise.resolve({ ok: false, reason: "offline" }); }
+
+  /** связь с сервером вернулась, а игрок за столом: садимся на прежнее место и обновляем стол */
+  private async resumeRoom() {
+    const adapter = this.activeRoom;
+    if(!adapter || !this.link) return;
+    const joined = await (adapter.spectator ? this.link.roomWatch(adapter.info.id) : this.link.roomJoin(adapter.info.id));
+    if("error" in joined) adapter.close(); else adapter.resync(joined.state);
+  }
+
+  /** сообщение «официальный сервер недоступен» от сервера Бафии; `undefined`, если всё в порядке */
+  get officialDown(): { text: string } | undefined { return this.link?.official; }
+
+  private officialReported?: { ok: boolean, at: number };
+
+  /**
+   * игрок видит, отвечает ли официальный сервер: «не отвечает» сообщаем сразу, «отвечает» - только после своей жалобы или пока другим сказано «недоступен»
+   * (иначе серверу Бафии нечего было бы исправлять); одно и то же не чаще, чем раз в 20 секунд
+   */
+  reportOfficial(ok: boolean) {
+    const now = Date.now();
+    if(ok && this.officialReported?.ok !== false && !this.officialDown) return;
+    if(this.officialReported && this.officialReported.ok == ok && now - this.officialReported.at < 20_000) return;
+    this.officialReported = { ok, at: now };
+    void this.link?.sendOfficial(ok);
+  }
+
+  /** итоги игр в комнатах Бафии: мои и общий рейтинг */
+  bafiaStats() { return this.link?.bafiaStats() ?? Promise.resolve(undefined); }
+
+  /** привязка Telegram (необязательная): состояние и ссылка в бота */
+  tgLink() { return this.link?.tgLink() ?? Promise.resolve(undefined); }
+  tgUnlink() { return this.link?.tgUnlink() ?? Promise.resolve(false); }
+  /** подтверждение привязки приходит от сервера само: `nick` - ник, с которым этот Telegram играл на другом устройстве */
+  watchTgLink(listener: (nick?: string) => void) { if(this.link) this.link.onTgLinked = listener; return () => { if(this.link?.onTgLinked === listener) this.link.onTgLinked = undefined; }; }
 
   /** время в Бафии для своего профиля (по моему нику, без согласия: свои данные); `undefined` - нет связи */
   myStats() { return this.link?.myStats() ?? Promise.resolve(undefined); }
