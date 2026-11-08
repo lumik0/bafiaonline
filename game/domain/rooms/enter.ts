@@ -39,7 +39,7 @@ export function openRoom(ctx: GameContext, result: Extract<JoinResult, { status:
  * Если в эту комнату уже входили с паролем, он сохранён и второй раз не спрашивается; перестал подходить - забываем и спрашиваем снова.
  * `knownPassword` - пароль, заданный заранее: пробуем его, а не спрашиваем
  */
-export async function enterRoom(ctx: GameContext, roomId: string, hasPassword: boolean, knownPassword = ""): Promise<void> {
+export async function enterRoom(ctx: GameContext, roomId: string, hasPassword: boolean, knownPassword = "", replace = false): Promise<void> {
   let hash = "";
   let saved = false;
   if(hasPassword) {
@@ -59,12 +59,12 @@ export async function enterRoom(ctx: GameContext, roomId: string, hasPassword: b
     const result = await ctx.rooms.joinHashed(roomId, hash);
     if(result.status == "ok") {
       if(hash) rememberRoomPassword(ctx.settings, roomId, hash);
-      openRoom(ctx, result, { fallbackId: roomId });
+      openRoom(ctx, result, { fallbackId: roomId, replace });
     } else if(result.status == "wrongPassword") {
       forgetRoomPassword(ctx.settings, roomId);
       // сохранённый пароль устарел (хост сменил его): молча спрашиваем заново, а не ругаемся на пароль, который игрок не вводил
       if(!saved) await ctx.dialogs.alert(joinProblems.wrongPassword);
-      await enterRoom(ctx, roomId, true);
+      await enterRoom(ctx, roomId, true, "", replace);
     } else {
       await ctx.dialogs.alert(joinProblems[result.status]);
     }
@@ -79,5 +79,7 @@ export function openMatchmakingRoom(ctx: GameContext, room: { id: string, roles:
     id: room.id, modelType: 1, title: "Соревновательный режим", minPlayers: 12, maxPlayers: 12, minLevel: 1, vip: false, roles: room.roles
   });
   session.start();
-  ctx.nav.push("room", { session });
+  // экран поиска заменяется комнатой: «назад» из игры ведёт в меню, а не в поиск, который сразу вернул бы в эту же игру
+  if(ctx.nav.top?.name == "competitive") ctx.nav.replace("room", { session });
+  else ctx.nav.push("room", { session });
 }

@@ -256,6 +256,9 @@ export type ClientMessage =
   /** смотреть игру в комнате со стороны */
   | { t: "roomWatch", n: number, id: string, password?: string }
   | { t: "roomStart", n: number }
+  /** голосование за исключение игрока из комнаты (пока идёт регистрация): начать и проголосовать */
+  | { t: "roomKick", n: number, target: string }
+  | { t: "roomVoteKick", n: number, vote: boolean }
   /** создатель добавляет 10 секунд к ожиданию старта */
   | { t: "roomExtend", n: number }
   /** создатель закрывает и удаляет комнату */
@@ -319,7 +322,7 @@ export interface BafiaRoomState {
   /** можно ли писать в чат во время голосования */
   voteChat: boolean
   /** сообщения чата, которые игрок мог прочитать до этого (вышел и вернулся, или пришёл зрителем) */
-  history?: { type: number, text: string, from?: string, anonymous?: boolean }[]
+  history?: { type: number, text: string, from?: string, anonymous?: boolean, target?: string }[]
   /** ты смотришь игру со стороны: писать и ходить нельзя */
   spectator?: boolean
   /** сколько человек в командах и сколько живы (после начала игры) */
@@ -331,7 +334,7 @@ export type BafiaRoomEvent =
   | { kind: "joined", player: BafiaRoomPlayer }
   | { kind: "left", id: string }
   /** сообщение чата: `type` как в официальной игре, `from` - id автора (нет - от игры), `anonymous` - без ника и фото */
-  | { kind: "message", type: number, text: string, from?: string, anonymous?: boolean }
+  | { kind: "message", type: number, text: string, from?: string, anonymous?: boolean, /** цель события (кого выгоняют) */ target?: string }
   /** этап сменился; `roleCounts` - сколько игроков каждой роли в игре (после начала) */
   | { kind: "phase", status: 0 | 3 | 4, dayTime: number, timer: number, roleCounts?: Record<number, number> }
   | { kind: "role", role: number }
@@ -340,6 +343,10 @@ export type BafiaRoomEvent =
   | { kind: "check", target: string, role: number }
   | { kind: "death", id: string, role?: number }
   | { kind: "timer", timer: number }
+  /** идёт голосование за исключение игрока: сколько секунд осталось; `timer` 0 - голосование закончилось */
+  | { kind: "kickTimer", timer: number }
+  /** тебя выгнали из комнаты */
+  | { kind: "kicked" }
   /** сколько человек в каждой команде и сколько из них живы (как в игре) */
   | { kind: "stat", mafiaAll: number, mafiaAlive: number, civilianAll: number, civilianAlive: number }
   /** сколько голосов набрал каждый игрок в дневном голосовании (у кого нет голосов - не указан) */
@@ -506,6 +513,8 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "roomStart": return { t: "roomStart", n };
     case "roomClose": return { t: "roomClose", n };
     case "roomExtend": return { t: "roomExtend", n };
+    case "roomKick": return text(value.target, BAFIA_LIMITS.id) && clean(value.target) ? { t: "roomKick", n, target: value.target } : undefined;
+    case "roomVoteKick": return typeof value.vote == "boolean" ? { t: "roomVoteKick", n, vote: value.vote } : undefined;
     case "roomCreate": return isRecord(value.config) ? { t: "roomCreate", n, config: value.config } : undefined;
     case "roomJoin": return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "roomJoin", n, id: value.id, ...(typeof value.password == "string" && value.password.length <= 40 ? { password: value.password } : {}) } : undefined;
     case "roomAct": return Array.isArray(value.targets) && value.targets.length <= 2 && value.targets.every(id => text(id, BAFIA_LIMITS.id) && clean(id)) ? { t: "roomAct", n, targets: value.targets as string[] } : undefined;

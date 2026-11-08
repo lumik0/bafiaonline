@@ -253,13 +253,15 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   roomWatch(id: string, password?: string) { return this.joined({ t: "roomWatch", id, ...(password ? { password } : {}) }); }
   roomJoin(id: string, password?: string) { return this.joined({ t: "roomJoin", id, ...(password ? { password } : {}) }); }
 
-  private async roomCall(message: { t: "roomLeave" } | { t: "roomExtend" } | { t: "roomClose" } | { t: "roomStart" } | { t: "roomAct", targets: string[] } | { t: "roomBomb", target: string } | { t: "roomChat", text: string }): Promise<{ ok: boolean, reason?: string }> {
+  private async roomCall(message: { t: "roomLeave" } | { t: "roomKick", target: string } | { t: "roomVoteKick", vote: boolean } | { t: "roomExtend" } | { t: "roomClose" } | { t: "roomStart" } | { t: "roomAct", targets: string[] } | { t: "roomBomb", target: string } | { t: "roomChat", text: string }): Promise<{ ok: boolean, reason?: string }> {
     if(!this.ready) return { ok: false, reason: "offline" };
     const answer = await this.request(message);
     return answer?.t == "ok" ? { ok: true } : { ok: false, reason: answer?.t == "error" ? answer.reason : "offline" };
   }
 
   roomLeave() { return this.roomCall({ t: "roomLeave" }); }
+  roomKick(target: string) { return this.roomCall({ t: "roomKick", target }); }
+  roomVoteKick(vote: boolean) { return this.roomCall({ t: "roomVoteKick", vote }); }
   roomExtend() { return this.roomCall({ t: "roomExtend" }); }
   roomClose() { return this.roomCall({ t: "roomClose" }); }
   roomStart() { return this.roomCall({ t: "roomStart" }); }
@@ -1021,7 +1023,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   private adapterFor(joined: { room: BafiaRoomInfo, you: string, state: BafiaRoomState }): BafiaRoomAdapter {
     const link = this.link!;
     const adapter = new BafiaRoomAdapter({
-      act: targets => link.roomAct(targets), bomb: target => link.roomBomb(target), chat: text => link.roomChat(text), leave: () => link.roomLeave(),
+      act: targets => link.roomAct(targets), bomb: target => link.roomBomb(target), chat: text => link.roomChat(text), leave: () => link.roomLeave(), kick: target => link.roomKick(target), voteKick: vote => link.roomVoteKick(vote),
       subscribe: (room, onEvents, onClosed) => link.subscribeRoom(room, onEvents, onClosed)
     }, joined.room, joined.you, joined.state);
     adapter.onClosed = () => { if(this.activeRoom === adapter) this.activeRoom = undefined; };

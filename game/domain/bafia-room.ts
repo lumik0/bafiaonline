@@ -10,6 +10,8 @@ export interface BafiaRoomLink {
   bomb(target: string): Promise<{ ok: boolean, reason?: string }>
   chat(text: string): Promise<{ ok: boolean, reason?: string }>
   leave(): Promise<unknown>
+  kick(target: string): Promise<{ ok: boolean, reason?: string }>
+  voteKick(vote: boolean): Promise<{ ok: boolean, reason?: string }>
   /** подписка на события этой комнаты и на её закрытие; возвращает отписку */
   subscribe(room: string, onEvents: (events: BafiaRoomEvent[]) => void, onClosed: () => void): () => void
 }
@@ -150,9 +152,16 @@ export class BafiaRoomAdapter {
           break;
         case "message": {
           const user = event.anonymous ? undefined : this.user(event.from);
-          this.deliver({ ty: "m", m: { tx: event.text, t: event.type, ...(user ? { uu: user } : {}) } });
+          const target = this.user(event.target);
+          this.deliver({ ty: "m", m: { tx: event.text, t: event.type, ...(user ? { uu: user } : {}), ...(target ? { u: { "0": target } } : {}) } });
           break;
         }
+        case "kickTimer": this.deliver({ ty: "kt", t: event.timer }); break;
+        case "kicked":
+          // тебя выгнали: игра возвращает в список комнат
+          this.deliver({ ty: "ukd" });
+          this.close();
+          break;
         case "phase": {
           const starting = this.status == 0 && event.status == 3;
           this.status = event.status;
@@ -225,7 +234,8 @@ export class BafiaRoomAdapter {
         // прежний чат комнаты: вышел и вернулся, или пришёл зрителем
         for(const message of this.snapshot.history ?? []) {
           const user = message.anonymous ? undefined : this.user(message.from);
-          this.deliver({ ty: "m", m: { tx: message.text, t: message.type, ...(user ? { uu: user } : {}) } });
+          const target = this.user(message.target);
+          this.deliver({ ty: "m", m: { tx: message.text, t: message.type, ...(user ? { uu: user } : {}), ...(target ? { u: { "0": target } } : {}) } });
         }
         const stat = this.snapshot.stat;
         if(stat) this.deliver({ ty: "ps", m: stat.mafiaAlive, ma: stat.mafiaAll, c: stat.civilianAlive, ca: stat.civilianAll });
@@ -233,6 +243,8 @@ export class BafiaRoomAdapter {
       case "roleAction": return void this.action(String(data.playerObjectId ?? ""));
       case "sendRoomMessage": return void this.link.chat(String((data.message as { text?: unknown } | undefined)?.text ?? ""));
       case "leaveRoom": return void this.leave();
+      case "kickUser": return void this.link.kick(String(data.playerObjectId ?? ""));
+      case "voteKick": return void this.link.voteKick(data.vote === true);
     }
   }
 

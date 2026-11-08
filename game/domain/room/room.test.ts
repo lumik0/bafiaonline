@@ -175,26 +175,35 @@ describe("действия по ролям", () => {
     expect(state.actionFor(state.playerBy("p4")!)).toBeUndefined();
   });
 
-  test("рулетка: днём голос только за следующего живого по кругу, мафия ночью не убивает, остальные роли как обычно", () => {
+  test("обычная рулетка: мафия ночью не убивает, а днём голосовать можно за кого угодно (у каждого свой выбор)", () => {
+    const civilian = startGame(Role.Civilian, 3, "Рулетка");
+    expect(Object.entries(actions(civilian)).filter(([, action]) => action)).toHaveLength(7);
+    const mafiaNight = startGame(Role.Mafia, 1, "Рулетка");
+    expect(Object.values(actions(mafiaNight)).every(action => action === undefined)).toBe(true);
+    const mafiaDay = startGame(Role.Mafia, 3, "Рулетка");
+    expect(Object.entries(actions(mafiaDay)).filter(([, action]) => action)).toHaveLength(7);
+  });
+
+  test("«Позор мафии 2.0»: днём голос только за следующего живого по кругу, мафия ночью не убивает, остальные роли как обычно", () => {
     for(const title of ["Рулетка", "ПОЗОР МАФИИ 2.0 ночь", "играем в рулетка!"]) expect(isRoulette(title)).toBe(true);
     for(const title of ["Позор мафии", "Тест", undefined]) expect(isRoulette(title)).toBe(false);
 
-    const civilian = startGame(Role.Civilian, 3, "Рулетка");
+    const civilian = startGame(Role.Civilian, 3, "Позор мафии 2.0");
     expect(Object.entries(actions(civilian)).filter(([, action]) => action).map(([id]) => id)).toEqual(["p2"]);
     civilian.applyPlayersData([{ playerObjectId: "p2", alive: false }]);
     expect(Object.entries(actions(civilian)).filter(([, action]) => action).map(([id]) => id)).toEqual(["p3"]);
 
     // мафия: днём тоже по кругу, ночью никого
-    const mafia = startGame(Role.Mafia, 1, "Рулетка");
+    const mafia = startGame(Role.Mafia, 1, "Позор мафии 2.0");
     expect(Object.values(actions(mafia)).every(action => action === undefined)).toBe(true);
-    const mafiaDay = startGame(Role.Mafia, 3, "Рулетка");
+    const mafiaDay = startGame(Role.Mafia, 3, "Позор мафии 2.0");
     expect(actions(mafiaDay)["p2"]).toBe("kill");
     expect(actions(mafiaDay)["p3"]).toBeUndefined();
 
     // доктор и шериф ночью ходят на кого угодно
-    const doctor = startGame(Role.Doctor, 1, "Рулетка");
+    const doctor = startGame(Role.Doctor, 1, "Позор мафии 2.0");
     expect(doctor.actionFor(doctor.playerBy("p5")!)).toBe("_2");
-    const sheriff = startGame(Role.Sheriff, 1, "Рулетка");
+    const sheriff = startGame(Role.Sheriff, 1, "Позор мафии 2.0");
     expect(sheriff.actionFor(sheriff.playerBy("p5")!)).toBe("check");
   });
 
@@ -211,21 +220,22 @@ describe("действия по ролям", () => {
     // я сам хост: голосую за кого угодно, мафия убивает ночью
     expect(voted(withHost(Role.Civilian, "p1", 3))).toHaveLength(7);
     expect(voted(withHost(Role.Mafia, "p1", 1))).toHaveLength(7);
-    // обычная рулетка: хост в круге, правила на всех
-    expect(voted(withHost(Role.Civilian, "p2", 3, "Рулетка"))).toEqual(["p2"]);
-    expect(voted(withHost(Role.Civilian, "p1", 3, "Рулетка"))).toEqual(["p2"]);
+    // обычная рулетка: хост играет как все, днём голосуют за кого угодно, мафия ночью не убивает
+    expect(voted(withHost(Role.Civilian, "p2", 3, "Рулетка"))).toHaveLength(7);
+    expect(voted(withHost(Role.Civilian, "p1", 3, "Рулетка"))).toHaveLength(7);
     expect(voted(withHost(Role.Mafia, "p1", 1, "Рулетка"))).toEqual([]);
   });
 
-  test("рулетка: авто-клик в меню игрока - мирному и мафии только на «своего», ролям с ночным ходом на любого, хосту «Позора мафии 2.0» без ограничений, вне рулетки всегда", () => {
+  test("«Позор мафии 2.0»: авто-клик в меню игрока - мирному и мафии только на «своего», ролям с ночным ходом на любого, хосту без ограничений; в обычной рулетке и вне рулетки на любого", () => {
     const allowed = (state: RoomState) => state.players.slice(1).filter(player => state.autoClickAllowed(player)).map(player => player.playerObjectId);
-    expect(allowed(startGame(Role.Civilian, 3, "Рулетка"))).toEqual(["p2"]);
-    expect(allowed(startGame(Role.Mafia, 1, "Рулетка"))).toEqual(["p2"]);
-    expect(allowed(startGame(Role.Doctor, 1, "Рулетка"))).toHaveLength(7);
-    expect(allowed(startGame(Role.Sheriff, 1, "Рулетка"))).toHaveLength(7);
+    expect(allowed(startGame(Role.Civilian, 3, "Позор мафии 2.0"))).toEqual(["p2"]);
+    expect(allowed(startGame(Role.Mafia, 1, "Позор мафии 2.0"))).toEqual(["p2"]);
+    expect(allowed(startGame(Role.Doctor, 1, "Позор мафии 2.0"))).toHaveLength(7);
+    expect(allowed(startGame(Role.Sheriff, 1, "Позор мафии 2.0"))).toHaveLength(7);
+    expect(allowed(startGame(Role.Civilian, 3, "Рулетка"))).toHaveLength(7);
     expect(allowed(startGame(Role.Civilian, 3, "Тест"))).toHaveLength(7);
 
-    const civilian = startGame(Role.Civilian, 3, "Рулетка");
+    const civilian = startGame(Role.Civilian, 3, "Позор мафии 2.0");
     civilian.applyPlayersData([{ playerObjectId: "p2", alive: false }]);
     expect(allowed(civilian)).toEqual(["p3"]);                      // умер «свой» - следующий живой
 
@@ -237,6 +247,16 @@ describe("действия по ролям", () => {
     };
     expect(allowed(withHost("p2"))).toEqual(["p3"]);                // хост не участвует: «свой» - следующий после него
     expect(allowed(withHost("p1"))).toHaveLength(7);               // я сам хост: правил нет
+  });
+
+  test("в комнате с «рулетка» в названии переключатель есть и выключает правила рулетки; без такого названия переключателя нет", () => {
+    const on = startGame(Role.Mafia, 1, "Рулетка");
+    expect(on.rouletteByTitle).toBe(true);
+    expect(Object.values(actions(on)).every(action => action === undefined)).toBe(true);        // мафия ночью не убивает
+    on.rouletteOff = true;
+    expect(on.roulette).toBe(false);
+    expect(Object.entries(actions(on)).filter(([, action]) => action)).toHaveLength(7);           // выключили: убивает как обычно
+    expect(startGame(Role.Mafia, 1, "Тест").rouletteByTitle).toBe(false);
   });
 
   test("рулетка: порядок по кругу пропускает мёртвых", () => {

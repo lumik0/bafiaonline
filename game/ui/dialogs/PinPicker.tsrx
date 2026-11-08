@@ -6,6 +6,13 @@ function PinItem({ ctx, id, title, on, choose }: { ctx: GameContext, id: string,
 	const [src, setSrc] = createSignal("");
 	onMount(() => void ctx.bafia.gif(id).then(item => { if(item) void ctx.bafia.images.load(item.url).then(setSrc); }));
 	<>
+		<style>
+			.item { display: block; width: 100%; padding: 0; height: 80px; border-radius: 8px; overflow: hidden; background: rgba(128, 128, 128, .22); border: 2px solid transparent; }
+			.item.on { border-color: var(--accent); }
+			.item img, .item .wait { display: block; width: 100%; height: 100%; object-fit: cover; }
+			.wait { animation: pinwait 1.2s ease-in-out infinite; }
+			@keyframes pinwait { 50% { opacity: .45; } }
+		</style>
 		<button class={on ? "item on" : "item"} onClick={choose} title={title || id}>
 			@if (src()) {
 				<img src={src()} alt="" referrerpolicy="no-referrer" />
@@ -24,11 +31,6 @@ export function PinPicker({ ctx, current, choose, close }: { ctx: GameContext, c
 		<style>
 			.hint { margin: 0 0 10px; font-size: 13px; opacity: .8; }
 			.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; max-height: 50vh; overflow-y: auto; }
-			.item { padding: 0; height: 80px; border-radius: 8px; overflow: hidden; background: rgba(128, 128, 128, .22); border: 2px solid transparent; }
-			.item.on { border-color: var(--accent); }
-			.item img, .item .wait { display: block; width: 100%; height: 100%; object-fit: cover; }
-			.wait { animation: pinwait 1.2s ease-in-out infinite; }
-			@keyframes pinwait { 50% { opacity: .45; } }
 			.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 		</style>
 		@if (list().length) {

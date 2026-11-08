@@ -24,6 +24,8 @@ async function setup(state = lobby(), you = "p2") {
     bomb: async target => { calls.push("bomb " + target); return { ok: true }; },
     chat: async text => { calls.push("chat " + text); return { ok: true }; },
     leave: async () => { calls.push("leave"); return { ok: true }; },
+    kick: async target => { calls.push("kick " + target); return { ok: true }; },
+    voteKick: async vote => { calls.push("voteKick " + vote); return { ok: true }; },
     subscribe: (room, onEvents, onClosed) => { listeners.push({ onEvents, onClosed }); return () => { listeners.length = 0; }; }
   };
   const adapter = new BafiaRoomAdapter(link, info, you, state);

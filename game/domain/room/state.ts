@@ -350,7 +350,8 @@ export class RoomState extends Events<{ change: () => void }> {
     if(!action && day == 3) action = "kill";
     // рулетка: голос только за следующего живого игрока
     if(this.roulette && action == "kill" && day == 3 && target.playerObjectId == host) return undefined;
-    if(roulette && action == "kill" && day == 3 && rouletteTarget(this.players, me.playerObjectId, host)?.playerObjectId != target.playerObjectId) return undefined;
+    // голос только за следующего по кругу - в «Позоре мафии 2.0»; в обычной рулетке днём можно голосовать за кого угодно
+    if(roulette && isHostFree(this.settings.title) && action == "kill" && day == 3 && rouletteTarget(this.players, me.playerObjectId, host)?.playerObjectId != target.playerObjectId) return undefined;
     if(!action) return undefined;
 
     let used = day < 2 ? me.isNightActionUsed : me.isDayActionUsed;
@@ -363,16 +364,22 @@ export class RoomState extends Events<{ change: () => void }> {
   }
 
   /** комната в режиме «Рулетка» */
-  get roulette(): boolean { return isRoulette(this.settings.title); }
+  get roulette(): boolean { return !this.rouletteOff && isRoulette(this.settings.title); }
+
+  /** у комнаты название рулетки (режим можно выключить только у себя в настройках комнаты) */
+  get rouletteByTitle(): boolean { return isRoulette(this.settings.title); }
+
+  /** игрок выключил режим рулетки у себя: правила рулетки к нему не применяются */
+  rouletteOff = false;
 
   /**
-   * можно ли в меню игрока включить на него авто-клик. В рулетке тем, у кого нет ходов, кроме голосования (мирный, мафия: она ночью не убивает),
+   * можно ли в меню игрока включить на него авто-клик. В «Позоре мафии 2.0» тем, у кого нет ходов, кроме голосования (мирный, мафия: она ночью не убивает),
    * авто-клик разрешён только на «своего» - следующего за ним живого игрока; у ролей с ночным ходом ограничения нет, голосование всё равно идёт по кругу.
-   * Хост «Позора мафии 2.0» и вне рулетки - без ограничений
+   * Хост «Позора мафии 2.0», обычная рулетка (голосовать можно за кого угодно) и вне рулетки - без ограничений
    */
   autoClickAllowed(target: GamePlayer): boolean {
     const me = this.me;
-    if(!this.roulette || !me) return true;
+    if(!this.roulette || !isHostFree(this.settings.title) || !me) return true;
     const host = this.rouletteHost;
     if(me.playerObjectId == host) return true;
     if(target.playerObjectId == host) return false;

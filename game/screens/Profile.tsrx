@@ -70,8 +70,12 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	const canKick = !!(mySession && room && room.id == mySession.roomId && !isMe && !mySession.replay && mySession.state.phase == "registration");
 	const kick = async () => {
 		if(!await ctx.dialogs.confirm("Начать голосование, чтобы выгнать этого игрока из комнаты?", { yes: "Выгнать" })) return;
-		mySession!.kick(player.playerObjectId ?? playerObjectId);
+		// сначала закрываем свои окна, и только потом просим сервер начать голосование: его окно открывается сразу, и, пока «назад» браузера
+		// ещё разбирал закрытие предыдущих окон, лишняя запись истории могла быть принята за нажатие «назад» и выбросить из комнаты
+		const target = player.playerObjectId ?? playerObjectId;
 		close();
+		await new Promise(resolve => setTimeout(resolve, 400));
+		mySession!.kick(target);
 	};
 	const decorations = normalizeDecorations(profile.decorations);
 	const colors = profileColors(decorations);
