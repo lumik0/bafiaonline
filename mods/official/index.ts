@@ -9,19 +9,22 @@ mod.menu.add("room", {
   items: room => [
     { id: "join", label: "Зайти" },
     { id: "wait", label: `Зайти, когда будет ${room.maxPlayers - 1} игроков` },
-    { id: "copy", label: "Скопировать id комнаты" }
+    { id: "copy", label: "Скопировать id комнаты" },
+    { id: "rehost", label: "Рехост" }
   ],
   select(id, room) {
     if(id == "join") void mod.rooms.enter(room.id);
     else if(id == "wait") void mod.rooms.waitAndJoin(room.id);
     else if(id == "copy") void mod.clipboard.write(room.id);
+    else if(id == "rehost") void mod.rooms.rehost(room.id);
   }
 });
 
 // --- настройки комнаты (шестерёнка в шапке) и кнопки в окне «Игра окончена» ---
 
 mod.menu.add("roomSettings", {
-  items: () => [{ id: "rehost", label: "Рехост" }],
+  // пока идёт игра и ты в ней, рехост недоступен
+  items: room => [{ id: "rehost", label: "Рехост", disabled: !!room.playing }],
   select(id) {
     if(id == "rehost") void mod.room.rehost();
   }

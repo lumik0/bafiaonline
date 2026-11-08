@@ -28,7 +28,7 @@ async function setup(files = new MemoryFileStore(), fetchText?: (url: string) =>
   const manager = new ModManager({
     client, files, theme, user: new User(), nav, fetchText, notify: o => notes.push(`${o.source}: ${o.title}${o.text ? " | " + o.text : ""}`),
     alert: (title, text) => { notes.push(`${title}: ${text}`); },
-    actions: { enterRoom: id => { notes.push("enter " + id); }, waitAndJoin: id => { notes.push("wait " + id); }, rehostRoom: async() => { notes.push("rehost"); }, openProfile: id => { notes.push("profile " + id); } },
+    actions: { enterRoom: id => { notes.push("enter " + id); }, waitAndJoin: id => { notes.push("wait " + id); }, rehostRoom: async() => { notes.push("rehost"); }, rehostListed: async id => { notes.push("rehost " + id); }, openProfile: id => { notes.push("profile " + id); } },
     builtIn,
     spawn: spawnInProcess
   });

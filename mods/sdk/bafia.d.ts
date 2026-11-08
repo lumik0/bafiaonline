@@ -96,6 +96,8 @@ export interface RoomInfoData {
   minLevel: number
   vip: boolean
   roles: number[]
+  /** идёт игра, и ты в ней играешь: выйти из комнаты и создать её заново нельзя */
+  playing: boolean
   /** сервер хоста не сообщает: это первый игрок комнаты по порядку */
   host?: { playerObjectId: string, username: string }
 }
@@ -125,6 +127,8 @@ export interface MenuTargets {
 export interface MenuItem {
   id: string
   label: string
+  /** пункт виден, но нажать его нельзя */
+  disabled?: boolean
 }
 
 /** профиль игрока (чужой или свой), который открыт в окне */
@@ -210,6 +214,8 @@ export interface Mod {
     enter(roomId: string): Promise<void>
     /** rooms:join - ждать свободного места и зайти, когда оно появится */
     waitAndJoin(roomId: string): Promise<void>
+    /** rooms:join - создать комнату с такими же настройками, как у этой комнаты из списка (пароль не копируется) */
+    rehost(roomId: string): Promise<void>
   }
   clipboard: {
     /** clipboard */

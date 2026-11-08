@@ -63,6 +63,7 @@ export interface ModDeps {
     waitAndJoin(roomId: string): void | Promise<void>
     /** выйти из комнаты и создать такую же заново */
     rehostRoom(session: RoomSession): Promise<void>
+    rehostListed(roomId: string): Promise<void>
     openProfile(playerObjectId: string): void
   }
   /** загрузка текста по https для проверки и скачивания обновлений; в тестах подставляется заглушка */
@@ -418,6 +419,7 @@ export class ModManager extends Events<{ change: () => void }> {
       roomRehost: () => this.deps.actions.rehostRoom(this.needRoom()),
       profileOpen: id => this.deps.actions.openProfile(id),
       roomsEnter: id => void this.deps.actions.enterRoom(id),
+      roomsRehost: id => void this.deps.actions.rehostListed(id),
       roomsWaitAndJoin: id => void this.deps.actions.waitAndJoin(id),
       clipboardWrite: async text => { await (this.deps.writeClipboard ?? copyText)(text); },
       uiDialog: (modName, title, text) => void this.deps.alert(title ?? modName, text)

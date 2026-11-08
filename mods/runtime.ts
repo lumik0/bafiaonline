@@ -67,7 +67,8 @@ export function workerMain(scope: any, granted: string[] = []) {
     net: { fetch: (url: string) => call("net.fetch", url) },
     rooms: {
       enter: (id: string) => call("rooms.enter", id),
-      waitAndJoin: (id: string) => call("rooms.waitAndJoin", id)
+      waitAndJoin: (id: string) => call("rooms.waitAndJoin", id),
+      rehost: (id: string) => call("rooms.rehost", id)
     },
     clipboard: { write: (text: string) => call("clipboard.write", text) },
     menu: {

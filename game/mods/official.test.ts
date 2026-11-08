@@ -31,7 +31,7 @@ async function setup(files = new MemoryFileStore()) {
     client, files, user, nav: new Navigator<Routes>(), builtIn: [officialMod], spawn: spawnInProcess,
     theme: new ThemeManager({ style: { setProperty() {}, removeProperty() {} } }),
     notify: () => {}, alert: (title, text) => { log.push(`${title}|${text}`); },
-    actions: { enterRoom: id => { log.push("enter " + id); }, waitAndJoin: id => { log.push("wait " + id); }, rehostRoom: async() => { log.push("rehost"); }, openProfile: id => { log.push("profile " + id); } },
+    actions: { enterRoom: id => { log.push("enter " + id); }, waitAndJoin: id => { log.push("wait " + id); }, rehostRoom: async() => { log.push("rehost"); }, rehostListed: async id => { log.push("rehost " + id); }, openProfile: id => { log.push("profile " + id); } },
     writeClipboard: async text => { log.push("copy " + text); }
   });
   await manager.start();
@@ -78,14 +78,15 @@ describe("официальный мод", () => {
     expect(mod.granted).toContain("profile:read");
   });
 
-  test("меню комнаты: зайти, зайти когда освободится место, скопировать id", async() => {
+  test("меню комнаты: зайти, зайти когда освободится место, скопировать id, рехост (всегда доступен)", async() => {
     const { manager, log } = await setup();
     const entries = await manager.menuItems("room", room);
-    expect(entries.map(entry => entry.label)).toEqual(["Зайти", "Зайти, когда будет 20 игроков", "Скопировать id комнаты"]);
+    expect(entries.map(entry => entry.label)).toEqual(["Зайти", "Зайти, когда будет 20 игроков", "Скопировать id комнаты", "Рехост"]);
+    expect(entries.every(entry => !entry.disabled)).toBe(true);
 
     for(const entry of entries) manager.selectMenu(entry, "room", room);
     await tick(4);
-    expect(log).toEqual(["enter r1", "wait r1", "copy r1"]);
+    expect(log).toEqual(["enter r1", "wait r1", "copy r1", "rehost r1"]);
   });
 
   test("профиль: расширенная статистика, кнопка винрейта открывает окно с подсказкой", async() => {
@@ -116,6 +117,10 @@ describe("настройки комнаты и конец игры (официа
 
     const settings = await manager.menuItems("roomSettings", info);
     expect(settings.map(entry => entry.label)).toEqual(["Рехост"]);
+    expect(settings[0]!.disabled).toBeUndefined();
+    // идёт игра, и ты в ней: пункт виден, но не активен
+    const playing = await manager.menuItems("roomSettings", { ...info, playing: true });
+    expect(playing.map(entry => [entry.label, entry.disabled])).toEqual([["Рехост", true]]);
 
     const over = await manager.menuItems("gameOver", { ...info, winner: "mafia", won: false });
     expect(over.map(entry => entry.label)).toEqual(["Профиль хоста", "Захостить"]);

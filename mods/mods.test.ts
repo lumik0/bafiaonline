@@ -40,6 +40,7 @@ function setup(run: (mod: any) => void, granted: string[], manifest: Partial<Ret
     themeClear: () => {},
     fetchText: async url => "ответ " + url,
     roomsEnter: id => { calls.push(["enter", id]); },
+    roomsRehost: id => { calls.push(["rehostListed", id]); },
     roomsWaitAndJoin: id => { calls.push(["wait", id]); },
     clipboardWrite: async text => { calls.push(["copy", text]); },
     uiDialog: (name, title, text) => { calls.push(["dialog", name, title, text]); }

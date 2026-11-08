@@ -234,3 +234,15 @@ describe("RoomsList", () => {
     expect(await third.done).toBe("cancelled");
   });
 });
+
+describe("рехост", () => {
+  test("в комнате недоступен, пока идёт игра и ты в ней; до игры, после игры и в просмотре - можно", async() => {
+    const { rehostBlocked } = await import("./rehost");
+    const session = (status: number, hasMe: boolean, replay = false) => ({ replay, state: { phase: status == 3 ? "game" : status == 4 ? "finished" : "registration", me: hasMe ? {} : undefined } }) as never;
+    expect(rehostBlocked(session(3, true))).toBe(true);
+    expect(rehostBlocked(session(3, false))).toBe(false);   // смотришь со стороны
+    expect(rehostBlocked(session(0, true))).toBe(false);
+    expect(rehostBlocked(session(4, true))).toBe(false);
+    expect(rehostBlocked(session(3, true, true))).toBe(false);
+  });
+});

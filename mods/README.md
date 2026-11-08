@@ -100,6 +100,7 @@ mod.profile.section({
 });
 
 await mod.rooms.enter("roomId");          // rooms:join - как нажатие на комнату: спросит пароль
+await mod.rooms.rehost("roomId");         // rooms:join - создать комнату с такими же настройками (пароль не копируется)
 await mod.rooms.waitAndJoin("roomId");    // зайти, когда освободится место
 ```
 

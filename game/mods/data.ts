@@ -1,3 +1,4 @@
+import { rehostBlocked } from "../domain/rooms/rehost";
 import type { PlayerProfile } from "../domain/profile";
 import type { RoomItem } from "../domain/rooms/room";
 import type { PlayerView } from "../domain/room/views";
@@ -28,7 +29,7 @@ export const profileData = (profile: PlayerProfile, playerObjectId: string, isMe
 
 export const roomInfoData = (session: RoomSession) => {
   const { settings, host } = session.state;
-  return { id: settings.id, title: settings.title, minPlayers: settings.minPlayers, maxPlayers: settings.maxPlayers, minLevel: settings.minLevel, vip: settings.vip, roles: settings.roles, host };
+  return { id: settings.id, title: settings.title, minPlayers: settings.minPlayers, maxPlayers: settings.maxPlayers, minLevel: settings.minLevel, vip: settings.vip, roles: settings.roles, host, playing: rehostBlocked(session) };
 };
 
 export const gameOverData = (session: RoomSession) => {

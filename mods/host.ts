@@ -15,6 +15,8 @@ export type PanelBlock = { type: "text", text: string } | { type: "button", id: 
 export interface MenuItem {
   id: string
   label: string
+  /** пункт виден, но нажать его нельзя */
+  disabled?: boolean
 }
 
 /** строка, которую мод добавил в профиль игрока; `button` - кнопка справа от значения */
@@ -49,6 +51,7 @@ export interface ModBackend {
   /** запрос в интернет: домены уже проверены хостом */
   fetchText(url: string): Promise<string>
   roomsEnter(roomId: string): void
+  roomsRehost(roomId: string): void
   roomsWaitAndJoin(roomId: string): void
   clipboardWrite(text: string): Promise<void>
   uiDialog(modName: string, title: string | undefined, text: string): void
@@ -149,7 +152,7 @@ export class ModRuntime {
     const answer = await this.ask({ what: "menu", target, data });
     const items: MenuItem[] = [];
     for(const item of (Array.isArray(answer) ? answer : []).slice(0, 12) as Record<string, unknown>[]) {
-      if(typeof item?.id == "string" && typeof item.label == "string" && item.id.length <= 40 && item.label.trim()) items.push({ id: item.id, label: item.label.slice(0, 80) });
+      if(typeof item?.id == "string" && typeof item.label == "string" && item.id.length <= 40 && item.label.trim()) items.push({ id: item.id, label: item.label.slice(0, 80), ...(item.disabled === true ? { disabled: true } : {}) });
     }
     return items;
   }
@@ -331,9 +334,10 @@ export class ModRuntime {
         return backend.themeSet(manifest.id, first as Record<string, unknown>);
       case "theme.clear": return backend.themeClear(manifest.id);
       case "rooms.enter":
+      case "rooms.rehost":
       case "rooms.waitAndJoin": {
         if(typeof first != "string" || first.length > 64) throw new Error("Нужен id комнаты");
-        return method == "rooms.enter" ? backend.roomsEnter(first) : backend.roomsWaitAndJoin(first);
+        return method == "rooms.enter" ? backend.roomsEnter(first) : method == "rooms.rehost" ? backend.roomsRehost(first) : backend.roomsWaitAndJoin(first);
       }
       case "clipboard.write": return backend.clipboardWrite(needText());
       case "ui.dialog": {

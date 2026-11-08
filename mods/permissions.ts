@@ -75,6 +75,7 @@ export const methodPermissions = {
   "net.fetch": "network",
   "rooms.enter": "rooms:join",
   "rooms.waitAndJoin": "rooms:join",
+  "rooms.rehost": "rooms:join",
   "room.rehost": "rooms:join",
   "profile.open": "profile:read",
   "clipboard.write": "clipboard",

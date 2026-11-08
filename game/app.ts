@@ -22,7 +22,7 @@ import { isMobile } from "@common/utils/mobile";
 import { ModManager } from "./mods/manager";
 import { officialMod } from "./mods/official";
 import { bindBrowserBack } from "./ui/browser-back";
-import { rehostRoom } from "./domain/rooms/rehost";
+import { rehostListed, rehostRoom } from "./domain/rooms/rehost";
 import { resetPassword } from "./ui/reset-password";
 import { waitAndJoin } from "./ui/room-actions";
 import { ModsScreen } from "./screens/ModsScreen.tsrx";
@@ -129,6 +129,11 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
       },
       waitAndJoin: id => waitAndJoin(ctx, id),
       rehostRoom: session => rehostRoom(ctx, session),
+      rehostListed: async id => {
+        const room = ctx.rooms.get(id);
+        if(!room) throw new Error("Этой комнаты нет в списке");
+        await rehostListed(ctx, room);
+      },
       openProfile: id => ctx.openProfile(id)
     }
   });
