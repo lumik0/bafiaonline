@@ -2,6 +2,7 @@ import { createSignal, onMount } from "@common/ui";
 import { formatNumber } from "@common/utils/format";
 import { decorationName } from "../../domain/decorations";
 import { gameOverData } from "../../mods/data";
+import { waitForHostRoom } from "../room-actions";
 import type { MenuEntry } from "../../mods/manager";
 import type { RoomSession } from "../../domain/room/session";
 import type { GameContext } from "../../context";
@@ -35,7 +36,7 @@ export function GameOverDialog({ ctx, session, close }: { ctx: GameContext, sess
 			.chip small { font-size: 11px; font-weight: 400; opacity: .7; }
 			.reward { text-align: center; font-size: 14px; margin-bottom: 8px; }
 			.extra { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 12px; }
-			.buttons { display: flex; justify-content: center; }
+			.buttons { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
 		</style>
 		<div class="result">{data.winner ? WINNERS[data.winner] : "Игра окончена"}</div>
 		@if (data.won !== undefined) {
@@ -65,6 +66,11 @@ export function GameOverDialog({ ctx, session, close }: { ctx: GameContext, sess
 				<button onClick={() => { close(); ctx.mods.selectMenu(entry, "gameOver", data); }}>{entry.label}</button>
 			}
 		</div>
-		<div class="buttons"><button onClick={() => close()}>{"OK"}</button></div>
+		<div class="buttons">
+			@if (!session.replay) {
+				<button onClick={() => { close(); session.leave(); void waitForHostRoom(ctx, { id: session.roomId, title: session.state.settings.title, creator: session.state.settings.creator }); }}>{"Ждать новую комнату хоста"}</button>
+			}
+			<button onClick={() => close()}>{"OK"}</button>
+		</div>
 	</>
 }

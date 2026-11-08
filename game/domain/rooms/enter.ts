@@ -3,6 +3,8 @@ import { sessionDeps } from "../room/deps";
 import { RoomSession } from "../room/session";
 import type { RoomSettings } from "../room/state";
 import type { RoomItem } from "./room";
+import { md5salt } from "@common/utils/md5";
+import { forgetRoomPassword, rememberRoomPassword, savedRoomPassword } from "./passwords";
 import { joinProblems, type JoinResult } from "./rooms";
 import type { GameContext } from "../../context";
 
@@ -32,22 +34,34 @@ export function openRoom(ctx: GameContext, result: Extract<JoinResult, { status:
   else ctx.nav.push("room", { session });
 }
 
-/** зайти в комнату: спросить пароль и показать причину отказа */
+/**
+ * зайти в комнату: спросить пароль и показать причину отказа.
+ * Если в эту комнату уже входили с паролем, он сохранён и второй раз не спрашивается; перестал подходить - забываем и спрашиваем снова
+ */
 export async function enterRoom(ctx: GameContext, roomId: string, hasPassword: boolean): Promise<void> {
-  let password = "";
+  let hash = "";
+  let saved = false;
   if(hasPassword) {
-    password = (await ctx.dialogs.prompt({
-      title: "ВВЕСТИ ПАРОЛЬ", text: "Эта комната под замком\n\nПожалуйста, введи пароль", ok: "Применить", placeholder: "Пароль"
-    }))?.trim() ?? "";
-    if(!password) return;
+    hash = savedRoomPassword(ctx.settings, roomId) ?? "";
+    saved = !!hash;
+    if(!hash) {
+      const password = (await ctx.dialogs.prompt({
+        title: "ВВЕСТИ ПАРОЛЬ", text: "Эта комната под замком\n\nПожалуйста, введи пароль", ok: "Применить", placeholder: "Пароль"
+      }))?.trim() ?? "";
+      if(!password) return;
+      hash = md5salt(password);
+    }
   }
 
   try {
-    const result = await ctx.rooms.join(roomId, password);
+    const result = await ctx.rooms.joinHashed(roomId, hash);
     if(result.status == "ok") {
+      if(hash) rememberRoomPassword(ctx.settings, roomId, hash);
       openRoom(ctx, result, { fallbackId: roomId });
     } else if(result.status == "wrongPassword") {
-      await ctx.dialogs.alert(joinProblems.wrongPassword);
+      forgetRoomPassword(ctx.settings, roomId);
+      // сохранённый пароль устарел (хост сменил его): молча спрашиваем заново, а не ругаемся на пароль, который игрок не вводил
+      if(!saved) await ctx.dialogs.alert(joinProblems.wrongPassword);
       await enterRoom(ctx, roomId, true);
     } else {
       await ctx.dialogs.alert(joinProblems[result.status]);

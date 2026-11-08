@@ -1,6 +1,8 @@
 import { fromEvents } from "@common/ui";
 import { createSignal } from "@common/ui";
 import { openRoom } from "../domain/rooms/enter";
+import { rememberRoomPassword } from "../domain/rooms/passwords";
+import { md5salt } from "@common/utils/md5";
 import { joinProblems } from "../domain/rooms/rooms";
 import { AppBar } from "../ui/AppBar.tsrx";
 import type { GameContext } from "../context";
@@ -32,7 +34,11 @@ export function RoomCreationScreen({ ctx }: { ctx: GameContext }) @{
 				title: data.title, minPlayers: data.minPlayers, maxPlayers: data.maxPlayers, minLevel: data.minLevel,
 				selectedRoles: data.selectedRoles, password: data.password, vip: data.vip
 			});
-			if(result.status == "ok") openRoom(ctx, result, { replace: true });
+			if(result.status == "ok") {
+				// вышел и вернулся в свою комнату с паролем: заново вводить его не нужно
+				if(data.password && result.roomId) rememberRoomPassword(ctx.settings, result.roomId, md5salt(data.password));
+				openRoom(ctx, result, { replace: true });
+			}
 			else await ctx.dialogs.alert(joinProblems[result.status]);
 		} catch {
 			await ctx.dialogs.alert("Сервер не ответил. Попробуй ещё раз", { title: "Ошибка" });

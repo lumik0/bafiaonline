@@ -4,6 +4,8 @@ import { roomMenuData } from "../mods/data";
 import { matchesRoom } from "../domain/rooms/filter";
 import { orderRooms, type RoomItem } from "../domain/rooms/room";
 import { RoomCard } from "../ui/RoomCard.tsrx";
+import { titleMatches } from "../domain/rooms/title";
+import { waitForRoom } from "../ui/room-actions";
 import { AppBar } from "../ui/AppBar.tsrx";
 import { RoomFilterDialog } from "../ui/dialogs/RoomFilterDialog.tsrx";
 import { RoomSortDialog } from "../ui/dialogs/RoomSortDialog.tsrx";
@@ -21,6 +23,12 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 
 	onMount(() => list.open());
 	onCleanup(() => list.close());
+
+	/** ждать комнату с таким названием и зайти сразу, как только она появится (появившиеся раньше не считаются: на них можно просто нажать) */
+	const waitByTitle = async () => {
+		const title = (await ctx.dialogs.prompt({ title: "ЖДАТЬ КОМНАТУ", text: "Введи название (или его часть). Как только комната с таким названием появится, игра сразу в неё зайдёт.", placeholder: "Название комнаты", ok: "Ждать", validate: value => value.trim().length < 2 ? "Хотя бы 2 символа" : undefined }))?.trim();
+		if(title) await waitForRoom(ctx, `Ждём комнату «${title}»`, room => titleMatches(room, title));
+	};
 
 	const showPlayers = (room: RoomItem) => void ctx.dialogs.manager.open({ title: "ИГРОКИ В КОМНАТЕ", render: (close) => RoomPlayersDialog({ ctx, room, close }) });
 
@@ -50,6 +58,7 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 				<input placeholder="Поиск по названию" value={search()} onInput={(event) => setSearch(event.currentTarget.value)} />
 				<button onClick={() => void ctx.dialogs.manager.open({ title: "СОРТИРОВКА", render: (close) => RoomSortDialog({ ctx, close }) })}>{"Сортировка"}</button>
 				<button onClick={() => void ctx.dialogs.manager.open({ title: "ФИЛЬТР", render: (close) => RoomFilterDialog({ ctx, close }) })}>{"Фильтр"}{filter().enabled ? <span class="dot"></span> : null}</button>
+				<button onClick={() => void waitByTitle()} title="Зайти сразу, когда появится комната с названием">{"Ждать"}</button>
 				<button onClick={() => list.refresh()} aria-label="Обновить">{"↻"}</button>
 			</div>
 			<div class="list">

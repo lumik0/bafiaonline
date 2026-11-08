@@ -1,6 +1,6 @@
 import { fromEvents } from "@common/ui";
 import { longPress } from "@common/ui/long-press";
-import { roomRank, sortRoles, statusText, type RoomItem } from "../domain/rooms/room";
+import { roomRank, sortRoles, statusColor, statusText, type RoomItem } from "../domain/rooms/room";
 import type { GameContext } from "../context";
 
 const ROLE_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -53,7 +53,7 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 			<div class="head">
 				<img src={images().ranks[roomRank(room.minLevel)]} alt="" />
 				<span class="title" data-keep>{(room.hasPassword ? "🔒 " : "") + (room.vip ? "👑 " : "") + (room.title || "Комната игрока")}</span>
-				<span class="status" style={{ color: room.status == 0 ? "green" : "red" }}>{statusText(room.status)}</span>
+				<span class="status" style={{ color: statusColor(room.status) }}>{statusText(room.status)}</span>
 			</div>
 			<div class="bottom">
 				<div class="roles">

@@ -428,7 +428,7 @@ describe("Bafia", () => {
     return { bafia, settings, user, log, server, data };
   }
 
-  test("администратор выдал премиум: включается на лету, код запоминается; мусорные и просроченные не принимаются", async() => {
+  test("премиум пришёл без запроса: включается на лету, код запоминается; мусорные и просроченные не принимаются", async() => {
     const { bafia, data, server } = setup();
     await tick();
     expect(bafia.premiumUntil).toBeUndefined();

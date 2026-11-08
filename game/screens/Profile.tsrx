@@ -9,7 +9,6 @@ import { Lottie } from "../ui/Lottie.tsrx";
 import { PremiumBadge } from "../ui/PremiumBadge.tsrx";
 import { Marks } from "../ui/Marks.tsrx";
 import { avatarFrame, nickEffect, premiumFrame, themeBackground } from "../domain/premium-style";
-import { renderProfileCard, shareImage } from "../domain/profile-card";
 import { GifMessage } from "../ui/GifMessage.tsrx";
 import { AvatarView } from "../ui/dialogs/AvatarView.tsrx";
 import { animationOf, DecorationType, normalizeDecorations, nickStyle, photoRing, profileColors, readableOn } from "../domain/decorations";
@@ -113,19 +112,6 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 		if(!await ctx.dialogs.confirm(`Пожаловаться на ${kind == "banner" ? "баннер" : "аватарку"} этого игрока? Если жалоб будет несколько, картинка спрячется до проверки.`, { yes: "Пожаловаться", title: "ЖАЛОБА" })) return;
 		const result = await ctx.bafia.report(player.playerObjectId ?? playerObjectId, kind);
 		await ctx.dialogs.alert(result == "ok" ? "Спасибо, жалоба отправлена." : result == "slow-down" ? "Слишком много жалоб, попробуй завтра." : result == "nothing" ? "Этой картинки уже нет." : "Сервер Бафии сейчас недоступен.", { title: "Жалоба" });
-	};
-	/** визитка: картинка со статистикой, баннером и аватаркой для друзей */
-	const share = async () => {
-		const bg = background();
-		const blob = await renderProfileCard({
-			nick: player.username ?? "", status: look().status, level, games: player.playedGames ?? 0,
-			winsMafia: player.winsAsMafia ?? 0, winsPeaceful: player.winsAsPeaceful ?? 0,
-			background: theme() ? (/#[0-9a-f]{6}/gi.exec(theme()!.background) ? theme()!.background.match(/#[0-9a-f]{6}/gi)! : ["#444444"]) : [bg && /^#[0-9a-f]{6}/i.test(bg) ? bg.slice(0, 7) : "#f2f2f2"],
-			text: textColor(), banner: banner(), avatar: gifAvatar() ?? (player.photo ? `${PHOTO_BASE}/${player.photo}` : undefined)
-		});
-		if(!blob) return void await ctx.dialogs.alert("Не получилось нарисовать визитку.", { title: "Ошибка" });
-		ctx.bafia.track("feature:profileCard");
-		await shareImage(blob, `${player.username ?? "profile"}.png`);
 	};
 	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "" }]));
 	// ник в профиле приходит позже запроса: значки по нему запрашиваем, когда ник появился
@@ -259,7 +245,6 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				@if (ctx.bafia.enabled) {
 					<button onClick={() => void showNicks()}>{"История ников"}</button>
 				}
-				<button onClick={() => void share()}>{"Визитка"}</button>
 				@if (noteKey) {
 					<button onClick={() => void editNote()}>{note() ? "Изменить заметку" : "Заметка"}</button>
 				}

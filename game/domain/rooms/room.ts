@@ -102,7 +102,17 @@ export function orderRooms(rooms: readonly RoomItem[], rules: readonly SortRule[
   });
 }
 
-export const statusText = (status: number) => status == 0 ? "Регистрация" : status == 3 ? "Игра началась" : "Подготовка";
+/**
+ * статус комнаты в списке: 0 - регистрация, 1 - обратный отсчёт перед стартом (зайти ещё можно, но скоро начнётся),
+ * 2 - подготовка (зайти нельзя), 3 - игра идёт, 4 - игра закончилась
+ */
+export const statusText = (status: number) => status == 0 ? "Регистрация" : status == 1 ? "Скоро старт" : status == 2 ? "Подготовка" : status == 4 ? "Игра закончилась" : "Игра началась";
+
+/** набор ещё идёт (регистрация и обратный отсчёт): комната принимает игроков */
+export const isOpenStatus = (status: number) => status == 0 || status == 1;
+
+/** цвет статуса: зелёный - можно заходить, оранжевый - скоро старт, красный - нельзя */
+export const statusColor = (status: number) => status == 0 ? "green" : status == 1 ? "#d98200" : "red";
 
 /** порядок картинок ролей в карточке комнаты */
 export const roleOrder = [2, 7, 10, 11, 9, 5, 6, 8];

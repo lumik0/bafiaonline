@@ -97,6 +97,13 @@ describe("фильтр комнат", () => {
   test("условия фильтра", () => {
     expect(matchesRoom(room(), filter)).toBe(true);
     expect(matchesRoom(room({ status: 0 }), { ...filter, isRegistration: false })).toBe(false);
+    // обратный отсчёт (1) - это ещё набор; подготовка (2), игра (3) и конец (4) - уже началось
+    expect(matchesRoom(room({ status: 1 }), { ...filter, isRegistration: false })).toBe(false);
+    expect(matchesRoom(room({ status: 1 }), { ...filter, isStarted: false })).toBe(true);
+    for(const status of [2, 3, 4]) {
+      expect(matchesRoom(room({ status }), { ...filter, isStarted: false })).toBe(false);
+      expect(matchesRoom(room({ status }), { ...filter, isRegistration: false })).toBe(true);
+    }
     expect(matchesRoom(room({ minLevel: 12 }), filter)).toBe(false);
     expect(matchesRoom(room({ maxPlayers: 22 }), filter)).toBe(false);
     expect(matchesRoom(room({ hasPassword: true }), { ...filter, withoutPassword: true })).toBe(false);
@@ -232,6 +239,46 @@ describe("RoomsList", () => {
     const third = list.waitForSlot(room({ id: "r3" }), () => {});
     third.cancel();
     expect(await third.done).toBe("cancelled");
+  });
+});
+
+describe("статус комнаты", () => {
+  test("у каждого статуса своё название и цвет: отсчёт перед стартом и подготовка больше не путаются", async() => {
+    const { statusText, statusColor, isOpenStatus } = await import("./room");
+    expect([0, 1, 2, 3, 4].map(statusText)).toEqual(["Регистрация", "Скоро старт", "Подготовка", "Игра началась", "Игра закончилась"]);
+    expect([0, 1, 2, 3, 4].map(statusColor)).toEqual(["green", "#d98200", "red", "red", "red"]);
+    expect([0, 1, 2, 3, 4].map(isOpenStatus)).toEqual([true, true, false, false, false]);
+  });
+});
+
+describe("ожидание комнаты", () => {
+  test("заходит в первую новую комнату, подошедшую под условие; существующие считаются только если это разрешено; отмена", async() => {
+    const { network, list } = await setup();
+    const waiting = list.waitForRoom(item => item.title.includes("Мафия"));
+    network.last.receive({ ty: "add", rr: { o: "x1", tt: "Другая", mnl: 1, mnp: 5, mxp: 8, pn: 1, s: 0, sr: [] } });
+    network.last.receive({ ty: "add", rr: { o: "x2", tt: "Мафия клуб", mnl: 1, mnp: 5, mxp: 8, pn: 1, s: 0, sr: [] } });
+    network.last.receive({ ty: "add", rr: { o: "x3", tt: "Мафия 2", mnl: 1, mnp: 5, mxp: 8, pn: 1, s: 0, sr: [] } });
+    const found = await waiting.done;
+    expect(found != "cancelled" && found.id).toBe("x2");
+
+    // уже имеющаяся в списке комната: подходит только когда разрешено через existing
+    list.open();
+    network.last.receive({ ty: "rs", rs: [{ o: "old", tt: "Старая мафия", mnl: 1, mnp: 5, mxp: 8, pn: 3, s: 0, sr: [] }] });
+    const strict = list.waitForRoom(item => item.title.includes("мафия"));
+    const lenient = list.waitForRoom(item => item.title.includes("мафия"), item => item.title.includes("мафия") && item.status == 0);
+    const early = await lenient.done;
+    expect(early != "cancelled" && early.id).toBe("old");
+    strict.cancel();
+    expect(await strict.done).toBe("cancelled");
+    list.close();
+  });
+
+  test("название: без учёта регистра, части названия и лишних пробелов; пустое ничему не подходит", async() => {
+    const { titleMatches } = await import("./title");
+    expect(titleMatches({ title: "  Позор   Мафии 2.0 " }, "позор мафии")).toBe(true);
+    expect(titleMatches({ title: "Рулетка" }, "РУЛЕТ")).toBe(true);
+    expect(titleMatches({ title: "Рулетка" }, "мафия")).toBe(false);
+    expect(titleMatches({ title: "Рулетка" }, "   ")).toBe(false);
   });
 });
 

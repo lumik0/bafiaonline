@@ -224,7 +224,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(typeof message?.n != "number") return;
     // сообщение администратора приходит само, без запроса
     if(message.t == "notice") return this.announce(message.text, message.id, message.direct);
-    // администратор выдал премиум: включается на лету, код запоминается, чтобы вернуться и на новой установке
+    // премиум пришёл без запроса: включается на лету, код запоминается, чтобы вернуться и на новой установке
     if(message.t == "premium" && message.n === 0) return this.grantedPremium(message.until, message.code);
     this.pending.get(message.n)?.(message);
   }

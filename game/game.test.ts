@@ -640,6 +640,52 @@ describe("игра", () => {
     expect((game.ctx.nav.top!.params as { session: { roomId: string } }).session.roomId).toBe("r1");
   });
 
+  test("комната с паролем: в которую уже входил, второй раз пароль не спрашивается; перестал подходить - спрашивается снова без упрёка", async() => {
+    const { network, window, click, text, game } = await launch({ email: "a@b.c", password: "правильный" });
+    await tick(10);
+    const base = network.respond!;
+    let accepted = md5salt("секрет");
+    const entered: string[] = [];
+    network.respond = (packet, socket) => {
+      if(packet.ty == "acrl") socket.receive({ ty: "rs", rs: [{ o: "r2", tt: "Закрытая", mnl: 1, mnp: 5, mxp: 8, pn: 7, s: 0, pw: "hash", sr: [] }] });
+      else if(packet.ty == "re") { entered.push(String(packet.psw)); socket.receive(packet.psw == accepted ? { ty: "re", rr: { o: "r2" } } : { ty: "rpiw" }); }
+      else base(packet, socket);
+    };
+    click("Комнаты");
+    await tick(350);
+    const room = () => [...window.content.querySelectorAll<HTMLElement>(".room")].find(item => item.textContent?.includes("Закрытая"))!;
+
+    // первый раз: вводим пароль
+    room().click();
+    await tick();
+    expect(text()).toContain("Эта комната под замком");
+    window.content.querySelector<HTMLInputElement>("form input")!.value = "секрет";
+    window.content.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    await tick(20);
+    expect(game.ctx.nav.top?.name).toBe("room");
+    expect(game.ctx.settings.data.roomPasswords["r2"]?.hash).toBe(md5salt("секрет"));
+    expect(JSON.stringify(game.ctx.settings.data.roomPasswords)).not.toContain("секрет\"");   // сам пароль не хранится, только хеш
+
+    // вышли и зашли снова: пароль не спрашивается
+    game.ctx.nav.pop();
+    await tick(350);
+    room().click();
+    await tick(20);
+    expect(text()).not.toContain("Эта комната под замком");
+    expect(game.ctx.nav.top?.name).toBe("room");
+    expect(entered).toEqual([md5salt("секрет"), md5salt("секрет")]);
+
+    // хост сменил пароль: сохранённый не подходит, о нём молча забывают и просят новый
+    game.ctx.nav.pop();
+    await tick(350);
+    accepted = md5salt("новый");
+    room().click();
+    await tick(20);
+    expect(text()).not.toContain("Неправильный пароль");
+    expect(text()).toContain("Эта комната под замком");
+    expect(game.ctx.settings.data.roomPasswords["r2"]).toBeUndefined();
+  });
+
   test("создание комнаты: параметры и хеш пароля уходят на сервер, дальше - экран комнаты", async() => {
     const { network, window, click, text, game } = await launch({ email: "a@b.c", password: "правильный" });
     await tick(10);

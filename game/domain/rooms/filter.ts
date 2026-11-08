@@ -1,5 +1,5 @@
 import { JsonDocument, type FileStore } from "@common/storage";
-import { defaultSortRules, normalizeSortRules, type RoomItem, type SortRule } from "./room";
+import { defaultSortRules, isOpenStatus, normalizeSortRules, type RoomItem, type SortRule } from "./room";
 
 /** настройки фильтра комнат. Формат файла `/game/filter.json` - как в старой версии */
 export interface RoomFilter {
@@ -61,8 +61,9 @@ export function matchesRoom(room: RoomItem, filter: RoomFilter, search = ""): bo
   if(query && !room.title.toLowerCase().includes(query)) return false;
   if(!filter.enabled) return true;
 
-  if(room.status == 0 && !filter.isRegistration) return false;
-  if(room.status == 3 && !filter.isStarted) return false;
+  // «идёт регистрация» - набор (регистрация и обратный отсчёт), «игра началась» - подготовка, игра и конец
+  if(isOpenStatus(room.status) && !filter.isRegistration) return false;
+  if(!isOpenStatus(room.status) && !filter.isStarted) return false;
   if(room.minLevel < filter.minLvl || room.minLevel > filter.maxLvl) return false;
   if(room.minPlayers < filter.minPl || room.maxPlayers > filter.maxPl) return false;
   if(filter.vip && !room.vip) return false;

@@ -104,7 +104,12 @@ export class RoomsList extends Events<{ change: () => void }> {
   }
 
   async join(roomId: string, password = ""): Promise<JoinResult> {
-    const reply = await this.client.request("enterRoom", { password: password ? md5salt(password) : "", roomId }, ENTER_REPLIES, { timeout: 8000 });
+    return this.joinHashed(roomId, password ? md5salt(password) : "");
+  }
+
+  /** вход с готовым хешем пароля (запомненным при прошлом входе) */
+  async joinHashed(roomId: string, hash: string): Promise<JoinResult> {
+    const reply = await this.client.request("enterRoom", { password: hash, roomId }, ENTER_REPLIES, { timeout: 8000 });
     return toJoinResult(reply);
   }
 
@@ -136,6 +141,24 @@ export class RoomsList extends Events<{ change: () => void }> {
       }),
       this.client.on("roomStatusChanged", data => { if(data.roomId == room.id && data.status == 2) finish("started"); })
     ];
+    void done.then(() => handles.forEach(handle => handle.remove()));
+    return { done, cancel: () => finish("cancelled") };
+  }
+
+  /**
+   * ждёт новую комнату, подходящую под `match`, и сообщает её. Слушает события списка комнат, поэтому список должен быть открыт.
+   * `existing` - подходят ли и комнаты, уже имеющиеся в списке (когда они пришли: например, хост создал комнату, пока мы выходили)
+   */
+  waitForRoom(match: (room: RoomItem) => boolean, existing?: (room: RoomItem) => boolean): { done: Promise<RoomItem | "cancelled">, cancel(): void } {
+    let finish!: (result: RoomItem | "cancelled") => void;
+    const done = new Promise<RoomItem | "cancelled">(resolve => { finish = resolve; });
+    const handles: Handle[] = [
+      this.client.on("roomAdded", data => { const room = toRoom(data.room); if(room && match(room)) finish(room); }),
+      this.client.on("rooms", data => {
+        for(const info of data.rooms) { const room = toRoom(info); if(room && existing?.(room)) return finish(room); }
+      })
+    ];
+    for(const room of this.byId.values()) if(existing?.(room)) { finish(room); break; }
     void done.then(() => handles.forEach(handle => handle.remove()));
     return { done, cancel: () => finish("cancelled") };
   }
