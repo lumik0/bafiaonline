@@ -1,0 +1,12 @@
+{
+  "appId": "io.github.lumik0.bafiaonline",
+  "appName": "Бафия онлайн",
+  "webDir": "dist-app",
+  "backgroundColor": "#242424",
+  "server": {
+    "androidScheme": "http"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

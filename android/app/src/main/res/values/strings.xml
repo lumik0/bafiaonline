@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Бафия онлайн</string>
+    <string name="title_activity_main">Бафия онлайн</string>
+    <string name="package_name">io.github.lumik0.bafiaonline</string>
+    <string name="custom_url_scheme">io.github.lumik0.bafiaonline</string>
+</resources>
