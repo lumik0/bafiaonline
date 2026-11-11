@@ -293,9 +293,13 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 								<Toggle label="Показывать сообщение Ты умер" checked={data().game.showYouDiedMessage} onChange={(value) => flag("showYouDiedMessage", value)} />
 							</SettingRow>
 							<SettingRow label="Очищать чат при старте игры" hint="Сообщения регистрации пропадают, когда игра началась">
-								<Toggle label="Играть GIF-аватарки в чате (может лагать)" checked={data().game.animateChatAvatars === true} onChange={(value) => flag("animateChatAvatars", value)} />
-								<Toggle label="Солнце и луна в панели игры" checked={data().game.skyAnimation !== false} onChange={(value) => flag("skyAnimation", value)} />
 								<Toggle label="Удалять сообщения после начала игры" checked={data().game.clearMessages} onChange={(value) => flag("clearMessages", value)} />
+							</SettingRow>
+							<SettingRow label="Солнце и луна" hint="Днём солнце, ночью луна в панели с таймером">
+								<Toggle label="Солнце и луна в панели игры" checked={data().game.skyAnimation !== false} onChange={(value) => flag("skyAnimation", value)} />
+							</SettingRow>
+							<SettingRow label="GIF-аватарки в чате" hint="Анимация аватарок в чате и списках; на слабом телефоне может лагать">
+								<Toggle label="Играть GIF-аватарки в чате" checked={data().game.animateChatAvatars === true} onChange={(value) => flag("animateChatAvatars", value)} />
 							</SettingRow>
 						</SettingGroup>
 						<SettingGroup title="ИСТОРИЯ">
