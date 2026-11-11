@@ -53,10 +53,10 @@ export function WindowFrame({ win, manager }: { win: WindowHandle, manager: Wind
 		<style>
 			.frame {
 				position: absolute; display: flex; flex-direction: column;
-				border-radius: 9px; overflow: hidden;
+				border-radius: var(--window-radius, 9px); overflow: hidden;
 				background: var(--window-bg); border: 1px solid var(--window-border);
 				box-shadow: 0 10px 40px rgba(0, 0, 0, .45), 0 0 0 .5px rgba(0, 0, 0, .3);
-				animation: window-open .3s cubic-bezier(.11, .05, .22, .81);
+				animation: var(--window-open, window-open .3s cubic-bezier(.11, .05, .22, .81));
 				transition: left .25s, top .25s, width .25s, height .25s, opacity .25s, transform .25s, border-radius .25s;
 			}
 			.frame.dragging { transition: none; }
@@ -66,15 +66,15 @@ export function WindowFrame({ win, manager }: { win: WindowHandle, manager: Wind
 			.frame.closing { animation: window-close .2s cubic-bezier(.11, .05, .22, .81) forwards; pointer-events: none; }
 
 			.titlebar {
-				flex: none; height: 28px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+				flex: none; height: var(--window-title-height, 28px); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
 				background: var(--window-title-bg); color: var(--window-title-text);
 				border-bottom: 1px solid var(--window-border); user-select: none; -webkit-user-select: none; touch-action: none;
 			}
 			.frame.inactive .titlebar { background: var(--window-title-inactive-bg); }
 			.frame.inactive .title { opacity: .55; }
-			.title { font-size: 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+			.title { font-size: var(--window-title-size, 12px); text-align: var(--window-title-align, center); padding: var(--window-title-padding, 0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
 
-			.lights { display: flex; gap: 7px; padding-left: 10px; }
+			.lights { display: var(--window-lights, flex); gap: 7px; padding-left: 10px; }
 			.light {
 				width: 12px; height: 12px; border-radius: 50%; padding: 0; border: .5px solid rgba(0, 0, 0, .2);
 				display: flex; align-items: center; justify-content: center;

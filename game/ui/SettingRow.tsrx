@@ -30,7 +30,7 @@ export function SettingGroup(props: { title?: string, children?: unknown }) @{
 		<style>
 			.group { display: flex; flex-direction: column; gap: 5px; flex: none; }
 			.title { padding: 0 14px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--text-dark); opacity: .6; }
-			.card { overflow: hidden; border-radius: 15px; background: var(--surface); }
+			.card { overflow: hidden; border-radius: var(--card-radius, 15px); background: var(--surface); }
 		</style>
 		<div class="group">
 			@if (props.title) {
@@ -50,10 +50,10 @@ export function Toggle(props: { checked: boolean, label: string, onChange: (valu
 		<style>
 			.switch { position: relative; display: inline-block; flex: none; width: 50px; height: 30px; cursor: pointer; }
 			.switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
-			.track { position: absolute; inset: 0; border-radius: 15px; background: rgba(128, 128, 128, .45); transition: background .18s; }
-			.track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); transition: transform .18s; }
-			input:checked + .track { background: var(--accent); }
-			input:checked + .track::after { transform: translateX(20px); }
+			.track { position: absolute; inset: 0; border-radius: 15px; background: var(--switch-off-track, rgba(128, 128, 128, .45)); box-shadow: inset 0 0 0 var(--switch-outline, 0px) rgba(128, 128, 128, .95); transition: background .18s, box-shadow .18s; }
+			.track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--switch-off-thumb, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, .35); transform: scale(var(--switch-off-scale, 1)); transition: transform .18s, background .18s; }
+			input:checked + .track { background: var(--accent); box-shadow: none; }
+			input:checked + .track::after { transform: translateX(20px); background: #fff; }
 			input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
 		</style>
 		<label class="switch">

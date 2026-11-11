@@ -11,6 +11,8 @@ await cp("dist/play", `${APP}/play`, { recursive: true });
 const page = (await Bun.file("dist/play.html").text())
   // сервис-воркер в приложении не нужен: все файлы уже внутри
   .replace(/<script>\s*\/\/ Сервис-воркер[\s\S]*?<\/script>/, "")
-  .replace(/<link rel="manifest"[^>]*>\n?/, "");
+  .replace(/<link rel="manifest"[^>]*>\n?/, "")
+  // без viewport-fit=cover оболочка сама отступает от строки состояния и панели навигации
+  .replace(", viewport-fit=cover", "");
 await Bun.write(`${APP}/index.html`, page);
 console.log(`Готово: ${APP}/ (для Capacitor)`);

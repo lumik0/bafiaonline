@@ -80,8 +80,9 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 			.tabs { display: flex; gap: 6px; padding: 8px 10px 0; }
 			.tab { flex: 1; padding: 8px; font-size: 14px; opacity: .65; }
 			.tab.on { opacity: 1; font-weight: 700; box-shadow: inset 0 -3px 0 var(--accent); }
-			.toolbar { display: flex; gap: 6px; padding: 8px 10px 0; }
-			.toolbar input { flex: 1; min-width: 0; padding: 7px 10px; }
+			.toolbar { display: flex; flex-wrap: var(--toolbar-wrap, nowrap); gap: 6px; padding: 8px 10px 0; }
+			.toolbar button { padding-left: var(--toolbar-button-inline, 20px); padding-right: var(--toolbar-button-inline, 20px); flex: var(--toolbar-button-flex, none); }
+			.toolbar input { flex: 1 1 var(--toolbar-input-basis, 0%); min-width: 0; padding: var(--toolbar-input-padding, 7px 10px); }
 			.dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: #3fe33f; }
 			.list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
 			.empty { padding: 40px 10px; text-align: center; opacity: .8; }

@@ -7,7 +7,7 @@ import Events from "@common/utils/emitter";
 import { alert, confirm } from "./dialogs";
 import type { GameLauncher, Storage } from "./game";
 import { optionsDocument, type LauncherOptions, defaultOptions } from "./options";
-import type { WindowHandle, WindowManager } from "./windows/manager";
+import type { WindowHandle, WindowManager, WindowOptions } from "./windows/manager";
 
 export const accountKey = (account: Account) => account.userId || account.email || account.name;
 export const accountTitle = (account: Account) => account.name || account.email || "Без имени";
@@ -19,6 +19,8 @@ export interface LauncherDeps {
   assets: Assets
   notifications: Notifier
   launchGame: GameLauncher
+  /** чем окно игры отличается от обычного (в приложении: без заголовка и масштаба, на весь экран) */
+  gameWindow?: WindowOptions
 }
 
 /** логика окна лаунчера: аккаунты, выбор, запуск игры, настройки. Рисует всё это Launcher.tsrx */
@@ -96,6 +98,8 @@ export class LauncherModel extends Events<{ change: () => void }> {
   /** account не задан - игра сама спросит почту и пароль */
   async play(account?: Account) {
     const { manager, launchGame, storage, theme, assets, notifications } = this.deps;
+    if(this.launching) return;
+    this.launching = true;
     this.window?.lock();
     try {
       if(account?.userId && this.options.profile != account.userId) {
@@ -106,16 +110,21 @@ export class LauncherModel extends Events<{ change: () => void }> {
       const window = manager.open({
         title: `Бафия ${versionNumber}`, icon: "🎮",
         width: 400, height: 500, minWidth: 250, minHeight: 400,
-        center: true, zoom: .7, fullscreen: this.options.windowsInFS
+        center: true, zoom: .7, fullscreen: this.options.windowsInFS,
+        ...this.deps.gameWindow
       });
       window.on("close", () => void this.reloadAccounts());
       await launchGame({ window, manager, storage, theme, assets, notifications, account });
     } catch(error) {
       await alert(manager, `Не удалось запустить игру\n\n${error instanceof Error ? error.message : error}`, "Ошибка");
     } finally {
+      this.launching = false;
       this.window?.unlock();
     }
   }
+
+  /** игра запускается: второе нажатие «Играть» не открывает второе окно */
+  private launching = false;
 
   async remove(account: Account) {
     const { manager, storage } = this.deps;

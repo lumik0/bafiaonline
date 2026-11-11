@@ -1,6 +1,8 @@
 import { scriptAssetsSource, loadScript } from "@common/assets/script-source";
 import { log } from "@common/logger";
 import { versionNumber } from "@common/version";
+import { isAppMode } from "@common/utils/native";
+import { startApp } from "./app";
 import { startLauncher } from "./index";
 import { loadGame, type GameGlobals } from "./game-loader";
 import type { GameHost } from "./game";
@@ -20,4 +22,5 @@ async function launchGame(host: GameHost) {
 }
 
 document.body.style.margin = "0";
-void startLauncher(document.getElementById("root")!, launchGame, scriptAssetsSource(BASE, SUFFIX));
+// в приложении рабочего стола с окнами нет: сразу игра
+void (isAppMode() ? startApp : startLauncher)(document.getElementById("root")!, launchGame, scriptAssetsSource(BASE, SUFFIX));

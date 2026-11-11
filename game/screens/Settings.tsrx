@@ -5,6 +5,7 @@ import { PREMIUM_BOT_URL } from "@common/constants";
 import { BAFIA_CONSENT } from "../domain/bafia";
 import { formatDateTime } from "@common/utils/format";
 import { isMobile } from "@common/utils/mobile";
+import { isAppMode } from "@common/utils/native";
 import { version } from "@common/version";
 import { readableOn } from "../domain/decorations";
 import { Avatar } from "../ui/Avatar.tsrx";
@@ -330,6 +331,11 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 						<SettingGroup title="БЕЗОПАСНОСТЬ">
 							<SettingRow label="Пароль" hint="Ссылка для смены придёт на почту"><button onClick={() => void resetPassword(ctx, ctx.host.account?.email ?? "")}>{"Сменить"}</button></SettingRow>
 						</SettingGroup>
+						@if (isAppMode()) {
+							<SettingGroup title="АККАУНТ">
+								<SettingRow label="Сменить аккаунт" hint="Откроется список аккаунтов"><button onClick={() => void ctx.host.window.close()}>{"Сменить"}</button></SettingRow>
+							</SettingGroup>
+						}
 					</>
 				}
 				@if (tab() == "bafia") {

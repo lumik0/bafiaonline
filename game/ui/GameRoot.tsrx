@@ -4,6 +4,7 @@ import { MenuLayer } from "@common/ui/menu/MenuLayer.tsrx";
 import { NavHost } from "@common/ui/nav/NavHost.tsrx";
 import { CrashScreen } from "./CrashScreen.tsrx";
 import { WindowControlsContext } from "./window-controls";
+import { isAppMode } from "@common/utils/native";
 import type { GameContext } from "../context";
 import type { Routes } from "../routes";
 import type { Screens } from "@common/ui/nav/navigator";
@@ -38,7 +39,8 @@ export function GameRoot({ ctx, screens }: { ctx: GameContext, screens: Screens<
 
 	// без заголовка окна кнопку закрытия рисует шапка экрана
 	const controls = {
-		showClose: !ctx.host.window.options.titleBar,
+		// в приложении игру не закрывают: аккаунт меняется в настройках
+		showClose: !ctx.host.window.options.titleBar && !isAppMode(),
 		close: () => void ctx.dialogs.confirm("Закрыть игру?", { yes: "Закрыть" }).then(ok => ok && ctx.host.window.close())
 	};
 
