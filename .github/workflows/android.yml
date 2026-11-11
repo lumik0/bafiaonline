@@ -13,7 +13,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run test
