@@ -24,6 +24,7 @@ import { isMobile } from "@common/utils/mobile";
 import { ModManager } from "./mods/manager";
 import { officialMod } from "./mods/official";
 import { bindBrowserBack } from "./ui/browser-back";
+import { bindNativeBack, isNativeApp } from "./ui/native-back";
 import { rehostListed, rehostRoom } from "./domain/rooms/rehost";
 import { resetPassword } from "./ui/reset-password";
 import { waitAndJoin } from "./ui/room-actions";
@@ -301,7 +302,8 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const disposeUi = mount(() => GameRoot({ ctx, screens }) as never, host.window.content);
 
   // на телефоне системная кнопка «назад» ходит по экранам игры, а не закрывает вкладку
-  const unbindBack = isMobile() ? bindBrowserBack(ctx) : undefined;
+  // в приложении кнопка «назад» своя (закрывает и окно игры), в браузере - через историю
+  const unbindBack = isNativeApp() ? bindNativeBack(ctx) : isMobile() ? bindBrowserBack(ctx) : undefined;
 
   // личные сообщения и заявки в друзья: баннер, если игрок не в личном чате
   // сообщение от администратора (например, «вышла новая версия, обнови страницу»): баннер, который не мешает игре
