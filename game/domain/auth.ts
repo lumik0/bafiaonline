@@ -59,7 +59,20 @@ export class Auth extends Events<{ signedIn: (account: Account, reconnected: boo
     super();
     // после обрыва связи сервер забыл нас - входим заново
     client.on("open", () => void this.restore());
+    // бан посреди игры: сервер присылает блокировку сам, без запроса входа - показываем причину и время на экране входа
+    client.on("message", message => {
+      if(!this.current || this.authenticating) return;
+      const result: SignInResult | undefined = message.name == "userBlocked" ? { status: "blocked", reason: message.data.reason, secondsRemaining: message.data.secondsRemaining }
+        : message.name == "userInactiveBlocked" ? { status: "inactive", secondsRemaining: message.data.secondsRemaining } : undefined;
+      if(!result) return;
+      const { email } = this.current;
+      if(result.secondsRemaining) this.emit("blocked", email, result.secondsRemaining);
+      this.signOut();
+      this.emit("restoreFailed", email, result);
+    });
   }
+
+  private authenticating = false;
 
   async signIn(credentials: Credentials): Promise<SignInResult> {
     const result = await this.authenticate(credentials);
@@ -91,6 +104,11 @@ export class Auth extends Events<{ signedIn: (account: Account, reconnected: boo
   }
 
   private async authenticate(credentials: Credentials, loadDashboard = true): Promise<SignInResult> {
+    this.authenticating = true;
+    try { return await this.authenticateInner(credentials, loadDashboard); } finally { this.authenticating = false; }
+  }
+
+  private async authenticateInner(credentials: Credentials, loadDashboard: boolean): Promise<SignInResult> {
     const expect = ["signedIn", "signInError", "userBlocked", "userInactiveBlocked", "emailNotVerified"] as const;
     const message = await this.client.request("signInWithPassword", {
       email: credentials.email,

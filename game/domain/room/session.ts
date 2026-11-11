@@ -280,11 +280,13 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   private shareComposition() {
     if(this.compositionSent || this.replay || this.bafia) return;
     const players = this.state.players;
-    if(players.length < 3 || players.some(player => player.role === undefined)) return;
+    // роль неизвестна максимум у одного-двух игроков (вышли, не пришла): иначе состав не считаем
+    const known = players.filter(player => player.role !== undefined);
+    if(known.length < 3 || known.length < players.length * 0.8) return;
     this.compositionSent = true;
     const counts: Record<number, number> = {};
-    for(const player of players) counts[player.role!] = (counts[player.role!] ?? 0) + 1;
-    this.emit("roles", { room: this.roomId, players: players.length, enabled: [...this.state.settings.roles], counts });
+    for(const player of known) counts[player.role!] = (counts[player.role!] ?? 0) + 1;
+    this.emit("roles", { room: this.roomId, players: known.length, enabled: [...this.state.settings.roles], counts });
   }
 
   /** игра закончилась: сохраняем в историю, если включено в настройках (один раз) */

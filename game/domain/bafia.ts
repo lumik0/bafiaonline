@@ -679,7 +679,7 @@ export const FAVORITES_MAX = 200;
 export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[], watched?: string[], expiryWarned?: number, feedbackSeen?: Record<string, string> }
 
 export interface BafiaDeps {
-  settings: { data: { bafia: BafiaSettings, lowPower?: boolean }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
+  settings: { data: { bafia: BafiaSettings, lowPower?: boolean, game?: { animateChatAvatars?: boolean } }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
   user: { playerObjectId: string, username: string, photo?: string, on(event: "change", listener: () => void): unknown }
   url: string
   createSocket?: BafiaLinkOptions["createSocket"]
@@ -748,7 +748,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     const path = mine ? (link.premiumUntil && link.premiumUntil > Date.now() ? link.myAvatar : undefined) : link.avatars.get(id);
     // small - маленькое статичное превью для чата и списков: десятки анимированных аватарок сразу лагают на телефоне
     // при экономии ресурсов анимации не крутятся нигде: везде статичное превью
-    return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + (small || this.deps.settings.data.lowPower ? "/t" : "") : undefined;
+    return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + ((small && !this.deps.settings.data.game?.animateChatAvatars) || this.deps.settings.data.lowPower ? "/t" : "") : undefined;
   }
   /** адрес баннера профиля игрока; свой виден только пока есть премиум */
   banner(id: string): string | undefined {

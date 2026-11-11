@@ -60,6 +60,10 @@ export const defaultGameSettings = (mobile: boolean) => ({
     clearMessages: true,
     showIndexPl: false,
     showIndexPlChat: false,
+    /** солнце днём и луна ночью в панели с таймером */
+    skyAnimation: true,
+    /** играть GIF-аватарки в чате и списках (по умолчанию статичное превью: так легче слабым телефонам) */
+    animateChatAvatars: false,
     barmanEffect: "!"
   },
   /** последние настройки комнаты Бафии (экран создания сам кладёт сюда всё, что выбрано) */

@@ -49,7 +49,8 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 		loading: ctx.assets.url("textures/loading/2f.png"),
 		roles: Object.fromEntries(ROLE_IDS.map(id => [id, ctx.assets.url(`textures/roles/${id}.png`)])) as Record<number, string>
 	}));
-	const background = () => { const url = view().night ? images().night : images().day; return url ? "url(" + url + ")" : "none"; };
+	// обои - два слоя, между которыми плавно меняется прозрачность (у background-image переходов нет)
+	const layer = (url: string | undefined) => url ? "url(" + url + ")" : "none";
 
 	// у ночных и дневных панелей разная прозрачность, как в старой версии
 	const panel = () => view().night ? "rgb(255 255 255 / 30%)" : "";
@@ -169,7 +170,10 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 
 	<>
 		<style>
-			.room { display: flex; flex-direction: column; height: 100%; background-size: cover; background-position: center; transition: background .8s; }
+			.room { position: relative; isolation: isolate; display: flex; flex-direction: column; height: 100%; }
+			.room::before, .room::after { content: ""; position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+			.room::before { background-image: var(--bg-day); }
+			.room::after { background-image: var(--bg-night); opacity: var(--night-opacity, 0); transition: opacity 2s ease-in-out; }
 			.title { user-select: text; -webkit-user-select: text; }
 			.loading { flex: 1; display: flex; align-items: center; justify-content: center; }
 			.loading img { width: 64px; height: 64px; animation: rotate 1s steps(12) infinite; }
@@ -192,7 +196,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			.phone .table { margin: 5px 4px 5px 0; }
 			@keyframes rotate { to { transform: rotate(360deg); } }
 		</style>
-		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "background-image": background(), "--chat-panel": panel() || undefined }}>
+		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "--bg-day": layer(images().day), "--bg-night": layer(images().night), "--night-opacity": view().night ? "1" : "0", "--chat-panel": panel() || undefined }}>
 			<AppBar
 				title={view().title}
 				keepCase
@@ -220,7 +224,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			} @else {
 				<div class="body">
 					<div class="left">
-						<GameInfo ctx={ctx} session={session} />
+						<GameInfo ctx={ctx} session={session} mention={mention} />
 						<div class="chatbox"><ChatView ctx={ctx} bafia={ctx.bafia} entries={entries} myName={myName} hideName={hideName} assets={ctx.assets} send={sendMessage} onAvatar={(id: string) => ctx.openProfile(id)} controller={controller} expand={expand} nickPrefix={nickPrefix} readonly={session.replay} externalInput={isMobile()} extra={(entry) => entry.kickVote ? <KickVote session={session} entryId={entry.id} /> : null} /></div>
 					</div>
 					<div class="table" style={{ width: (isMobile() ? 115 : layout().width) + "px" }}>

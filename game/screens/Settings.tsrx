@@ -23,7 +23,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const [pendingZoom, setPendingZoom] = createSignal<number | undefined>(undefined);
 	const zoomRange = isMobile() ? { min: .5, max: 1.6 } : { min: .3, max: 1.5 };
 
-	const flag = (key: "showYouDiedMessage" | "clearMessages" | "saveHistory", value: boolean) => ctx.settings.update(settings => { settings.game[key] = value; });
+	const flag = (key: "showYouDiedMessage" | "clearMessages" | "saveHistory" | "skyAnimation" | "animateChatAvatars", value: boolean) => ctx.settings.update(settings => { settings.game[key] = value; });
 
 	// пол из профиля (в дашборде его нет)
 	const [sex, setSex] = createSignal<number | undefined>(undefined);
@@ -293,6 +293,8 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 								<Toggle label="Показывать сообщение Ты умер" checked={data().game.showYouDiedMessage} onChange={(value) => flag("showYouDiedMessage", value)} />
 							</SettingRow>
 							<SettingRow label="Очищать чат при старте игры" hint="Сообщения регистрации пропадают, когда игра началась">
+								<Toggle label="Играть GIF-аватарки в чате (может лагать)" checked={data().game.animateChatAvatars === true} onChange={(value) => flag("animateChatAvatars", value)} />
+								<Toggle label="Солнце и луна в панели игры" checked={data().game.skyAnimation !== false} onChange={(value) => flag("skyAnimation", value)} />
 								<Toggle label="Удалять сообщения после начала игры" checked={data().game.clearMessages} onChange={(value) => flag("clearMessages", value)} />
 							</SettingRow>
 						</SettingGroup>
