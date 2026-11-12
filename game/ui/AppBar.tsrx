@@ -12,7 +12,7 @@ export function AppBar(props: { title: string, subtitle?: string, keepCase?: boo
 		<style>
 			.bar { flex: none; display: flex; align-items: center; gap: var(--appbar-gap, 12px); min-height: var(--appbar-height, 56px); box-sizing: border-box; padding: var(--appbar-padding, 4px 16px); background: var(--header-bg); color: var(--header-text); box-shadow: var(--appbar-shadow, 0 2px 6px rgba(0, 0, 0, .35)); position: relative; z-index: 1; }
 			.bar.root { padding: var(--appbar-padding-root, 4px 16px); }
-			.titles { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+			.titles { flex: 1; min-width: 0; text-align: var(--appbar-title-align, left); display: flex; flex-direction: column; justify-content: center; }
 			/* stretch: правая часть занимает всё свободное место шапки, а заголовок - не больше половины */
 			.titles.narrow { flex: 0 1 auto; max-width: 50%; }
 			.right { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }

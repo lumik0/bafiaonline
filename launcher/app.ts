@@ -4,7 +4,7 @@ import { openStorage } from "@common/storage";
 import { injectStyle, mount } from "@common/ui";
 import { ThemeManager } from "@common/ui/theme";
 import { baseCss } from "@common/ui/theme/base";
-import { applyAndroidPlatform } from "@common/ui/platform/android";
+import { applyPlatform } from "@common/ui/platform";
 import { NotificationCenter } from "@common/ui/notifications/center";
 import { NotificationLayer } from "@common/ui/notifications/NotificationLayer.tsrx";
 import { EffectsLayer } from "@common/ui/effects/EffectsLayer.tsrx";
@@ -16,13 +16,13 @@ import { WindowManager } from "./windows/manager";
 import { mountInWindow } from "./windows/mount";
 
 /**
- * приложение (Android): без рабочего стола с окнами. Игра открывается сразу на весь экран с последним аккаунтом;
+ * приложение (Android, iOS): без рабочего стола с окнами. Игра открывается сразу на весь экран с последним аккаунтом;
  * под ней экран аккаунтов - он виден при первом запуске и после «Сменить аккаунт»
  */
 export async function startApp(root: HTMLElement, launchGame: GameLauncher, assetsSource?: AssetsSource) {
   installErrorHooks();
   injectStyle("base", baseCss);
-  applyAndroidPlatform();
+  applyPlatform();
 
   const storage = await openStorage(true);
   const theme = new ThemeManager(document.documentElement, storage.files);

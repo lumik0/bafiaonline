@@ -1,0 +1,84 @@
+# Сборка ipa для iPhone. Запускается ТОЛЬКО вручную (Actions → iOS → Run workflow).
+# ipa БЕЗ подписи: игрок подписывает её сам своим Apple ID (Sideloadly, AltStore, SideStore). Файлы кладутся в Releases под тегом "app":
+#   https://github.com/lumik0/bafiaonline/releases/download/app/bafia.ipa
+#   https://github.com/lumik0/bafiaonline/releases/download/app/altstore.json  - источник для AltStore и SideStore (там видно обновления)
+name: ios
+on: workflow_dispatch
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      # игра -> dist-app -> ios/App/App/public
+      - run: bun run build:app
+      - run: bunx cap sync ios
+      - name: Версия
+        run: |
+          VERSION=$(grep -oE '"[0-9]+\.[0-9]+(\.[0-9]+)?"' common/version.ts | head -1 | tr -d '"')
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Версия $VERSION, сборка ${{ github.run_number }}"
+      - name: Сборка без подписи
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos -destination "generic/platform=iOS" \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" | tail -30
+      - name: ipa
+        run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry bafia.ipa Payload
+          ls -la bafia.ipa
+      - name: Источник для AltStore и SideStore
+        run: |
+          SIZE=$(stat -f%z bafia.ipa)
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          URL="https://github.com/lumik0/bafiaonline/releases/download/app/bafia.ipa"
+          cat > altstore.json <<JSON
+          {
+            "name": "Бафия онлайн",
+            "identifier": "io.github.lumik0.bafiaonline.source",
+            "sourceURL": "https://github.com/lumik0/bafiaonline/releases/download/app/altstore.json",
+            "apps": [
+              {
+                "name": "Бафия онлайн",
+                "bundleIdentifier": "io.github.lumik0.bafiaonline",
+                "developerName": "lumik0",
+                "subtitle": "Мафия онлайн",
+                "localizedDescription": "Неофициальный клиент игры Бафия онлайн. Игра внутри обновляется сама.",
+                "iconURL": "https://raw.githubusercontent.com/lumik0/bafiaonline/master/run/icon.png",
+                "tintColor": "D03A41",
+                "version": "$VERSION",
+                "versionDate": "$DATE",
+                "downloadURL": "$URL",
+                "size": $SIZE,
+                "versions": [
+                  { "version": "$VERSION", "buildVersion": "${{ github.run_number }}", "date": "$DATE", "downloadURL": "$URL", "size": $SIZE, "minOSVersion": "15.0" }
+                ]
+              }
+            ],
+            "news": []
+          }
+          JSON
+          sed -i '' 's/^          //' altstore.json
+          python3 -m json.tool altstore.json > /dev/null && echo "altstore.json верный"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bafia-ipa
+          path: |
+            bafia.ipa
+            altstore.json
+          if-no-files-found: error
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view app >/dev/null 2>&1 || gh release create app --title "Приложение для Android и iOS" --notes "Сборки приложения. Игра внутри обновляется сама, переустанавливать приложение нужно только при смене самой оболочки."
+          gh release upload app bafia.ipa altstore.json --clobber
