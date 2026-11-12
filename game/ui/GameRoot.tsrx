@@ -2,6 +2,7 @@ import { ErrorBoundary, fromEvents, injectStyle, onCleanup, onMount } from "@com
 import { DialogLayer } from "@common/ui/dialog/DialogLayer.tsrx";
 import { MenuLayer } from "@common/ui/menu/MenuLayer.tsrx";
 import { NavHost } from "@common/ui/nav/NavHost.tsrx";
+import { BadgeTipOverlay } from "./BadgeTipOverlay.tsrx";
 import { CrashScreen } from "./CrashScreen.tsrx";
 import { WindowControlsContext } from "./window-controls";
 import { isAppMode } from "@common/utils/native";
@@ -74,6 +75,7 @@ export function GameRoot({ ctx, screens }: { ctx: GameContext, screens: Screens<
 					</WindowControlsContext.Provider>
 					<DialogLayer manager={ctx.dialogs.manager} />
 					<MenuLayer manager={ctx.dialogs.menu} />
+					<BadgeTipOverlay tip={ctx.badgeTip} />
 				</>
 			}
 		</div>

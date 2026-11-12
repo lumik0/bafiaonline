@@ -12,7 +12,7 @@ export function CheckBadge({ color, title = "Играет в Бафии", fire =
 			@keyframes glow { 0%, 100% { filter: drop-shadow(0 0 2px #ff7a1a); } 50% { filter: drop-shadow(0 0 5px #ffb020); } }
 			@media (prefers-reduced-motion: reduce) { .check.fire svg, .flame { animation: none; } }
 		</style>
-		<span class={fire ? "check fire" : "check"} title={title} role="img" aria-label={title}>
+		<span class={fire ? "check fire" : "check"} title={title} data-badge role="img" aria-label={title}>
 			<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
 				@if (fire) {
 					<>

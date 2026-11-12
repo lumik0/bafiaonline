@@ -1,3 +1,4 @@
+import type { BadgeTip } from "./ui/badge-tip";
 import type { Assets } from "@common/assets";
 import type { Bafia } from "./domain/bafia";
 import type { CrashInfo } from "@common/panic";
@@ -39,6 +40,8 @@ export interface GameContext {
   mods: ModManager
   /** сервер Бафии: «кто в Бафии», статистика, история ников; работает, только если игрок согласился */
   bafia: Bafia
+  /** подсказка про галочку: плашка поверх экрана */
+  badgeTip: BadgeTip
   theme: ThemeManager
   /** окно с профилем игрока поверх текущего экрана */
   openProfile(playerObjectId: string): void

@@ -36,7 +36,8 @@ import { RatingsScreen } from "./screens/RatingsScreen.tsrx";
 import { RulesScreen } from "./screens/RulesScreen.tsrx";
 import { BackpackScreen } from "./screens/BackpackScreen.tsrx";
 import { CompetitiveScreen } from "./screens/CompetitiveScreen.tsrx";
-import { completeTip, markTipShown, tipActive } from "./domain/tips";
+import { tipActive } from "./domain/tips";
+import { BadgeTip } from "./ui/badge-tip";
 import { historyDocument } from "./domain/history";
 import { filterDocument } from "./domain/rooms/filter";
 import { joinProblems, RoomsList } from "./domain/rooms/rooms";
@@ -178,8 +179,10 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   };
   applyLowPower();
   settings.on("change", applyLowPower);
+  const badgeTip = new BadgeTip({ settings });
   const ctx: GameContext = {
     host, client, auth, user, nav, dialogs, settings, mods,
+    badgeTip,
     bafia: new Bafia({ settings, user, url: bafiaUrl, createSocket: options.createBafiaSocket }),
     profile: new ProfileService(client, user, host.storage.accounts),
     friends: new Friends(client),
@@ -330,21 +333,20 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
       }
     });
   });
-  // подсказка про галочку: когда рядом (в чате или комнате) есть хоть один игрок из Бафии, один раз объясняем, что это
+  // подсказка про галочку: когда рядом (в чате или комнате) есть хоть один другой игрок из Бафии, один раз показываем, что это
   ctx.bafia.on("change", () => {
     const screen = nav.top?.name;
-    if(screen != "globalChat" && screen != "room" || !tipActive(settings, "badge")) return;
+    if(screen != "globalChat" && screen != "room" || badgeTip.active || !tipActive(settings, "badge")) return;
     if(![...ctx.bafia.online].some(id => id != user.playerObjectId)) return;
-    markTipShown(settings, "badge");
-    completeTip(settings, "badge");
-    host.notifications.show({ key: "tip-badge", title: "Подсказка: галочка у ника", text: "Галочка значит, что игрок тоже играет через этот клиент и сейчас на сервере Бафии. Её цвет игрок выбирает сам (премиум), а горящая галочка у особых игроков, например разработчиков.", kind: "info", timeout: 20_000 });
+    // галочки рисуются сразу после события: даём экрану дорисоваться
+    setTimeout(() => badgeTip.offer(), 400);
   });
   const alerts = new MessageAlerts({ client, user, notifier: host.notifications, chatOpen: () => nav.top?.name == "privateChat", canPoll: () => nav.top?.name == "menu", requestsOutsideMenu: () => settings.data.game.pollRequests });
   alerts.start();
   // вернулись в меню: значки заявок и сообщений обновляем сразу, а не ждём таймера
   // вкладку закрывают или сворачивают: накопленные счётчики «что открывали» отправляем сразу
   document.addEventListener("visibilitychange", () => { if(document.visibilityState == "hidden") void ctx.bafia.flushUsage(); });
-  nav.on("change", transition => { ctx.bafia.track("screen:" + transition.to.name); if(transition.to.name == "menu") void alerts.poll(); });
+  nav.on("change", transition => { badgeTip.stop(); ctx.bafia.track("screen:" + transition.to.name); if(transition.to.name == "menu") void alerts.poll(); });
 
   // связь пропала, интернета нет, сервер молчит - игрок должен это видеть, а не смотреть на замерший таймер
   const monitor = new ConnectionMonitor({
