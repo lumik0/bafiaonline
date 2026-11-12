@@ -3,7 +3,7 @@ import { ConnectionError, Connection, RequestTimeoutError, ServerClient, type So
 import { Bafia, BAFIA_CONSENT, feedbackProblems } from "./domain/bafia";
 import { MessageAlerts } from "./domain/message-alerts";
 import { animationSource, setAnimationsOff } from "./ui/animation-source";
-import { BAFIA_SERVER_URL, SERVER_URLS } from "@common/constants";
+import { BAFIA_DIRECT_URL, BAFIA_SERVER_URL, SERVER_URLS } from "@common/constants";
 import { versionNumber } from "@common/version";
 import { log } from "@common/logger";
 import { describeCrash, normalizeError, type CrashInfo } from "@common/panic";
@@ -117,6 +117,8 @@ function bafiaOverride(): string | undefined {
 /** запуск игры в окне лаунчера: соединение, вход, навигация по экранам */
 export async function startGame(host: GameHost, options: StartOptions = {}): Promise<GameInstance> {
   const bafiaUrl = options.bafiaUrl ?? bafiaOverride() ?? BAFIA_SERVER_URL;
+  // в приложении, если обычный адрес не открывается (сеть режет его), запасной - тот же сервер напрямую, без шифрования
+  const bafiaUrls: string | string[] = !options.bafiaUrl && bafiaUrl == BAFIA_SERVER_URL && isNativeApp() ? [bafiaUrl, BAFIA_DIRECT_URL] : bafiaUrl;
   const client = new ServerClient(new Connection({ url: options.url ?? serverOverride() ?? SERVER_URLS, createSocket: options.createSocket }));
   const user = new User();
   const auth = new Auth(client, host.storage.accounts, user);
@@ -188,7 +190,7 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const ctx: GameContext = {
     host, client, auth, user, nav, dialogs, settings, mods,
     badgeTip,
-    bafia: new Bafia({ settings, user, url: bafiaUrl, createSocket: options.createBafiaSocket }),
+    bafia: new Bafia({ settings, user, url: bafiaUrls, createSocket: options.createBafiaSocket }),
     profile: new ProfileService(client, user, host.storage.accounts),
     friends: new Friends(client),
     rooms: new RoomsList(client),

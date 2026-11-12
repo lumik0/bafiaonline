@@ -3,6 +3,7 @@ import type { SocketLike } from "@common/net/connection";
 import Events from "@common/utils/emitter";
 import { BAFIA_LIMITS } from "@common/bafia/protocol";
 import { versionNumber } from "@common/version";
+import { BAFIA_DIRECT_URL, BAFIA_SERVER_URL } from "@common/constants";
 import { Bafia, BafiaLink, FAVORITES_MAX, newKey } from "./bafia";
 
 /** сокет, который отвечает как сервер Бафии: «ok» на всё, а «who» возвращает заданных игроков */
@@ -43,6 +44,41 @@ function serverSocket(online: string[], log: Record<string, unknown>[]) {
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 5));
 const KEY = "k".repeat(24);
+
+describe("резервный канал", () => {
+  test("обычный адрес не открывается: через таймаут пробуем прямой; по нему код премиума не отправляется, файлы берутся напрямую", async() => {
+    const log: Record<string, unknown>[] = [];
+    const asked: string[] = [];
+    const server = serverSocket([], log);
+    // обычный адрес молчит (сокет не открывается и не закрывается), прямой отвечает
+    const create = (url: string): SocketLike => {
+      asked.push(url);
+      if(url == BAFIA_SERVER_URL) return { onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() { this.onclose?.(); } } as SocketLike;
+      return server.create();
+    };
+    const link = new BafiaLink({ url: [BAFIA_SERVER_URL, BAFIA_DIRECT_URL], openTimeout: 30, key: KEY, createSocket: create, backoff: [1], fileBase: "https://play.example" });
+    expect(link.insecure).toBe(false);
+    link.start();
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(asked.slice(0, 2)).toEqual([BAFIA_SERVER_URL, BAFIA_DIRECT_URL]);
+    expect(link.isReady).toBe(true);
+    expect(link.insecure).toBe(true);
+    expect(link.fileBase).toBe("http://188.165.211.134:25656");
+    // код премиума по открытому каналу не уходит
+    expect(await link.redeem("BAF-GOOD-CODE")).toEqual({ error: "insecure" });
+    expect(log.some(message => message.t == "redeem")).toBe(false);
+  });
+
+  test("обычный адрес работает: канал зашифрован, код отправляется как раньше", async() => {
+    const log: Record<string, unknown>[] = [];
+    const link = new BafiaLink({ url: [BAFIA_SERVER_URL, BAFIA_DIRECT_URL], openTimeout: 30, key: KEY, createSocket: serverSocket([], log).create, fileBase: "https://play.example" });
+    link.start();
+    await tick();
+    expect(link.insecure).toBe(false);
+    expect(await link.redeem("BAF-GOOD-CODE")).toMatchObject({ until: 4_000_000_000_000 });
+  });
+});
 
 describe("BafiaLink", () => {
   test("бан: сообщается один раз, после переподключения уходит остаток срока, по окончании - ничего", async() => {
@@ -393,7 +429,7 @@ describe("BafiaLink", () => {
       const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
       const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: serverSocket([], []).create });
       await tickMany();
-      expect(bafia.status).toEqual({ state: "connected", attempts: 0, problem: undefined });
+      expect(bafia.status).toMatchObject({ state: "connected", attempts: 0, problem: undefined, insecure: false });
       bafia.dispose();
     });
   });

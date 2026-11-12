@@ -14,7 +14,10 @@ import { searchGiphy } from "./giphy";
 import { GifCache } from "./gif-cache";
 
 export interface BafiaLinkOptions {
-  url: string
+  /** адрес или список: если первый не открывается, пробуем следующие */
+  url: string | string[]
+  /** сколько ждать открытия соединения, мс (для списка адресов) */
+  openTimeout?: number
   key: string
   createSocket?: (url: string) => SocketLike
   /** адрес сервера для файлов (http), откуда берутся загруженные игроками гифки */
@@ -115,7 +118,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   constructor(private options: BafiaLinkOptions) {
     super();
     this.timeout = options.timeout ?? 3000;
-    this.connection = new Connection({ url: options.url, createSocket: options.createSocket, backoff: options.backoff ?? [2000, 10000, 60000], delay: options.delay });
+    this.connection = new Connection({ url: options.url, openTimeout: options.openTimeout, createSocket: options.createSocket, backoff: options.backoff ?? [2000, 10000, 60000], delay: options.delay });
     this.connection.on("message", text => this.receive(text));
     this.connection.on("open", () => void this.greet());
     this.connection.on("close", willReconnect => {
@@ -145,7 +148,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     // со своим сокетом (тесты) и без fetch проверять нечем
     if(this.probing || this.problem || this.options.createSocket || typeof fetch != "function") return;
     this.probing = true;
-    const url = this.options.url.replace(/^ws/, "http");
+    const url = (Array.isArray(this.options.url) ? this.options.url[0]! : this.options.url).replace(/^ws/, "http");
     const opens = async(address: string) => { try { await fetch(address, { mode: "no-cors", cache: "no-store", signal: AbortSignal.timeout(8000) }); return true; } catch(error) { log("warn", `Бафия: ${address} не открывается (${error instanceof Error ? error.name + ": " + error.message : String(error)})`); return false; } };
     const [server, control] = await Promise.all([opens(url), opens("https://lumik0.github.io/bafiaonline/play/bin/manifest.json")]);
     const details = [`сервер ${server ? "открывается" : "нет"}`, `github ${control ? "открывается" : "нет"}`];
@@ -364,7 +367,15 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.pending.get(message.n)?.(message);
   }
 
+  /** откуда брать файлы сервера (гифки): при резервном канале - напрямую по адресу */
+  get fileBase() { return this.insecure ? BAFIA_DIRECT_URL.replace(/^ws/, "http") : this.options.fileBase; }
+
+  /** сейчас связь идёт напрямую по адресу без шифрования (резервный канал, когда обычный адрес недоступен) */
+  get insecure() { return this.connection.state == "open" && this.connection.activeUrl == BAFIA_DIRECT_URL; }
+
   private request(message: Record<string, unknown>, timeout = this.timeout): Promise<ServerMessage | undefined> {
+    // по открытому каналу не отправляем и не получаем то, что нельзя показывать посторонним: код премиума и код привязки Telegram
+    if(this.insecure && (message.t == "redeem" || message.t == "premium" || message.t == "tgLink")) return Promise.resolve({ t: "error", n: 0, reason: "insecure" });
     const n = ++this.counter;
     return new Promise(resolve => {
       const timer = setTimeout(() => { this.pending.delete(n); resolve(undefined); }, timeout);
@@ -464,9 +475,10 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
 
   /** гифку можно показать: https с разрешённого сайта или файл сервера Бафии */
   private accept(item: GifItem): GifItem | undefined {
-    const resolve = (url: string | undefined) => url && GIF_FILE_PATH.test(url) && this.options.fileBase ? this.options.fileBase.replace(/\/$/, "") + url : url;
+    const resolve = (url: string | undefined) => url && GIF_FILE_PATH.test(url) && this.fileBase ? this.fileBase.replace(/\/$/, "") + url : url;
     const url = resolve(item.url), thumb = resolve(item.thumb);
-    const own = (value: string) => !!this.options.fileBase && value.startsWith(this.options.fileBase.replace(/\/$/, "") + "/g/");
+    // свои файлы: с обычного адреса сервера или напрямую (резервный канал)
+    const own = (value: string) => [this.options.fileBase, BAFIA_DIRECT_URL.replace(/^ws/, "http")].some(base => !!base && value.startsWith(base.replace(/\/$/, "") + "/g/"));
     if(!url || !(isGifUrl(url) || own(url)) || (thumb && !(isGifUrl(thumb) || own(thumb)))) return undefined;
     return { ...item, url, thumb };
   }
@@ -592,7 +604,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** активировать код премиума; `until` - до какого времени теперь действует */
-  async redeem(code: string): Promise<{ until: number } | { error: "invalid" | "expired" | "devices" | "locked" | "offline" }> {
+  async redeem(code: string): Promise<{ until: number } | { error: "invalid" | "expired" | "devices" | "locked" | "insecure" | "offline" }> {
     if(!this.ready) return { error: "offline" };
     const answer = await this.request({ t: "redeem", code: code.trim() });
     if(answer?.t == "premium" && answer.until) {
@@ -602,7 +614,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
       return { until: answer.until };
     }
     const reason = answer?.t == "error" ? answer.reason : "";
-    return { error: reason == "invalid" || reason == "expired" || reason == "devices" || reason == "locked" ? reason : "offline" };
+    return { error: reason == "invalid" || reason == "expired" || reason == "devices" || reason == "locked" || reason == "insecure" ? reason : "offline" };
   }
 
   /** сообщить серверу цвет моего значка (имеет смысл только с премиумом) */
@@ -732,7 +744,7 @@ export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, 
 export interface BafiaDeps {
   settings: { data: { bafia: BafiaSettings, lowPower?: boolean, game?: { animateChatAvatars?: boolean } }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
   user: { playerObjectId: string, username: string, photo?: string, on(event: "change", listener: () => void): unknown }
-  url: string
+  url: string | string[]
   createSocket?: BafiaLinkOptions["createSocket"]
   timeout?: number
   /** с какого устройства играем; по умолчанию определяется по браузеру */
@@ -775,8 +787,8 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
 
   get ready() { return this.link?.isReady ?? false; }
   /** состояние связи с сервером Бафии для настроек: игрок видит, подключено ли у него, и в чём дело, если нет */
-  get status(): { state: "connected" | "connecting" | "offline", attempts: number, problem?: string, detail?: string } {
-    return { state: this.link?.state ?? "connecting", attempts: this.link?.attempts ?? 0, problem: this.link?.problem, detail: this.link?.problemDetail };
+  get status(): { state: "connected" | "connecting" | "offline", attempts: number, problem?: string, detail?: string, insecure?: boolean } {
+    return { state: this.link?.state ?? "connecting", attempts: this.link?.attempts ?? 0, problem: this.link?.problem, detail: this.link?.problemDetail, insecure: this.link?.insecure };
   }
   /** до какого времени действует премиум (мс); `undefined` - нет */
   get premiumUntil() { const until = this.link?.premiumUntil; return until && until > Date.now() ? until : undefined; }
@@ -790,6 +802,12 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     return PREMIUM_COLORS[isPremiumColor(name) ? name : "gold"];
   }
 
+  /** откуда брать файлы сервера (аватарки, баннеры): при резервном канале - напрямую по адресу */
+  private fileBase(): string {
+    const primary = Array.isArray(this.deps.url) ? this.deps.url[0]! : this.deps.url;
+    return (this.link?.insecure ? BAFIA_DIRECT_URL : primary).replace(/^ws/, "http").replace(/\/$/, "");
+  }
+
   /** адрес аватарки игрока (файл сервера Бафии); `undefined` - аватарки нет или сервер не включён. `small` - статичное превью */
   avatar(id: string, small = false): string | undefined {
     const link = this.consented;
@@ -799,7 +817,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     const path = mine ? (link.premiumUntil && link.premiumUntil > Date.now() ? link.myAvatar : undefined) : link.avatars.get(id);
     // small - маленькое статичное превью для чата и списков: десятки анимированных аватарок сразу лагают на телефоне
     // при экономии ресурсов анимации не крутятся нигде: везде статичное превью
-    return path && AVATAR_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path + ((small && !this.deps.settings.data.game?.animateChatAvatars) || this.deps.settings.data.lowPower ? "/t" : "") : undefined;
+    return path && AVATAR_FILE_PATH.test(path) ? this.fileBase() + path + ((small && !this.deps.settings.data.game?.animateChatAvatars) || this.deps.settings.data.lowPower ? "/t" : "") : undefined;
   }
   /** адрес баннера профиля игрока; свой виден только пока есть премиум */
   banner(id: string): string | undefined {
@@ -807,7 +825,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     if(!link) return undefined;
     const mine = id == this.deps.user.playerObjectId;
     const path = mine ? (link.premiumUntil && link.premiumUntil > Date.now() ? link.myBanner : undefined) : link.banners.get(id);
-    return path && BANNER_FILE_PATH.test(path) ? this.deps.url.replace(/^ws/, "http").replace(/\/$/, "") + path : undefined;
+    return path && BANNER_FILE_PATH.test(path) ? this.fileBase() + path : undefined;
   }
   /** цвет фона профиля игрока (`#rrggbb`) */
   profileBg(id: string): string | undefined {
@@ -900,7 +918,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     // ключ нужен всегда: «кто играет» работает без согласия; сохранение ключа вызывает sync ещё раз
     if(!key) return void this.deps.settings.update(data => { if(!data.bafia.key) data.bafia.key = newKey(); });
     if(!this.link) {
-      const link = this.link = new BafiaLink({ url: this.deps.url, fileBase: this.deps.url.replace(/^ws/, "http"), key, createSocket: this.deps.createSocket, timeout: this.deps.timeout });
+      const link = this.link = new BafiaLink({ url: this.deps.url, openTimeout: Array.isArray(this.deps.url) ? 10_000 : undefined, fileBase: (Array.isArray(this.deps.url) ? this.deps.url[0]! : this.deps.url).replace(/^ws/, "http"), key, createSocket: this.deps.createSocket, timeout: this.deps.timeout });
       link.savedCode = this.deps.settings.data.bafia.code || undefined;
       link.color = this.deps.settings.data.bafia.color;
       link.on("change", () => {

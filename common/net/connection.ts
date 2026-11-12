@@ -22,6 +22,8 @@ export interface ConnectionOptions {
   /** разброс паузы, доля от неё (0.3 - ±30 %); 0 - без разброса */
   jitter?: number
   random?: () => number
+  /** сколько ждать открытия соединения, мс; дольше - считаем попытку неудачной и пробуем следующий адрес (по умолчанию ждём, сколько даст система) */
+  openTimeout?: number
 }
 
 export type ConnectionEvents = {
@@ -112,7 +114,10 @@ export class Connection extends Events<ConnectionEvents> {
     this.socket = socket;
     this.state = "connecting";
 
+    // не открывается слишком долго (сеть режет соединение молча): закрываем, чтобы сработал запасной адрес
+    const timer = this.options.openTimeout ? setTimeout(() => { if(this.socket === socket && this.state == "connecting") socket.close(); }, this.options.openTimeout) : undefined;
     socket.onopen = () => {
+      clearTimeout(timer);
       this.attempt = 0;
       this.failed = 0;
       this.preferred = this.current;
@@ -124,6 +129,7 @@ export class Connection extends Events<ConnectionEvents> {
     };
     socket.onerror = error => this.emit("error", error);
     socket.onclose = () => {
+      clearTimeout(timer);
       if(this.socket !== socket) return;
       detach(socket);
       if(this.state == "connecting") this.failed++;
@@ -132,6 +138,12 @@ export class Connection extends Events<ConnectionEvents> {
       this.emit("close", !this.stopped);
       if(!this.stopped) void this.reconnect();
     };
+  }
+
+  /** адрес, который пробуем или открыт сейчас */
+  get activeUrl(): string {
+    const { url } = this.options;
+    return typeof url == "string" ? url : typeof url == "function" ? url() : url[this.current]!;
   }
 
   private pickUrl(): string {

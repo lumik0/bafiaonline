@@ -57,7 +57,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const problems: Record<string, string> = { version: "версия игры устарела, обнови страницу", "too-many": "открыто слишком много окон", "no-answer": "сервер не ответил", "slow-down": "слишком часто", unreachable: "сервер не открывается с этого устройства (сеть, DNS или сертификат)", "ws-blocked": "сервер доступен, но соединение игры не проходит" };
 	const statusText = () => {
 		const status = bafiaStatus();
-		if(status.state == "connected") return "подключено";
+		if(status.state == "connected") return status.insecure ? "подключено через резервный канал (без шифрования)" : "подключено";
 		if(status.state == "connecting") return "подключаюсь…";
 		const attempts = status.attempts ? ` (попыток: ${status.attempts})` : "";
 		return "нет связи" + attempts + (status.problem ? ": " + (problems[status.problem] ?? status.problem) + (status.detail ? " [" + status.detail + "]" : "") : "");
@@ -69,6 +69,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 		expired: "Срок этого кода закончился.",
 		devices: "Код уже активирован на трёх устройствах. Попроси сбросить устройства или выдать новый код.",
 		locked: "Слишком много неверных попыток. Попробуй через час.",
+		insecure: "Сейчас связь идёт по резервному каналу без шифрования: код премиума по нему не отправляется. Попробуй, когда заработает обычное подключение.",
 		offline: "Сервер Бафии сейчас недоступен."
 	};
 	/** что даёт премиум и где его купить (Telegram-бот, звёзды) */
