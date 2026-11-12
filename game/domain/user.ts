@@ -35,6 +35,16 @@ export class User extends Events<{ change: () => void }> {
 
   get isSignedIn() { return !!this.token; }
 
+  /**
+   * вход не удался из-за блокировки: главное меню показывает имя и фото из сохранённого аккаунта. Номер игрока не ставим:
+   * по нему игра сообщила бы серверу Бафии, что игрок играет, и значок «БАН» пропал бы
+   */
+  showOffline(name: string, photo?: string) {
+    this.username = name;
+    this.photo = photo ?? "";
+    this.emit("change");
+  }
+
   applyDashboard({ user, coins, friendshipRequests, newMessages, decorations }: ServerData<"dashboard">["dashboard"]) {
     this.decorations = normalizeDecorations(decorations);
     this.username = user.username ?? this.username;

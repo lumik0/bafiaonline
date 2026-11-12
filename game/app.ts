@@ -12,7 +12,7 @@ import { createDialogs, DialogManager } from "@common/ui/dialog/dialogs";
 import { Navigator, type Screens } from "@common/ui/nav/navigator";
 import type { GameHost } from "@launcher/game";
 import type { GameContext } from "./context";
-import { Auth, signInProblem } from "./domain/auth";
+import { Auth, signInProblem, type SignInResult } from "./domain/auth";
 import { Friends } from "./domain/friends";
 import type { WorkerLike } from "@mods/index";
 import { ConnectionMonitor } from "./domain/connection-monitor";
@@ -130,6 +130,11 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   const nav = new Navigator<Routes>();
   // перезаход после обрыва не удался (например, бан): показываем причину на экране входа
   auth.on("restoreFailed", (email, result) => {
+    // блокировка (в том числе посреди игры): игрок остаётся в меню, а окно с причиной покажем при попытке зайти в комнату или чат
+    if(isBan(result)) {
+      void host.storage.accounts.list().then(accounts => accounts.find(item => item.email == email)?.password).catch(() => undefined).then(password => enterBanned(email, password ?? "", result));
+      return;
+    }
     dialogs.manager.closeAll();
     nav.replace("authorization", { email, error: signInProblem(result) });
   });
@@ -246,9 +251,49 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     }
   }
 
+  // блокировка: игрок остаётся в главном меню. Всё, что требует входа (комнаты, чаты, друзья и так далее), вместо этого показывает окно
+  // с причиной и оставшимся временем; когда срок вышел (или бан сняли), вход повторяется сам
+  type BanResult = Extract<SignInResult, { status: "blocked" | "inactive" }>;
+  interface BanState { email: string, password: string, result: BanResult, until: number, checked: number }
+  let ban: BanState | undefined;
+  function isBan(result: SignInResult): result is BanResult { return result.status == "blocked" || result.status == "inactive"; }
+  const banUntil = (result: BanResult) => Date.now() + (result.secondsRemaining ?? 0) * 1000;
+  const banText = () => signInProblem({ ...ban!.result, secondsRemaining: Math.max(0, Math.round((ban!.until - Date.now()) / 1000)) }) ?? "Ты заблокирован";
+
+  async function enterBanned(email: string, password: string, result: BanResult) {
+    ban = { email, password, result, until: banUntil(result), checked: Date.now() };
+    const account = (await host.storage.accounts.list().catch(() => [])).find(item => item.email == email);
+    user.showOffline(account?.name || email, account?.photo);
+    dialogs.manager.closeAll();
+    nav.reset("menu");
+    void dialogs.alert(banText(), { title: "БЛОКИРОВКА" });
+  }
+
+  /** можно ли сейчас то, что требует входа; при блокировке - окно с причиной, а если срок вышел, сначала пробуем войти снова */
+  async function allowed(): Promise<boolean> {
+    const current = ban;
+    if(!current) return true;
+    if(Date.now() >= current.until || Date.now() - current.checked > 60_000) {
+      current.checked = Date.now();
+      try {
+        const result = await auth.signIn({ email: current.email, password: current.password });
+        if(result.status == "ok") { ban = undefined; ctx.bafia.reportOfficial(true); return true; }
+        if(isBan(result)) { current.result = result; current.until = banUntil(result); }
+      } catch {
+        // нет связи: покажем прежнее
+      }
+    }
+    await dialogs.alert(banText(), { title: "БЛОКИРОВКА" });
+    return false;
+  }
+  const needsLogin = (action: () => void) => () => { if(!ban) return action(); void allowed().then(ok => { if(ok) action(); }); };
+
   async function signIn(email: string, password: string): Promise<string | undefined> {
     try {
-      const problem = signInProblem(await auth.signIn({ email, password }));
+      const result = await auth.signIn({ email, password });
+      if(isBan(result)) { await enterBanned(email, password, result); return undefined; }
+      ban = undefined;
+      const problem = signInProblem(result);
       // вход прошёл: официальный сервер отвечает (если до этого сообщали, что нет, или так сказано другим, говорим, что всё работает)
       if(!problem) ctx.bafia.reportOfficial(true);
       if(!problem) {
@@ -267,12 +312,12 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
   }
 
   const actions: MenuActions = {
-    rooms: () => nav.push("rooms"), competitive: () => nav.push("competitive"), chat: () => nav.push("globalChat"), friends: () => nav.push("friends"),
+    rooms: needsLogin(() => nav.push("rooms")), competitive: needsLogin(() => nav.push("competitive")), chat: needsLogin(() => nav.push("globalChat")), friends: needsLogin(() => nav.push("friends")),
     history: () => nav.push("history"),
-    backpack: () => nav.push("backpack"), ratings: () => nav.push("ratings"), feedback: () => nav.push("feedback"), rules: () => nav.push("rules"), shop: () => nav.push("shop"),
+    backpack: needsLogin(() => nav.push("backpack")), ratings: needsLogin(() => nav.push("ratings")), feedback: () => nav.push("feedback"), rules: () => nav.push("rules"), shop: needsLogin(() => nav.push("shop")),
     settings: () => nav.push("settings"),
-    profile: () => ctx.openProfile(user.playerObjectId),
-    changePhoto: () => void dialogs.manager.open({ title: "ФОТО ПРОФИЛЯ", render: close => PhotoPicker({ ctx, close }) }),
+    profile: needsLogin(() => ctx.openProfile(user.playerObjectId)),
+    changePhoto: needsLogin(() => void dialogs.manager.open({ title: "ФОТО ПРОФИЛЯ", render: close => PhotoPicker({ ctx, close }) })),
     telegram: () => void window.open("https://t.me/bafiaonline", "_blank", "noopener")
   };
 

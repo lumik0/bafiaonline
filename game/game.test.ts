@@ -65,6 +65,51 @@ describe("игра", () => {
     notifications.dismiss("bafia-notice");
   });
 
+  test("блокировка при входе: игрок остаётся в меню, а в комнаты и чат вместо входа - окно с причиной и временем", async() => {
+    let banned = true;
+    const { game, text, click } = await launch({ name: "Euaek", email: "a@b.c", password: "правильный" }, (packet, socket) => {
+      if(packet.ty == "sin") socket.receive(banned ? { ty: "uib", tsr: 3180 } : signedIn);
+      if(packet.ty == "acd") socket.receive(dashboard);
+    });
+    await tick(20);
+
+    // не экран входа, а главное меню (имени в сохранённых аккаунтах нет - показывается почта); окно с блокировкой уже показано
+    expect(game.ctx.nav.top?.name).toBe("menu");
+    expect(text()).toContain("a@b.c");
+    expect(text()).toContain("Ты был неактивен");
+    expect(text()).toContain("53 минуты");
+    click("OK");
+    await tick(20);
+    expect(game.ctx.dialogs.manager.isOpen).toBe(false);
+
+    // комнаты, чат, друзья: экран не открывается, снова окно
+    for(const label of ["Комнаты", "Чат", "Друзья"]) {
+      click(label);
+      await tick(20);
+      expect(game.ctx.nav.top?.name).toBe("menu");
+      expect(text()).toContain("Оставшееся время блокировки");
+      click("OK");
+      await tick(20);
+    }
+    // то, что не требует входа, работает
+    click("Правила");
+    await tick(20);
+    expect(game.ctx.nav.top?.name).toBe("rules");
+    await game.ctx.back();
+    await tick(20);
+
+    // срок вышел (бан сняли): вход повторяется сам и комната открывается
+    banned = false;
+    const realNow = Date.now;
+    Date.now = () => realNow() + 61_000;
+    try {
+      click("Комнаты");
+      await tick(40);
+      expect(game.ctx.nav.top?.name).toBe("rooms");
+      expect(game.ctx.dialogs.manager.isOpen).toBe(false);
+    } finally { Date.now = realNow; }
+  });
+
   test("аккаунт с паролем: входит сам и показывает меню с данными игрока", async() => {
     const { game, window, text } = await launch({ name: "Euaek", email: "a@b.c", password: "правильный" });
     await tick(10);
