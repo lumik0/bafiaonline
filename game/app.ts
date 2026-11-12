@@ -36,6 +36,7 @@ import { RatingsScreen } from "./screens/RatingsScreen.tsrx";
 import { RulesScreen } from "./screens/RulesScreen.tsrx";
 import { BackpackScreen } from "./screens/BackpackScreen.tsrx";
 import { CompetitiveScreen } from "./screens/CompetitiveScreen.tsrx";
+import { completeTip, markTipShown, tipActive } from "./domain/tips";
 import { historyDocument } from "./domain/history";
 import { filterDocument } from "./domain/rooms/filter";
 import { joinProblems, RoomsList } from "./domain/rooms/rooms";
@@ -328,6 +329,15 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
         openBafiaRoom(ctx, result.adapter);
       }
     });
+  });
+  // подсказка про галочку: когда рядом (в чате или комнате) есть хоть один игрок из Бафии, один раз объясняем, что это
+  ctx.bafia.on("change", () => {
+    const screen = nav.top?.name;
+    if(screen != "globalChat" && screen != "room" || !tipActive(settings, "badge")) return;
+    if(![...ctx.bafia.online].some(id => id != user.playerObjectId)) return;
+    markTipShown(settings, "badge");
+    completeTip(settings, "badge");
+    host.notifications.show({ key: "tip-badge", title: "Подсказка: галочка у ника", text: "Галочка значит, что игрок тоже играет через этот клиент и сейчас на сервере Бафии. Её цвет игрок выбирает сам (премиум), а горящая галочка у особых игроков, например разработчиков.", kind: "info", timeout: 20_000 });
   });
   const alerts = new MessageAlerts({ client, user, notifier: host.notifications, chatOpen: () => nav.top?.name == "privateChat", canPoll: () => nav.top?.name == "menu", requestsOutsideMenu: () => settings.data.game.pollRequests });
   alerts.start();

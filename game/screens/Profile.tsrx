@@ -7,7 +7,7 @@ import { Role, Sex, roleNames } from "../domain/enums";
 import type { BafiaStats } from "../domain/bafia";
 import { Avatar } from "../ui/Avatar.tsrx";
 import { Lottie } from "../ui/Lottie.tsrx";
-import { PremiumBadge } from "../ui/PremiumBadge.tsrx";
+import { CheckBadge } from "../ui/CheckBadge.tsrx";
 import { Marks } from "../ui/Marks.tsrx";
 import { avatarFrame, nickEffect, premiumFrame, themeBackground } from "../domain/premium-style";
 import { GifMessage } from "../ui/GifMessage.tsrx";
@@ -93,6 +93,9 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	// премиум Бафии: спрашиваем сервер, в Бафии ли этот игрок и какой у него значок (если сервер включён)
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
 	const premiumColor = () => { bafiaVersion(); return ctx.bafia.premiumColor(player.playerObjectId ?? playerObjectId); };
+	// особый игрок (например разработчик): подпись под ником и горящая галочка, список ведёт администратор
+	const special = () => { bafiaVersion(); return ctx.bafia.special(player.username ?? ""); };
+	const online = () => { bafiaVersion(); return ctx.bafia.online.has(player.playerObjectId ?? playerObjectId); };
 	const gifAvatar = () => { bafiaVersion(); return ctx.bafia.avatar(player.playerObjectId ?? playerObjectId); };
 	// баннер и цвет фона профиля (премиум Бафии): видят только игроки Бафии
 	const banner = () => { bafiaVersion(); return ctx.bafia.banner(player.playerObjectId ?? playerObjectId); };
@@ -181,6 +184,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			.photo { position: relative; cursor: pointer; }
 			.online { position: absolute; left: 2px; top: 6px; width: 18px; height: 18px; box-sizing: border-box; border: 2px solid #fff; border-radius: 50%; background: #636363; }
 			.online.on { background: #3fe33f; }
+			.special { padding: 1px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(90deg, #ff5a1a, #ffb020); text-shadow: 0 0 2px rgba(0, 0, 0, .4); }
 			.status { max-width: 100%; text-align: center; font-size: 14px; opacity: .9; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
 			.note { max-width: 100%; text-align: center; font-size: 13px; opacity: .75; font-style: italic; overflow-wrap: anywhere; }
 			.name { font-size: 18px; font-weight: 700; user-select: text; -webkit-user-select: text; }
@@ -236,10 +240,13 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 					<Lottie animation={() => animationOf(decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" />
 				}
 				<span style={nickEffect(look(), premiumColor())}>{player.username ?? ""}</span>
-				{premiumColor() ? <PremiumBadge color={premiumColor()!} /> : null}
+				{premiumColor() || special() || online() ? <CheckBadge color={premiumColor() ?? "var(--accent)"} fire={!!special()} title={special() ? special()![0]!.toUpperCase() + special()!.slice(1) : premiumColor() ? "Играет в Бафии, премиум" : "Играет в Бафии"} /> : null}
 				<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} />
 			</div>
 
+			@if (special()) {
+				<div class="special" data-keep>{special()}</div>
+			}
 			@if (look().status) {
 				<div class="status" data-keep>{look().status}</div>
 			}

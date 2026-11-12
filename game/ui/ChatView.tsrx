@@ -10,7 +10,7 @@ import { Lottie } from "./Lottie.tsrx";
 import { ChatInput } from "./ChatInput.tsrx";
 import { GifMessage } from "./GifMessage.tsrx";
 import { HistoryMessage } from "./HistoryMessage.tsrx";
-import { PremiumBadge } from "./PremiumBadge.tsrx";
+import { CheckBadge } from "./CheckBadge.tsrx";
 import { Marks } from "./Marks.tsrx";
 import { avatarFrame, nickEffect, premiumFrame } from "../domain/premium-style";
 import type { Bafia } from "../domain/bafia";
@@ -56,13 +56,14 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	// премиум Бафии: значок и рамка ника в его цвете
 	const bafiaVersion = bafia ? fromEvents(bafia, "change", () => ({})) : () => 0;
 	const premiumColor = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.premiumColor(id) : undefined; };
-	// значок «Б»: у премиума цветной, у остальных игроков Бафии обычного цвета (как в списке игроков)
-	const badgeOf = (id: string | undefined) => {
+	// галочка: у премиума в его цвете, у остальных игроков Бафии обычного цвета, у особых (разработчиков) горит
+	const badgeOf = (id: string | undefined, nick?: string) => {
 		bafiaVersion();
 		if(!id || !bafia) return undefined;
-		const color = bafia.premiumColor(id);
-		if(color) return { color, title: "Играет в Бафии, премиум" };
-		return bafia.online.has(id) ? { color: "var(--accent)", title: "Играет в Бафии" } : undefined;
+		const color = bafia.premiumColor(id), special = nick ? bafia.special(nick) : undefined;
+		if(special) return { color: color ?? "var(--accent)", title: special[0]!.toUpperCase() + special.slice(1), fire: true };
+		if(color) return { color, title: "Играет в Бафии, премиум", fire: false };
+		return bafia.online.has(id) ? { color: "var(--accent)", title: "Играет в Бафии", fire: false } : undefined;
 	};
 	const lookOf = (id: string | undefined) => { bafiaVersion(); return id && bafia ? bafia.look(id) : undefined; };
 	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? bafia?.avatar(id, true) : undefined; };
@@ -142,7 +143,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 							<div onClick={() => onAvatar?.(row.group.user.playerObjectId ?? "")}><Avatar photo={() => row.group.user.photo ?? ""} gif={() => gifAvatar(row.group.user.playerObjectId)} asset={() => row.group.user.asset} ring={() => avatarFrame(lookOf(row.group.user.playerObjectId), photoRing(row.group.user.decorations))} animation={() => animationOf(row.group.user.decorations, DecorationType.PhotoBorderAnimation)} assets={assets} size={35} /></div>
 							<div class="column">
 								<span class={hideName() && row.group.user.username == myName() ? "nick blur" : "nick"} data-keep style={{ ...nickStyle(row.group.user.decorations), ...premiumFrame(premiumColor(row.group.user.playerObjectId)), ...(row.group.entries[0]?.nickTone ? { color: "var(--" + toneToken(row.group.entries[0].nickTone) + ")" } : {}) }} onClick={() => controller?.mention?.(row.group.user.username)}>
-									{animationOf(row.group.user.decorations, DecorationType.UsernameAnimation) ? <Lottie animation={() => animationOf(row.group.user.decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" /> : null}{nickPrefix?.(row.group.user.username) ? <span class="index">{nickPrefix(row.group.user.username)}</span> : null}<span style={nickEffect(lookOf(row.group.user.playerObjectId), premiumColor(row.group.user.playerObjectId))}>{row.group.user.username}</span>{badgeOf(row.group.user.playerObjectId) ? <PremiumBadge color={badgeOf(row.group.user.playerObjectId)!.color} title={badgeOf(row.group.user.playerObjectId)!.title} /> : null}<Marks bafia={bafia} nick={() => row.group.user.username} /><span class="vip">{row.group.user.vip ?? ""}</span>{row.group.entries[0]?.label ? <span class="label">{" · " + row.group.entries[0].label}</span> : null}
+									{animationOf(row.group.user.decorations, DecorationType.UsernameAnimation) ? <Lottie animation={() => animationOf(row.group.user.decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" /> : null}{nickPrefix?.(row.group.user.username) ? <span class="index">{nickPrefix(row.group.user.username)}</span> : null}<span style={nickEffect(lookOf(row.group.user.playerObjectId), premiumColor(row.group.user.playerObjectId))}>{row.group.user.username}</span>{badgeOf(row.group.user.playerObjectId, row.group.user.username) ? <CheckBadge color={badgeOf(row.group.user.playerObjectId, row.group.user.username)!.color} title={badgeOf(row.group.user.playerObjectId, row.group.user.username)!.title} fire={badgeOf(row.group.user.playerObjectId, row.group.user.username)!.fire} /> : null}<Marks bafia={bafia} nick={() => row.group.user.username} /><span class="vip">{row.group.user.vip ?? ""}</span>{row.group.entries[0]?.label ? <span class="label">{" · " + row.group.entries[0].label}</span> : null}
 								</span>
 								@for (const entry of row.group.entries) {
 									<span class={(entry.unread ? "text unread" : "text") + (onMenu ? " menuable" : "")} data-entry={entry.id} data-keep style={{ color: lineColor(entry), ...(entry.unread ? {} : { background: lineBackground(entry) }) }}

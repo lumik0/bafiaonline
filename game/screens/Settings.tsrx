@@ -54,7 +54,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const premiumStates = { none: ["#9aa0a6", "Не активирован"], active: ["#2fb44c", "Активирован"], expired: ["#d94452", "Закончился"] } as const;
 	// связь с сервером Бафии: от неё зависят значки, гифки и статистика; на скриншоте видно, подключено ли у игрока
 	const bafiaStatus = fromEvents(ctx.bafia, "change", () => ctx.bafia.status);
-	const problems: Record<string, string> = { version: "версия игры устарела, обнови страницу", "too-many": "открыто слишком много окон", "no-answer": "сервер не ответил", "slow-down": "слишком часто" };
+	const problems: Record<string, string> = { version: "версия игры устарела, обнови страницу", "too-many": "открыто слишком много окон", "no-answer": "сервер не ответил", "slow-down": "слишком часто", unreachable: "сервер не открывается с этого устройства (сеть, DNS или сертификат)", "ws-blocked": "сервер доступен, но соединение игры не проходит" };
 	const statusText = () => {
 		const status = bafiaStatus();
 		if(status.state == "connected") return "подключено";
@@ -75,7 +75,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const buyPremium = async () => {
 		const agreed = await ctx.dialogs.confirm(
 			"Премиум даёт:\n" +
-			"• цветной значок «Б» и рамку вокруг твоего ника у других игроков Бафии, цвет выбираешь сам;\n" +
+			"• цветную галочку и рамку вокруг твоего ника у других игроков Бафии, цвет выбираешь сам;\n" +
 			`• отправленные игры хранятся ${BAFIA_LIMITS.premiumHistoryDays} дней вместо ${BAFIA_LIMITS.historyDays}, их можно отправить больше и крупнее.\n\n` +
 			"На саму игру премиум не влияет: у всех она одинаковая.\n\n" +
 			"Оплата в Telegram-боте звёздами ⭐. Бот пришлёт код, его нужно ввести здесь же («Ввести код»).",
@@ -108,7 +108,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 
 	/** код премиума от бота, запоминается для восстановления */
 	const enterCode = async () => {
-		const code = await ctx.dialogs.prompt({ title: "КОД ПРЕМИУМА", text: "Код присылает Telegram-бот после оплаты звёздами ⭐ (кнопка «Купить» в настройках). Премиум даёт цветной значок с рамкой у твоего ника и хранение отправленных игр до полугода.", placeholder: "BAF-XXXX-XXXX-XXXX", initial: ctx.bafia.code, ok: "Активировать" });
+		const code = await ctx.dialogs.prompt({ title: "КОД ПРЕМИУМА", text: "Код присылает Telegram-бот после оплаты звёздами ⭐ (кнопка «Купить» в настройках). Премиум даёт цветную галочку с рамкой у твоего ника и хранение отправленных игр до полугода.", placeholder: "BAF-XXXX-XXXX-XXXX", initial: ctx.bafia.code, ok: "Активировать" });
 		if(!code?.trim()) return;
 		const result = await ctx.bafia.redeem(code);
 		if("until" in result) await ctx.dialogs.alert(`Премиум действует до ${new Date(result.until).toLocaleDateString("ru-RU")}.\n\nСохрани код: ${code.trim().toUpperCase()}\nЕсли потеряешь данные браузера, введи его снова, и премиум вернётся.`, { title: "Готово" });
@@ -341,7 +341,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 				@if (tab() == "bafia") {
 					<>
 						<SettingGroup title="СЕРВЕР БАФИИ">
-							<SettingRow label="Связь с сервером" hint="От неё зависят значки Б, гифки и статистика">
+							<SettingRow label="Связь с сервером" hint="От неё зависят галочки, гифки и статистика">
 								<span class="bafiaState" style={{ color: bafiaStatus().state == "connected" ? "#2fb44c" : bafiaStatus().state == "offline" ? "#d94452" : undefined }} data-keep>{statusText()}</span>
 							</SettingRow>
 							<SettingRow label="Гифки, ники и аватарки" hint="Согласие на отправку на сервер: история ников, гифки, GIF-аватарки">
@@ -412,7 +412,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 											}
 										</div>
 									</SettingRow>
-									<SettingRow label="Эффект ника" hint={premium() ? "Цвет берётся от значка" : "Нужен премиум"}>
+									<SettingRow label="Эффект ника" hint={premium() ? "Цвет берётся от галочки" : "Нужен премиум"}>
 										<button class={!myLook().effect ? "pick on" : "pick"} disabled={!premium()} onClick={() => void changeLook({ effect: undefined })}>{"Нет"}</button>
 										@for (const name of PROFILE_EFFECTS) {
 											<button class={myLook().effect == name ? "pick on" : "pick"} disabled={!premium()} onClick={() => void changeLook({ effect: name })}>{effectNames[name]}</button>
@@ -440,13 +440,13 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 									</SettingRow>
 								</SettingGroup>
 								<SettingGroup title="ПРЕМИУМ">
-									<SettingRow label={premium() ? "Премиум до " + new Date(premium()!).toLocaleDateString("ru-RU") : "Премиум"} hint="Цветной значок с рамкой и история игр дольше">
+									<SettingRow label={premium() ? "Премиум до " + new Date(premium()!).toLocaleDateString("ru-RU") : "Премиум"} hint="Цветная галочка с рамкой и история игр дольше">
 										<span class="pstate" style={{ background: premiumStates[premiumState()][0] }} title={premiumStates[premiumState()][1]} aria-label={premiumStates[premiumState()][1]}></span>
 										<button onClick={() => void buyPremium()}>{premium() ? "Продлить" : "Купить"}</button>
 										<button onClick={() => void enterCode()}>{"Ввести код"}</button>
 									</SettingRow>
 									@if (premium()) {
-										<SettingRow label="Цвет значка">
+										<SettingRow label="Цвет фона галочки">
 											<div class="swatches">
 												@for (const [name, hex] of Object.entries(PREMIUM_COLORS)) {
 													<button class={ctx.bafia.color == name ? "swatch on" : "swatch"} style={{ background: hex }} aria-label={name} onClick={() => ctx.bafia.setColor(name)}></button>

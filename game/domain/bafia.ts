@@ -123,12 +123,37 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
         this.attempts++;
         // в журнал (его присылают с отчётами) - не каждую попытку, а первую и дальше реже
         if([1, 3, 10, 30, 100].includes(this.attempts)) log("warn", `Бафия: нет связи с сервером, неудачных попыток подряд: ${this.attempts}`);
+        if(this.attempts == 2) void this.probe();
       }
       this.emit("change");
     });
   }
 
   start() { this.connection.connect(); }
+
+  private probing = false;
+
+  /**
+   * связи нет уже несколько попыток: проверяем обычным запросом по https, доходит ли телефон или компьютер до сервера вообще.
+   * Так игроку (и мне по его скриншоту) видно, что сломано: сеть, DNS или сертификат - или только WebSocket
+   */
+  private async probe() {
+    // со своим сокетом (тесты) и без fetch проверять нечем
+    if(this.probing || this.problem || this.options.createSocket || typeof fetch != "function") return;
+    this.probing = true;
+    try {
+      await fetch(this.options.url.replace(/^ws/, "http"), { mode: "no-cors", cache: "no-store", signal: AbortSignal.timeout(8000) });
+      this.problem = "ws-blocked";
+    } catch(error) {
+      this.problem = "unreachable";
+      log("warn", `Бафия: сервер не открывается по https (${error instanceof Error ? error.name + ": " + error.message : String(error)})`);
+    }
+    this.probing = false;
+    // за время проверки связь могла вернуться
+    if(this.ready) this.problem = undefined;
+    else log("warn", `Бафия: причина - ${this.problem}`);
+    this.emit("change");
+  }
 
   private beatTimer?: ReturnType<typeof setInterval>;
   private missed = 0;
@@ -367,6 +392,8 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   shameMarks = new Map<string, number>();
   /** до какого времени (мс) у ника бан (ключ - `nickKey`) */
   banMarks = new Map<string, number>();
+  /** подписи особых игроков, например "разработчик" (ключ - `nickKey`) */
+  specialMarks = new Map<string, string>();
 
   /**
    * значки «Позор» и «БАН» для этих ников (игроки могут быть и не в сети: друзья, чат, профиль). Ответ сервера заменяет
@@ -377,14 +404,16 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(!this.ready || !list.length) return;
     const answer = await this.request({ t: "marks", nicks: list });
     if(answer?.t != "marks") return;
-    const shame = new Map(this.shameMarks), bans = new Map(this.banMarks);
+    const shame = new Map(this.shameMarks), bans = new Map(this.banMarks), special = new Map(this.specialMarks);
     for(const nick of list) {
-      const key = nickKey(nick), points = answer.shame?.[key], until = answer.bans?.[key];
+      const key = nickKey(nick), points = answer.shame?.[key], until = answer.bans?.[key], title = answer.special?.[key];
+      typeof title == "string" && title ? special.set(key, title.slice(0, 24)) : special.delete(key);
       typeof points == "number" && points > 0 ? shame.set(key, points) : shame.delete(key);
       typeof until == "number" && Number.isFinite(until) ? bans.set(key, until) : bans.delete(key);
     }
     this.shameMarks = shame;
     this.banMarks = bans;
+    this.specialMarks = special;
     this.emit("change");
   }
 
@@ -903,6 +932,11 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   /** очки «Позора» у игрока, если ему положен значок (с согласия на сервер Бафии) */
   shamePoints(nick: string): number | undefined {
     return this.consented?.shameMarks.get(nickKey(nick));
+  }
+
+  /** подпись особого игрока (например "разработчик"): у него горящая галочка и подпись в профиле; список ведёт администратор */
+  special(nick: string): string | undefined {
+    return this.consented?.specialMarks.get(nickKey(nick));
   }
 
   /** до какого времени бан у игрока; нет бана или срок вышел - `undefined`. Срок проверяется по времени устройства, чтобы значок пропал вовремя */

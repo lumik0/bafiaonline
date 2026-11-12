@@ -31,7 +31,7 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 test("премиум Бафии: цветной значок в списке игроков, значок и рамка у ника в чате", async() => {
   const assets = new Assets(new MemoryFileStore(), { createUrl: () => "blob:test" });
   const bafia = Object.assign(new Events<{ change: () => void }>(), { look: () => ({}), premiumColor: (id: string) => id == "p1" ? "#3E63DD" : undefined, online: new Set(["p1", "p2"]), avatar: (id: string) => id == "p1" ? "https://bafia.example.com/a/abc12345" : undefined, enabled: true,
-    shamePoints: (nick: string) => nick == "Чужой" ? 3 : undefined, banUntil: (nick: string) => nick == "Обычный" ? Date.now() + 3_600_000 : undefined });
+    special: (nick: string) => nick == "Разраб" ? "разработчик" : undefined, shamePoints: (nick: string) => nick == "Чужой" ? 3 : undefined, banUntil: (nick: string) => nick == "Обычный" ? Date.now() + 3_600_000 : undefined });
   const root = document.body.appendChild(document.createElement("div"));
   const users = [{ username: "Звезда", playerObjectId: "p1" }, { username: "Обычный", playerObjectId: "p2" }];
 
@@ -42,30 +42,34 @@ test("премиум Бафии: цветной значок в списке и�
   // gif-аватарка у игрока с премиумом, у остальных обычное фото
   const photos = [...root.querySelectorAll<HTMLImageElement>("img.avatar")];
   expect(photos.map(photo => photo.getAttribute("src")?.includes("/a/abc12345"))).toEqual([true, false]);
-  const badges = [...root.querySelectorAll<HTMLElement>(".bafia")];
+  const badges = [...root.querySelectorAll<HTMLElement>(".check")];
   expect(badges).toHaveLength(2);
-  expect(badges[0]!.style.background).toMatch(/#3E63DD|rgb\(62, 99, 221\)/i);
-  expect(badges[1]!.style.background).toBe("");
+  expect(badges[0]!.querySelector("rect")!.getAttribute("fill")).toBe("#3E63DD");
+  expect(badges[1]!.querySelector("rect")!.getAttribute("fill")).toBe("var(--accent)");
+  expect(badges.some(badge => badge.classList.contains("fire"))).toBe(false);
   dispose();
 
-  const entries = [{ id: 1, kind: "message" as const, text: "привет", user: users[0] }, { id: 2, kind: "message" as const, text: "ку", user: users[1] }, { id: 3, kind: "message" as const, text: "я не в Бафии", user: { username: "Чужой", playerObjectId: "p3" } }];
+  const entries = [{ id: 1, kind: "message" as const, text: "привет", user: users[0] }, { id: 2, kind: "message" as const, text: "ку", user: users[1] }, { id: 3, kind: "message" as const, text: "я не в Бафии", user: { username: "Чужой", playerObjectId: "p3" } }, { id: 4, kind: "message" as const, text: "я разраб", user: { username: "Разраб", playerObjectId: "p4" } }];
   const disposeChat = ui.mount(() => ChatView({
     entries: () => entries, myName: () => "я", hideName: () => false, assets, send: () => {}, bafia: bafia as never, readonly: true
   } as never) as never, root);
   await tick();
-  expect([...root.querySelectorAll<HTMLImageElement>("img.avatar")].map(photo => photo.getAttribute("src")?.includes("/a/abc12345"))).toEqual([true, false, false]);
+  expect([...root.querySelectorAll<HTMLImageElement>("img.avatar")].map(photo => photo.getAttribute("src")?.includes("/a/abc12345"))).toEqual([true, false, false, false]);
   // значки нарушителей: «БАН» у игрока в бане, «Позор» у набравшего очки, у остальных нет
   const marked = [...root.querySelectorAll<HTMLElement>(".nick")].map(nick => [...nick.querySelectorAll(".mark")].map(mark => mark.textContent));
-  expect(marked).toEqual([[], ["БАН"], ["Позор"]]);
+  expect(marked).toEqual([[], ["БАН"], ["Позор"], []]);
   const nicks = [...root.querySelectorAll<HTMLElement>(".nick")];
   expect(nicks[0]!.style.border).toMatch(/#3E63DD|rgb\(62, 99, 221\)/i);
-  expect(nicks[0]!.querySelector(".pbadge")).not.toBeNull();
-  // обычный игрок Бафии: значок «Б» есть, обычного цвета, без цветной рамки
+  expect(nicks[0]!.querySelector(".check")).not.toBeNull();
+  // обычный игрок Бафии: галочка есть, обычного цвета, без цветной рамки
   expect(nicks[1]!.style.border).toBe("");
-  expect(nicks[1]!.querySelector(".pbadge")).not.toBeNull();
-  expect(nicks[1]!.querySelector<HTMLElement>(".pbadge")!.style.background).toBe("var(--accent)");
-  expect(nicks[2]!.querySelector(".pbadge")).toBeNull();      // игрок не из Бафии: значка нет
-  expect(nicks[0]!.querySelector<HTMLElement>(".pbadge")!.style.background).toMatch(/#3E63DD|rgb\(62, 99, 221\)/i);
+  expect(nicks[1]!.querySelector(".check")).not.toBeNull();
+  expect(nicks[1]!.querySelector(".check rect")!.getAttribute("fill")).toBe("var(--accent)");
+  expect(nicks[2]!.querySelector(".check")).toBeNull();      // игрок не из Бафии: значка нет
+  expect(nicks[0]!.querySelector(".check rect")!.getAttribute("fill")).toBe("#3E63DD");
+  // особый игрок: галочка горит (даже если он не в сети Бафии), у остальных не горит
+  expect(nicks[3]!.querySelector(".check.fire")).not.toBeNull();
+  expect(nicks[0]!.querySelector(".fire")).toBeNull();
   disposeChat();
   root.remove();
 });

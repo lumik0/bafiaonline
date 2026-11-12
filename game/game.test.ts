@@ -323,7 +323,7 @@ describe("игра", () => {
     click("Купить");
     await tick();
     expect(window.content.textContent).toContain("Премиум даёт");
-    expect(window.content.textContent).toContain("цветной значок");
+    expect(window.content.textContent).toContain("цветную галочку");
     click("Не сейчас");
     await tick();
     expect(opened).toEqual([]);

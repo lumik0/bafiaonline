@@ -5,6 +5,7 @@ import { nickStyle, photoRing } from "../domain/decorations";
 import { avatarFrame } from "../domain/premium-style";
 import type { Bafia } from "../domain/bafia";
 import { Marks } from "./Marks.tsrx";
+import { CheckBadge } from "./CheckBadge.tsrx";
 
 /** игроки в чате: рамка над сообщениями, ники столбцами; ник - упоминание */
 export function PlayersPanel({ users, myName, hideName, assets, mention, profile, inBafia, badgeColor, avatar, bafia }: {
@@ -26,13 +27,12 @@ export function PlayersPanel({ users, myName, hideName, assets, mention, profile
 			.nick { font-size: 13px; cursor: pointer; white-space: nowrap; }
 			.blur { filter: blur(5px); }
 			.vip { margin-left: 4px; }
-			.bafia { margin-left: 4px; padding: 0 4px; border-radius: 4px; font-size: 10px; font-weight: 700; background: var(--accent); color: var(--header-text); }
 		</style>
 		<div class="players">
 			@for (const user of users()) {
 				<div class="player">
 					<div onClick={() => profile(user.playerObjectId ?? "")}><Avatar photo={() => user.photo ?? ""} gif={() => avatar?.(user.playerObjectId ?? "")} ring={() => avatarFrame(bafia?.look(user.playerObjectId ?? ""), photoRing(user.decorations))} assets={assets} size={25} /></div>
-					<span class={hideName() && user.username == myName() ? "nick blur" : "nick"} data-keep style={nickStyle(user.decorations)} onClick={() => mention(user.username)}>{user.username}<span class="vip">{user.vip ?? ""}</span>{inBafia?.(user.playerObjectId ?? "") ? <span class="bafia" style={badgeColor?.(user.playerObjectId ?? "") ? { background: badgeColor(user.playerObjectId ?? "") } : undefined} title={badgeColor?.(user.playerObjectId ?? "") ? "Играет в Бафии, премиум" : "Играет в Бафии"}>{"Б"}</span> : null}<Marks bafia={bafia} nick={() => user.username} /></span>
+					<span class={hideName() && user.username == myName() ? "nick blur" : "nick"} data-keep style={nickStyle(user.decorations)} onClick={() => mention(user.username)}>{user.username}<span class="vip">{user.vip ?? ""}</span>{inBafia?.(user.playerObjectId ?? "") || bafia?.special(user.username) ? <CheckBadge color={badgeColor?.(user.playerObjectId ?? "") ?? "var(--accent)"} fire={!!bafia?.special(user.username)} title={bafia?.special(user.username) ? bafia.special(user.username)![0]!.toUpperCase() + bafia.special(user.username)!.slice(1) : badgeColor?.(user.playerObjectId ?? "") ? "Играет в Бафии, премиум" : "Играет в Бафии"} /> : null}<Marks bafia={bafia} nick={() => user.username} /></span>
 				</div>
 			}
 		</div>

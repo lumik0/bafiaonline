@@ -376,7 +376,8 @@ export type ServerMessage =
   /** ключ - `nickKey` ника; `shame` - очки «Позора» у тех, кому положен значок; `bans` - до какого времени (мс) действует бан; у остальных записи нет */
   /** ключи (`nickKey`) ников из `whoNicks`, которые сейчас в сети */
   | { t: "onlineNicks", n: number, nicks: string[] }
-  | { t: "marks", n: number, shame?: Record<string, number>, bans?: Record<string, number> }
+  /** `special` - подпись особых игроков (например "разработчик"): у них горящая галочка */
+  | { t: "marks", n: number, shame?: Record<string, number>, bans?: Record<string, number>, special?: Record<string, string> }
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
   /** мои обращения (последние 30) со статусом */
   | { t: "myFeedback", n: number, items: FeedbackItem[] }

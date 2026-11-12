@@ -3,7 +3,7 @@ import { Role } from "./enums";
 import type { GamePlayer } from "./room/state";
 
 /** подсказки: каждая показывается, пока игрок её не выполнит, потом больше никогда */
-export type TipId = "markRole";
+export type TipId = "markRole" | "badge";
 
 /** сколько раз показываем подсказку, если её игнорируют */
 export const MAX_TIP_SHOWS = 3;
