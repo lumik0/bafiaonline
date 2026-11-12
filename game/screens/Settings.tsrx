@@ -60,7 +60,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 		if(status.state == "connected") return "подключено";
 		if(status.state == "connecting") return "подключаюсь…";
 		const attempts = status.attempts ? ` (попыток: ${status.attempts})` : "";
-		return "нет связи" + attempts + (status.problem ? ": " + (problems[status.problem] ?? status.problem) : "");
+		return "нет связи" + attempts + (status.problem ? ": " + (problems[status.problem] ?? status.problem) + (status.detail ? " [" + status.detail + "]" : "") : "");
 	};
 	// цвет меняется в настройках игры, следим и за ним
 	fromEvents(ctx.settings, "change", () => ctx.settings.data.bafia.color);

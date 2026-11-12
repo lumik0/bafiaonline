@@ -132,26 +132,34 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   start() { this.connection.connect(); }
 
   private probing = false;
+  /** подробности проверки связи (что открывается, что нет): показываются в настройках рядом с причиной */
+  problemDetail?: string;
 
   /**
    * связи нет уже несколько попыток: проверяем обычным запросом по https, доходит ли телефон или компьютер до сервера вообще.
-   * Так игроку (и мне по его скриншоту) видно, что сломано: сеть, DNS или сертификат - или только WebSocket
+   * Так игроку (и мне по его скриншоту) видно, что сломано: сеть, DNS или сертификат - или только WebSocket.
+   * Для сравнения открываем и заведомо доступный сайт, а в приложении ещё и проверяем системным сетевым стеком (он называет ошибку точно)
    */
   private async probe() {
     // со своим сокетом (тесты) и без fetch проверять нечем
     if(this.probing || this.problem || this.options.createSocket || typeof fetch != "function") return;
     this.probing = true;
-    try {
-      await fetch(this.options.url.replace(/^ws/, "http"), { mode: "no-cors", cache: "no-store", signal: AbortSignal.timeout(8000) });
-      this.problem = "ws-blocked";
-    } catch(error) {
-      this.problem = "unreachable";
-      log("warn", `Бафия: сервер не открывается по https (${error instanceof Error ? error.name + ": " + error.message : String(error)})`);
+    const url = this.options.url.replace(/^ws/, "http");
+    const opens = async(address: string) => { try { await fetch(address, { mode: "no-cors", cache: "no-store", signal: AbortSignal.timeout(8000) }); return true; } catch(error) { log("warn", `Бафия: ${address} не открывается (${error instanceof Error ? error.name + ": " + error.message : String(error)})`); return false; } };
+    const [server, control] = await Promise.all([opens(url), opens("https://lumik0.github.io/bafiaonline/play/bin/manifest.json")]);
+    const details = [`сервер ${server ? "открывается" : "нет"}`, `github ${control ? "открывается" : "нет"}`];
+    // нативный запрос (только в приложении): ошибка называется точно, например "Trust anchor for certification path not found"
+    const http = (globalThis as { Capacitor?: { Plugins?: { CapacitorHttp?: { get(options: { url: string, connectTimeout?: number, readTimeout?: number }): Promise<{ status: number }> } } } }).Capacitor?.Plugins?.CapacitorHttp;
+    if(http) {
+      try { details.push("системный запрос: " + (await http.get({ url, connectTimeout: 8000, readTimeout: 8000 })).status); }
+      catch(error) { details.push("системный запрос: " + String((error as { message?: string })?.message ?? error).slice(0, 120)); }
     }
+    this.problem = server ? "ws-blocked" : "unreachable";
+    this.problemDetail = details.join(", ");
     this.probing = false;
     // за время проверки связь могла вернуться
-    if(this.ready) this.problem = undefined;
-    else log("warn", `Бафия: причина - ${this.problem}`);
+    if(this.ready) { this.problem = undefined; this.problemDetail = undefined; }
+    else log("warn", `Бафия: причина - ${this.problem} (${this.problemDetail})`);
     this.emit("change");
   }
 
@@ -218,7 +226,8 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     }
     if(this.attempts || this.problem) log("info", "Бафия: связь с сервером восстановлена");
     this.attempts = 0;
-    this.problem = undefined;
+    this.problem = undefined; this.problemDetail = undefined;
+    this.problemDetail = undefined;
     this.gifKey = hello.gifKey;
     this.premiumUntil = hello.premium;
     this.setOfficial(hello.official);
@@ -753,8 +762,8 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
 
   get ready() { return this.link?.isReady ?? false; }
   /** состояние связи с сервером Бафии для настроек: игрок видит, подключено ли у него, и в чём дело, если нет */
-  get status(): { state: "connected" | "connecting" | "offline", attempts: number, problem?: string } {
-    return { state: this.link?.state ?? "connecting", attempts: this.link?.attempts ?? 0, problem: this.link?.problem };
+  get status(): { state: "connected" | "connecting" | "offline", attempts: number, problem?: string, detail?: string } {
+    return { state: this.link?.state ?? "connecting", attempts: this.link?.attempts ?? 0, problem: this.link?.problem, detail: this.link?.problemDetail };
   }
   /** до какого времени действует премиум (мс); `undefined` - нет */
   get premiumUntil() { const until = this.link?.premiumUntil; return until && until > Date.now() ? until : undefined; }
