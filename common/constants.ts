@@ -8,6 +8,8 @@ export const PHOTO_BASE = "https://dottap.com/mafia/profile_photo";
 export const DECORATION_BASE = "https://dottap.com/mafia";
 /** сервер бафии (статистика) */
 export const BAFIA_SERVER_URL = "wss://play.nomadhost.pp.ua";
+/** тот же сервер напрямую по адресу, без имени и шифрования: только для проверки связи в приложении (ничего не отправляется) */
+export const BAFIA_DIRECT_URL = "ws://188.165.211.134:25656";
 /** бот, где продаётся премиум бафии: присылает код для настроек */
 export const PREMIUM_BOT_URL = "https://t.me/bafiaonlineopt_bot";
 

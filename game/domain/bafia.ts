@@ -3,6 +3,7 @@ import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
 import type { ModPackage } from "@mods/index";
 import { BafiaRoomAdapter } from "./bafia-room";
+import { BAFIA_DIRECT_URL } from "@common/constants";
 import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type BafiaRoomEvent, type BafiaRoomInfo, type BafiaRoomState, type Browser, type FeedbackItem, type OfficialStatus, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
@@ -153,6 +154,18 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(http) {
       try { details.push("системный запрос: " + (await http.get({ url, connectTimeout: 8000, readTimeout: 8000 })).status); }
       catch(error) { details.push("системный запрос: " + String((error as { message?: string })?.message ?? error).slice(0, 120)); }
+    }
+    // только в приложении: открывается ли тот же сервер напрямую (без имени и шифрования); соединение сразу закрывается, ничего не отправляется
+    if(http) {
+      const direct = await new Promise<boolean>(resolve => {
+        try {
+          const socket = new WebSocket(BAFIA_DIRECT_URL);
+          const timer = setTimeout(() => { socket.close(); resolve(false); }, 8000);
+          socket.onopen = () => { clearTimeout(timer); socket.close(); resolve(true); };
+          socket.onerror = () => { clearTimeout(timer); resolve(false); };
+        } catch { resolve(false); }
+      });
+      details.push(`прямой порт ${direct ? "открывается" : "нет"}`);
     }
     this.problem = server ? "ws-blocked" : "unreachable";
     this.problemDetail = details.join(", ");
