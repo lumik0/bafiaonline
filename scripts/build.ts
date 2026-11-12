@@ -38,6 +38,14 @@ for(const [entry, name] of [["launcher/main.ts", "index.js"], ["game/entry.ts", 
   }
 }
 
+// опись файлов с хешами: по ней приложение (Android, iOS) узнаёт, что на сайте вышла новая сборка, и докачивает только изменённое
+const version = Date.now().toString(36);
+const files: Record<string, string> = {};
+for(const name of ["index.js", "game.js", "assets.meta.js", "assets.js"]) {
+  files[name] = new Bun.CryptoHasher("sha1").update(await Bun.file(`${PLAY}/bin/${name}`).arrayBuffer()).digest("hex").slice(0, 16);
+}
+await Bun.write(`${PLAY}/bin/manifest.json`, JSON.stringify({ version, files }));
+
 // заставки для iOS берём из страницы старой версии, меняя только путь
 const oldPage = await Bun.file("run/index.html").text();
 const startupImages = oldPage.split("\n")
@@ -46,7 +54,6 @@ const startupImages = oldPage.split("\n")
   .join("\n");
 
 // версия в адресе скрипта: после обновления браузер не возьмёт старый из кэша
-const version = Date.now().toString(36);
 const page = (await Bun.file("public/play.html").text())
   .replace("<!--STARTUP_IMAGES-->", startupImages)
   .replace("__VERSION__", version);

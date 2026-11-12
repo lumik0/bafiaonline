@@ -29,7 +29,7 @@ export async function loadGame({ globals, load, src, expected, now = Date.now, w
   if(!globals.game) await load(src);
   if(globals.version != expected) {
     // новый адрес каждый раз, поэтому кэш браузера его не знает
-    await load(`${src}${src.includes("?") ? "&" : "?"}t=${now()}`);
+    await load(src.startsWith("blob:") ? src : `${src}${src.includes("?") ? "&" : "?"}t=${now()}`);
     if(globals.version != expected) warn(`Версия игры (${globals.version ?? "неизвестна"}) не совпала с версией лаунчера (${expected})`);
   }
   if(!globals.game) throw new Error("В game.js нет функции запуска игры");

@@ -1,7 +1,11 @@
 # Сборка apk для Android. Запускается ТОЛЬКО вручную (Actions → Android → Run workflow).
-# Результат - артефакт "bafia-apk" (debug-apk, ставится на телефон или BlueStacks). В Releases ничего не выкладывается.
+# apk подписан постоянным ключом (секреты ANDROID_KEYSTORE_BASE64 и ANDROID_KEYSTORE_PASSWORD) и лежит в Releases под тегом "app":
+# https://github.com/lumik0/bafiaonline/releases/download/app/bafia.apk (адрес всегда один). Копия - артефакт "bafia-apk".
 name: android
 on: workflow_dispatch
+
+permissions:
+  contents: write
 
 jobs:
   apk:
@@ -23,12 +27,30 @@ jobs:
         run: |
           VERSION=$(grep -oE '"[0-9]+\.[0-9]+(\.[0-9]+)?"' common/version.ts | head -1 | tr -d '"')
           sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VERSION\"/" android/app/build.gradle
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Версия $VERSION, сборка ${{ github.run_number }}"
-      - name: Сборка debug-apk
+      - name: Ключ подписи
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/bafia.p12"
+      - name: Сборка apk
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/bafia.p12
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Проверка подписи
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          cp android/app/build/outputs/apk/release/app-release.apk bafia.apk
+          "$APKSIGNER" verify --print-certs bafia.apk | head -3
       - uses: actions/upload-artifact@v4
         with:
           name: bafia-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: bafia.apk
           if-no-files-found: error
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view app >/dev/null 2>&1 || gh release create app --title "Приложение для Android и iOS" --notes "Сборки приложения. Игра внутри обновляется сама, переустанавливать приложение нужно только при смене самой оболочки."
+          gh release upload app bafia.apk --clobber
+          gh release edit app --notes "Android: версия $VERSION, сборка ${{ github.run_number }}. Игра внутри обновляется сама, переустанавливать приложение нужно только при смене самой оболочки."
