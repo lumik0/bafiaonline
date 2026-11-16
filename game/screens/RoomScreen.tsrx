@@ -4,6 +4,7 @@ import type { ChatUser } from "../domain/chat/message";
 import type { RoomSession } from "../domain/room/session";
 import { sortRoles } from "../domain/rooms/room";
 import { AppBar } from "../ui/AppBar.tsrx";
+import { InviteDialog } from "../ui/dialogs/InviteDialog.tsrx";
 import { GameOverDialog } from "../ui/dialogs/GameOverDialog.tsrx";
 import { RoomRolesDialog } from "../ui/dialogs/RoomRolesDialog.tsrx";
 import { RoomSettingsDialog } from "../ui/dialogs/RoomSettingsDialog.tsrx";
@@ -60,6 +61,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	const checkSettings = () => void ctx.mods.menuItems("roomSettings", roomInfoData(session)).then(items => setHasSettings(items.length > 0));
 	checkSettings();
 	const modsChange = ctx.mods.on("change", checkSettings);
+	const showInvite = () => void ctx.dialogs.manager.open({ title: "ПРИГЛАСИТЬ", render: close => InviteDialog({ ctx, close }) });
 	const showSettings = () => void ctx.dialogs.manager.open({ title: "НАСТРОЙКИ", render: close => RoomSettingsDialog({ ctx, session, close }) });
 	// игра закончилась: окно с итогом (один раз; в просмотре сохранённой игры его нет)
 	// сервер Бафии (если игрок согласился): кто из игроков комнаты играет в Бафии и сколько партий сыграно
@@ -113,14 +115,16 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 		else await ctx.dialogs.alert("В комнате уже есть игрок с твоим интернет-подключением.\nЗаходить с нескольких аккаунтов с одного подключения нельзя.", { title: "Нельзя играть" });
 		ctx.nav.pop();
 	});
-	// голосование за исключение: окно один раз за голосование (таймер обновляет объект много раз), за себя не голосуем
-	let kickDialogShown = false;
-	const kickVote = fromEvents(session, "change", () => session.kickVote);
+	// голосование за исключение: окно один раз за голосование (таймер обновляет объект много раз), за себя не голосуем;
+	// голосования различаются номером: если конец прежнего не дошёл, новое всё равно покажет окно
+	let kickDialogSerial = 0;
+	const kickVote = fromEvents(session, "change", () => session.kickVote ? session.kickVoteSerial : 0);
 	createEffect(() => {
-		const vote = kickVote();
-		if(!vote) { kickDialogShown = false; return; }
-		if(kickDialogShown || vote.voted || session.replay || vote.targetPlayerObjectId == state.myPlayerObjectId) return;
-		kickDialogShown = true;
+		const serial = kickVote();
+		const vote = session.kickVote;
+		if(!serial || !vote) return;
+		if(serial == kickDialogSerial || vote.voted || session.replay || (vote.targetPlayerObjectId && vote.targetPlayerObjectId == state.myPlayerObjectId)) return;
+		kickDialogSerial = serial;
 		void ctx.dialogs.manager.open({ title: "ГОЛОСОВАНИЕ", render: close => KickVoteDialog({ session, close }) });
 	});
 	const notice = session.on("notice", text => ctx.host.notifications.show({ key: "room-notice", kind: "warning", title: "Комната", text }));
@@ -211,6 +215,11 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 				<div class="body">
 					<div class="left">
 						<div class="info">{view().info}</div>
+						@if (!session.replay && !session.bafia) {
+							<div class="starts">
+								<button class="start" onClick={showInvite}>{"Пригласить"}</button>
+							</div>
+						}
 						@if (isBafiaHost()) {
 							<div class="starts">
 								<button class="start" disabled={!canStartNow()} title={canStartNow() ? "" : "Игроков меньше минимума"} onClick={() => void startNow()}>{"Начать"}</button>

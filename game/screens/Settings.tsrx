@@ -14,6 +14,7 @@ import { resetTips } from "../domain/tips";
 import { SettingGroup, SettingRow, Toggle } from "../ui/SettingRow.tsrx";
 import { PinPicker } from "../ui/dialogs/PinPicker.tsrx";
 import { LanguageChoice } from "../ui/dialogs/LanguageChoice.tsrx";
+import { DevicesDialog } from "../ui/dialogs/DevicesDialog.tsrx";
 import { LogsView } from "../ui/dialogs/LogsView.tsrx";
 import { resetPassword } from "../ui/reset-password";
 import type { GameContext } from "../context";
@@ -67,7 +68,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const codeErrors = {
 		invalid: "Такого кода нет. Проверь, что ввёл его без ошибок.",
 		expired: "Срок этого кода закончился.",
-		devices: "Код уже активирован на трёх устройствах. Попроси сбросить устройства или выдать новый код.",
+		devices: `Код уже активирован на ${BAFIA_LIMITS.codeDevices} устройствах.`,
 		locked: "Слишком много неверных попыток. Попробуй через час.",
 		insecure: "Сейчас связь идёт по резервному каналу без шифрования: код премиума по нему не отправляется. Попробуй, когда заработает обычное подключение.",
 		offline: "Сервер Бафии сейчас недоступен."
@@ -113,8 +114,13 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 		if(!code?.trim()) return;
 		const result = await ctx.bafia.redeem(code);
 		if("until" in result) await ctx.dialogs.alert(`Премиум действует до ${new Date(result.until).toLocaleDateString("ru-RU")}.\n\nСохрани код: ${code.trim().toUpperCase()}\nЕсли потеряешь данные браузера, введи его снова, и премиум вернётся.`, { title: "Готово" });
-		else await ctx.dialogs.alert(codeErrors[result.error], { title: "Не получилось" });
+		else {
+			await ctx.dialogs.alert(codeErrors[result.error], { title: "Не получилось" });
+			// упёрлись в лимит: показываем список устройств этого кода, лишние можно убрать, не дожидаясь сброса
+			if(result.error == "devices") await openDevices(code.trim().toUpperCase());
+		}
 	};
+	const openDevices = (code?: string) => ctx.dialogs.manager.open({ title: "УСТРОЙСТВА ПРЕМИУМА", render: (done) => DevicesDialog({ ctx, code, close: done }) });
 
 	let avatarChooser!: HTMLInputElement;
 	const myAvatar = fromEvents(ctx.bafia, "change", () => ctx.bafia.myAvatarUrl);
@@ -446,6 +452,11 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 										<button onClick={() => void buyPremium()}>{premium() ? "Продлить" : "Купить"}</button>
 										<button onClick={() => void enterCode()}>{"Ввести код"}</button>
 									</SettingRow>
+									@if (premium()) {
+										<SettingRow label="Устройства" hint={`Где активирован код (до ${BAFIA_LIMITS.codeDevices}), лишнее можно убрать`}>
+											<button onClick={() => void openDevices()}>{"Список"}</button>
+										</SettingRow>
+									}
 									@if (premium()) {
 										<SettingRow label="Цвет фона галочки">
 											<div class="swatches">

@@ -4,7 +4,7 @@ import { detectBrowser, detectPlatform, detectSite } from "./platform";
 import type { ModPackage } from "@mods/index";
 import { BafiaRoomAdapter } from "./bafia-room";
 import { BAFIA_DIRECT_URL } from "@common/constants";
-import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type BafiaRoomEvent, type BafiaRoomInfo, type BafiaRoomState, type Browser, type FeedbackItem, type OfficialStatus, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type BafiaRoomEvent, type BafiaRoomInfo, type BafiaRoomState, type Browser, type DeviceInfo, type FeedbackItem, type OfficialStatus, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -375,7 +375,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
 
   private request(message: Record<string, unknown>, timeout = this.timeout): Promise<ServerMessage | undefined> {
     // по открытому каналу не отправляем и не получаем то, что нельзя показывать посторонним: код премиума и код привязки Telegram
-    if(this.insecure && (message.t == "redeem" || message.t == "premium" || message.t == "tgLink")) return Promise.resolve({ t: "error", n: 0, reason: "insecure" });
+    if(this.insecure && (message.t == "redeem" || message.t == "devices" || message.t == "deviceRemove" || message.t == "premium" || message.t == "tgLink")) return Promise.resolve({ t: "error", n: 0, reason: "insecure" });
     const n = ++this.counter;
     return new Promise(resolve => {
       const timer = setTimeout(() => { this.pending.delete(n); resolve(undefined); }, timeout);
@@ -615,6 +615,20 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     }
     const reason = answer?.t == "error" ? answer.reason : "";
     return { error: reason == "invalid" || reason == "expired" || reason == "devices" || reason == "locked" || reason == "insecure" ? reason : "offline" };
+  }
+
+  /** устройства, на которых активирован мой код; `code` нужен, если премиума на этой установке ещё нет (упёрлись в лимит) */
+  async devices(code?: string): Promise<DeviceInfo[] | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "devices", ...(code ? { code: code.trim().toUpperCase() } : {}) });
+    return answer?.t == "devices" ? answer.list : undefined;
+  }
+
+  /** убрать устройство из кода, возвращает обновлённый список */
+  async removeDevice(id: string, code?: string): Promise<DeviceInfo[] | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "deviceRemove", id, ...(code ? { code: code.trim().toUpperCase() } : {}) });
+    return answer?.t == "devices" ? answer.list : undefined;
   }
 
   /** сообщить серверу цвет моего значка (имеет смысл только с премиумом) */
@@ -999,6 +1013,9 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     // setTimeout не принимает больше ~24 суток; дольше ждать и не нужно: по «change» срок пересчитается
     this.expiryTimer = setTimeout(() => { this.expiryAt = 0; this.emit("change"); this.scheduleExpiry(); }, Math.min(next - now + 300, 2 ** 31 - 1));
   }
+
+  devices(code?: string) { return this.link?.devices(code) ?? Promise.resolve(undefined); }
+  removeDevice(id: string, code?: string) { return this.link?.removeDevice(id, code) ?? Promise.resolve(undefined); }
 
   /** ввести код премиума; при успехе код запоминается */
   async redeem(code: string) {

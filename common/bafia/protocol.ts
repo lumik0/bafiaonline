@@ -25,7 +25,7 @@ export const BAFIA_LIMITS = {
   premiumHistoryDays: 180,
   /** код премиума: длина записи, на скольких устройствах можно активировать */
   code: 32,
-  codeDevices: 3,
+  codeDevices: 5,
   /** загрузка гифки (для всех игроков, без премиума - после проверки): размер файла, очередь проверки и лимит загрузок в сутки */
   gifBytes: 16 * 1024 * 1024,
   gifPending: 3,
@@ -172,6 +172,9 @@ export const isSite = (value: unknown): value is string => typeof value == "stri
 export const isPlatform = (value: unknown): value is Platform => typeof value == "string" && (PLATFORMS as readonly string[]).includes(value);
 
 /** ключ для сравнения ников: без различия регистра и лишних пробелов (в игре ник уникален, но пишут его по-разному); одинаков у клиента и сервера */
+/** устройство в списке кода премиума; `id` - короткий отпечаток установки */
+export interface DeviceInfo { id: string, platform: string, browser: string, version: string, nick: string, since: number, last: number, site: string, current: boolean }
+
 export const nickKey = (nick: string) => nick.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 
 /** результат партии: победил ли игрок; `undefined`, если неизвестно */
@@ -228,6 +231,10 @@ export type ClientMessage =
   | { t: "premium", n: number }
   /** активировать код премиума (выдаётся за донат) на этой установке */
   | { t: "redeem", n: number, code: string }
+  /** устройства, на которых активирован мой код премиума */
+  | { t: "devices", n: number, /** код, если на этой установке премиума ещё нет (например, упёрлись в лимит) */ code?: string }
+  /** убрать устройство из кода (освободить место), `id` из списка устройств */
+  | { t: "deviceRemove", n: number, id: string, code?: string }
   /** мои загрузки (гифки и стикеры) со статусом проверки */
   | { t: "mine", n: number }
   /** выложить снимок игры (JSON строкой) и получить номер для ссылки `[hist:номер]` */
@@ -406,6 +413,7 @@ export type ServerMessage =
   | { t: "invite", n: 0, room: string, title: string, password?: string }
   /** ответ на premium/redeem; без запроса (`n` 0) приходит, когда премиум включили: `code` игра сохраняет, чтобы он вернулся и на новой установке */
   | { t: "premium", n: number, until?: number, code?: string }
+  | { t: "devices", n: number, list: DeviceInfo[] }
   | { t: "mine", n: number, items: (GifItem & { status: "pending" | "approved" })[] }
   /** ответ на выкладывание (`id`) или на получение (`data`; нет - снимка нет или он устарел) */
   | { t: "hist", n: number, id: string, data?: string };
@@ -502,6 +510,11 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return Array.isArray(value.nicks) && value.nicks.length <= 20 && nicks.length == value.nicks.length ? { t: "whoNicks", n, nicks } : undefined;
     }
     case "premium": return { t: "premium", n };
+    case "devices": return value.code === undefined ? { t: "devices", n } : text(value.code, BAFIA_LIMITS.code) && clean(value.code) ? { t: "devices", n, code: value.code } : undefined;
+    case "deviceRemove": {
+      if(!text(value.id, 32) || !/^[0-9a-f]{6,32}$/.test(value.id)) return undefined;
+      return value.code === undefined ? { t: "deviceRemove", n, id: value.id } : text(value.code, BAFIA_LIMITS.code) && clean(value.code) ? { t: "deviceRemove", n, id: value.id, code: value.code } : undefined;
+    }
     case "mine": return { t: "mine", n };
     case "myFeedback": return { t: "myFeedback", n };
     case "myStats": return { t: "myStats", n };

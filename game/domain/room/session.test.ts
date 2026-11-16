@@ -249,6 +249,22 @@ describe("RoomSession", () => {
     expect(session.kickVote).toBeUndefined();
   });
 
+  test("голосование: если конец прежнего потерялся, следующее всё равно получает новый номер, а повтор того же пакета - нет", async() => {
+    const { network, session, first } = await setup();
+    session.start(first);
+
+    network.last.receive({ ty: "ku", puo: "p5", t: 10 });
+    const first_ = session.kickVoteSerial;
+    network.last.receive({ ty: "ku", puo: "p5", t: 9 });
+    expect(session.kickVoteSerial).toBe(first_);
+    expect(session.kickVote).toMatchObject({ timer: 9 });
+
+    // пакет "kt 0" не пришёл: другой игрок - новое голосование
+    network.last.receive({ ty: "ku", puo: "p6", t: 10 });
+    expect(session.kickVoteSerial).toBe(first_ + 1);
+    expect(session.kickVote).toEqual({ targetPlayerObjectId: "p6", timer: 10, voted: false });
+  });
+
   test("конец игры сохраняется в историю в формате старой версии один раз; без настройки не сохраняется", async() => {
     const { network, files, session, first } = await setup();
     session.start(first);

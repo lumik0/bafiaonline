@@ -47,6 +47,23 @@ export function toSearchItem(user: SearchUser): FriendItem | undefined {
 
 const compact = <T>(items: (T | undefined)[]) => items.filter((item): item is T => item !== undefined);
 
+/** друг в окне «Пригласить в комнату» */
+export interface InviteItem {
+  playerObjectId: string
+  username: string
+  photo?: string
+  isOnline: boolean
+  invited: boolean
+  decorations?: Decorations
+}
+
+type InviteEntry = ServerData<"inviteList">["friends"][number];
+
+export function toInviteItem(entry: InviteEntry): InviteItem | undefined {
+  if(!entry.playerObjectId) return undefined;
+  return { playerObjectId: entry.playerObjectId, username: entry.username ?? "", photo: entry.photo, isOnline: !!entry.isOnline, invited: !!entry.invited, decorations: normalizeDecorations(entry.decorations) };
+}
+
 /** друзья, заявки и поиск игроков */
 export class Friends {
   constructor(private client: ServerClient) {}
@@ -65,5 +82,17 @@ export class Friends {
   async search(text: string): Promise<FriendItem[]> {
     const answer = await this.client.request("searchUser", { text }, "searchResults");
     return compact(answer.data.users.map(toSearchItem));
+  }
+
+  /** друзья, которых можно позвать в текущую комнату; сначала те, кто в сети */
+  async inviteList(): Promise<InviteItem[]> {
+    const answer = await this.client.request("getInviteList", {}, "inviteList");
+    return compact(answer.data.friends.map(toInviteItem)).sort((a, b) => Number(b.isOnline) - Number(a.isOnline));
+  }
+
+  /** отправить приглашение; `vip` - приглашать друзей может только VIP */
+  async invite(playerObjectId: string): Promise<"ok" | "vip"> {
+    const answer = await this.client.request("inviteFriend", { playerObjectId }, ["friendInvited", "inviteNeedsVip"]);
+    return answer.name == "friendInvited" ? "ok" : "vip";
   }
 }

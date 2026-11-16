@@ -39,6 +39,10 @@ export interface RoleComposition { room: string, players: number, enabled: numbe
 export class RoomSession extends Events<{ change: () => void, ended: (reason: EndReason) => void, over: () => void, notice: (text: string) => void, roles: (composition: RoleComposition) => void }> {
   readonly state: RoomState;
   kickVote?: KickVote;
+  /** номер голосования: растёт с каждым новым, чтобы окно открывалось на каждое, даже если конец прежнего потерялся */
+  kickVoteSerial = 0;
+  /** до какого времени (мс) голосование считается идущим, если пакет о его конце не пришёл */
+  private kickVoteUntil = 0;
   private handle?: Handle;
   /** сообщения в том виде, как их присылал сервер: нужны для истории */
   private rawMessages: unknown[] = [];
@@ -112,6 +116,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   rejoin() {
     if(this.replay || this.left || this.state.status == 4) return;
     this.kickVote = undefined;
+    this.kickVoteUntil = 0;
     this.deps.client.send("createPlayer", { roomId: this.roomId, modelType: this.state.settings.modelType });
     this.emit("change");
   }
@@ -189,14 +194,24 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   private addMessage(message: Parameters<typeof toRoomEntry>[0], wire: unknown) {
     const entry = toRoomEntry(message);
     // как в старой версии: кнопки по самому сообщению, даже если пакет "ku" не дошёл или пришёл позже
-    if(entry.kickVote && !this.kickVote) this.kickVote = { targetPlayerObjectId: entry.kickVote.targetPlayerObjectId, timer: 10, voted: false };
+    // прежнее голосование, у которого вышел срок, но конец не пришёл, новому не мешает
+    if(entry.kickVote && (!this.kickVote || Date.now() > this.kickVoteUntil)) this.beginKickVote(entry.kickVote.targetPlayerObjectId, 10);
     else if(message.type == 25) this.kickVote = undefined;
     this.addWire(wire, entry);
     this.state.changed();
   }
 
-  private startKickVote(targetPlayerObjectId: string | undefined, timer: number) {
+  private beginKickVote(targetPlayerObjectId: string | undefined, timer: number) {
     this.kickVote = { targetPlayerObjectId, timer, voted: false };
+    this.kickVoteSerial++;
+    this.kickVoteUntil = Date.now() + (timer + 5) * 1000;
+  }
+
+  private startKickVote(targetPlayerObjectId: string | undefined, timer: number) {
+    const current = this.kickVote;
+    // тот же пакет повторно (идущее голосование за того же игрока): окно второй раз не нужно, только обновляем время
+    if(current && current.targetPlayerObjectId == targetPlayerObjectId && Date.now() <= this.kickVoteUntil) this.kickVote = { ...current, timer };
+    else this.beginKickVote(targetPlayerObjectId, timer);
     this.emit("change");
   }
 

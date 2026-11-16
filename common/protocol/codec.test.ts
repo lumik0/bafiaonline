@@ -69,3 +69,14 @@ describe("удаление личного сообщения", () => {
   });
 });
 
+
+describe("приглашение друзей в комнату", () => {
+  test("запросы без авторизации (как в официальном приложении), список и ответы разбираются", () => {
+    expect(JSON.parse(encode("getInviteList", {}))).toEqual({ ty: "gfiil" });
+    expect(JSON.parse(encode("inviteFriend", { playerObjectId: "p1" }))).toEqual({ ty: "sfitr", puo: "p1" });
+    const list = decode(JSON.stringify({ ty: "fiil", fiil: [{ puo: "p1", u: "Друг", on: 1, iinvtd: 0 }, { puo: "p2", u: "Второй", on: 0, iinvtd: 1 }] }));
+    expect(list).toMatchObject({ name: "inviteList", data: { friends: [{ playerObjectId: "p1", username: "Друг", isOnline: 1, invited: 0 }, { invited: 1 }] } });
+    expect(decode(JSON.stringify({ ty: "fiinvtd", puo: "p1" })).name).toBe("friendInvited");
+    expect(decode(JSON.stringify({ ty: "uinvtifr" })).name).toBe("inviteNeedsVip");
+  });
+});
