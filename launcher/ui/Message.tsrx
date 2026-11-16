@@ -3,6 +3,7 @@ export function Message({ text, buttons, choose }: { text: string, buttons: stri
 
 	<>
 		<style>
+			.message button { padding: 6px 16px; font-size: 14px; }
 			.message { display: flex; flex-direction: column; gap: 14px; padding: 16px; height: 100%; box-sizing: border-box; }
 			.text { flex: 1; white-space: pre-wrap; font-size: 14px; line-height: 1.4; overflow: auto; user-select: text; -webkit-user-select: text; }
 			.buttons { display: flex; gap: 8px; justify-content: flex-end; }

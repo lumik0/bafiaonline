@@ -400,7 +400,7 @@ export type ServerMessage =
   | { t: "gifs", n: number, items: GifItem[] }
   /** до какого времени (мс) действует премиум; нет - не действует */
   /** список комнат Бафии; `canCreate` - можно ли тебе создать свою */
-  | { t: "rooms", n: number, rooms: BafiaRoomInfo[], canCreate: boolean }
+  | { t: "rooms", n: number, rooms: BafiaRoomInfo[], canCreate: boolean, /** какие вкладки списка комнат показывать (нет - обе) */ tabs?: { official: boolean, bafia: boolean } }
   /** ты в комнате: сама комната, твой id игрока и её состояние */
   | { t: "roomJoined", n: number, room: BafiaRoomInfo, you: string, state: BafiaRoomState }
   /** что произошло в твоей комнате (приходит само, пачкой) */

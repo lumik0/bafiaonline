@@ -27,7 +27,7 @@ export function LogsView({ close }: { close: () => void }) @{
 		<textarea ref={area} readonly value={text()}></textarea>
 		<div class="buttons">
 			<button onClick={copy}>{"Скопировать"}</button>
-			<button onClick={() => close()}>{"Закрыть"}</button>
+			<button class="dark-gray" onClick={() => close()}>{"Закрыть"}</button>
 		</div>
 	</>
 }

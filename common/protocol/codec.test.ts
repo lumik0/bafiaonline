@@ -80,3 +80,11 @@ describe("приглашение друзей в комнату", () => {
     expect(decode(JSON.stringify({ ty: "uinvtifr" })).name).toBe("inviteNeedsVip");
   });
 });
+
+describe("приглашение в комнату в списке комнат", () => {
+  test("комната и событие списка несут приглашение, крестик шлёт ritr без авторизации", () => {
+    const added = decode(JSON.stringify({ ty: "add", rr: { o: "r1", tt: "Комната", iinvtd: 1, isun: "vot" } }));
+    expect(added).toMatchObject({ name: "roomAdded", data: { room: { invited: 1, inviter: "vot" } } });
+    expect(JSON.parse(encode("removeInvite", { roomId: "r1" }))).toEqual({ ty: "ritr", ro: "r1" });
+  });
+});

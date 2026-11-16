@@ -37,6 +37,6 @@ export function ModPermissions({ ctx, id, close }: { ctx: GameContext, id: strin
 				<div class="empty">{"Мод не просит разрешений"}</div>
 			}
 		</div>
-		<div class="buttons"><button onClick={() => close()}>{"Закрыть"}</button></div>
+		<div class="buttons"><button class="dark-gray" onClick={() => close()}>{"Закрыть"}</button></div>
 	</>
 }

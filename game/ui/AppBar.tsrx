@@ -20,12 +20,12 @@ export function AppBar(props: { title: string, subtitle?: string, keepCase?: boo
 			.subtitle { font-size: 13px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 			.back { padding: var(--appbar-icon-padding, 6px); background: transparent; border: none; border-radius: 50%; display: flex; color: inherit; }
 			.close { padding: var(--appbar-icon-padding, 6px); background: transparent; border: none; border-radius: 50%; display: flex; color: inherit; margin-right: -6px; }
-			.close:enabled:hover { background: rgba(255, 255, 255, .15); }
-			.back:enabled:hover { background: rgba(255, 255, 255, .15); }
+			@media (hover: hover) { .close:enabled:hover { background: rgba(255, 255, 255, .15); } }
+			@media (hover: hover) { .back:enabled:hover { background: rgba(255, 255, 255, .15); } }
 		</style>
 		<div class={props.onBack ? "bar" : "bar root"}>
 			@if (props.onBack) {
-				<button class="back" onClick={props.onBack} aria-label="Назад"><Icon name="back" size={24} /></button>
+				<button class="back" onClick={props.onBack} aria-label="Назад"><Icon name="back" size={20} /></button>
 			}
 			<div class={props.stretch ? "titles narrow" : "titles"}>
 				<div class="title" data-keep={props.keepCase ? "" : undefined}>{props.title}</div>
@@ -39,7 +39,7 @@ export function AppBar(props: { title: string, subtitle?: string, keepCase?: boo
 				{props.right}
 			}
 			@if (controls?.showClose) {
-				<button class="close" onClick={() => controls.close()} aria-label="Закрыть игру" title="Закрыть игру"><Icon name="close" size={22} /></button>
+				<button class="close" onClick={() => controls.close()} aria-label="Закрыть игру" title="Закрыть игру"><Icon name="close" size={18} /></button>
 			}
 		</div>
 	</>

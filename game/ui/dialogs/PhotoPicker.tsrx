@@ -61,7 +61,7 @@ export function PhotoPicker({ ctx, close }: { ctx: GameContext, close: () => voi
 			.or { font-size: 13px; margin: 6px 0; }
 			.grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-height: 180px; overflow-y: auto; padding: 6px; border-radius: 10px; background: rgba(0, 0, 0, .25); }
 			.grid img { width: 52px; height: 52px; border-radius: 50%; cursor: pointer; transition: transform .12s; }
-			.grid img:hover { transform: scale(1.12); }
+			@media (hover: hover) { .grid img:hover { transform: scale(1.12); } }
 			.empty { padding: 20px; opacity: .7; font-size: 13px; }
 		</style>
 		<div class="actions">

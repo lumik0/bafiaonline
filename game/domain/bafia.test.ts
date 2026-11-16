@@ -379,6 +379,36 @@ describe("BafiaLink", () => {
     bafia.dispose();
   });
 
+  describe("отложенные идеи и баги", () => {
+    const make = (outbox: { kind: string, text: string }[], create: () => SocketLike) => {
+      const data = { bafia: { enabled: false, asked: true, key: "k".repeat(24), code: "", color: "gold", favorites: [], outbox } };
+      const settings = new class extends Events<{ change: () => void }> {
+        data = data;
+        update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
+      }();
+      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+      return { data, bafia: new Bafia({ settings, user, url: "ws://test", createSocket: create }) };
+    };
+
+    test("без связи обращение откладывается, а когда связь появилась, уходит само", async() => {
+      const dead = { onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} } as unknown as SocketLike;
+      const offline = make([], () => dead);
+      await tick();
+      expect(await offline.bafia.sendFeedback("bug", "  сломалось  ")).toEqual({ ok: true, queued: true });
+      expect(offline.data.bafia.outbox).toEqual([{ kind: "bug", text: "сломалось" }]);
+      expect(await offline.bafia.sendFeedback("bug", "   ")).toEqual({ error: "empty" });
+      offline.bafia.dispose();
+
+      // новый запуск с сохранённой очередью и рабочим сервером
+      const log: Record<string, unknown>[] = [];
+      const online = make(offline.data.bafia.outbox, serverSocket([], log).create);
+      for(let i = 0; i < 6; i++) await tick();
+      expect(log.filter(message => message.t == "feedback")).toMatchObject([{ kind: "bug", text: "сломалось" }]);
+      expect(online.data.bafia.outbox).toEqual([]);
+      online.bafia.dispose();
+    });
+  });
+
   describe("состояние связи", () => {
     /** сокет, который не открылся (сервер отклонил подключение или недоступен) */
     const dead = (): SocketLike => ({ onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} } as unknown as SocketLike);

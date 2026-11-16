@@ -2,7 +2,15 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <style>
+    /* как в play.html: страница не тянется и не перезагружается свайпом вниз, подложка тёмная */
+    html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #242424; font-family: Arial, Helvetica, sans-serif; }
+    body { position: fixed; inset: 0; width: 100%; }
+    #root { height: 100%; box-sizing: border-box; padding-top: env(safe-area-inset-top); }
+  </style>
   <title>Бафия онлайн (dev)</title>
 </head>
 <body>

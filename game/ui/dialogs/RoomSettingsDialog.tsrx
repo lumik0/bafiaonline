@@ -3,6 +3,7 @@ import { copyText } from "@common/utils/clipboard";
 import { roomInfoData } from "../../mods/data";
 import type { MenuEntry } from "../../mods/manager";
 import type { RoomSession } from "../../domain/room/session";
+import { InviteDialog } from "./InviteDialog.tsrx";
 import type { GameContext } from "../../context";
 
 /** «Настройки» комнаты: кнопки добавляют моды (в официальном - «Рехост») */
@@ -18,6 +19,9 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 		close();
 		await ctx.bafia.closeRoom();
 	};
+	/** позвать друзей в комнату (только официальные комнаты: в Бафии свои приглашения) */
+	const canInvite = !session.replay && !session.bafia;
+	const invite = () => { close(); void ctx.dialogs.manager.open({ title: "ПРИГЛАСИТЬ", render: done => InviteDialog({ ctx, close: done }) }); };
 	onMount(() => void ctx.mods.menuItems("roomSettings", data).then(setEntries));
 
 	<>
@@ -49,10 +53,13 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 			</>
 		}
 		<div class="list">
+			@if (canInvite) {
+				<button onClick={invite}>{"Пригласить друзей"}</button>
+			}
 			@for (const entry of entries() ?? []) {
 				<button disabled={!!entry.disabled} onClick={() => { close(); ctx.mods.selectMenu(entry, "roomSettings", data); }}>{entry.label}</button>
 			} @empty {
-				<div class="empty">{entries() ? "Нет доступных настроек" : "Загрузка…"}</div>
+				<div class="empty">{canInvite ? "" : entries() ? "Нет доступных настроек" : "Загрузка…"}</div>
 			}
 		</div>
 		@if (session.bafia?.isHost && session.state.inGame) {
@@ -61,6 +68,6 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 		@if (data.playing) {
 			<div class="hint">{"Рехост недоступен, пока идёт игра"}</div>
 		}
-		<div class="buttons"><button onClick={() => close()}>{"Закрыть"}</button></div>
+		<div class="buttons"><button class="dark-gray" onClick={() => close()}>{"Закрыть"}</button></div>
 	</>
 }

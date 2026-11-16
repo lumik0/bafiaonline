@@ -22,6 +22,7 @@ export function FeedbackScreen({ ctx }: { ctx: GameContext }) @{
 	// мои обращения: что с ними стало; новые статусы считаются увиденными, как только экран открыт
 	const mine = fromEvents(ctx.bafia, "change", () => ctx.bafia.feedback);
 	onMount(() => { void ctx.bafia.refreshFeedback().then(() => ctx.bafia.markFeedbackSeen()); });
+	const queued = fromEvents(ctx.bafia, "change", () => ctx.bafia.feedbackQueued);
 	const kindName = (kind: string) => KINDS.find(entry => entry.kind == kind)?.name ?? kind;
 	const statusText = { sent: "Отправлено", answered: "Администратор ответил", done: "Разобрано" };
 
@@ -34,7 +35,7 @@ export function FeedbackScreen({ ctx }: { ctx: GameContext }) @{
 		setBusy(false);
 		if("ok" in result) {
 			setText("");
-			setStatus({ ok: true, text: "Спасибо! Отправлено, администратор увидит это на сайте." });
+			setStatus({ ok: true, text: result.queued ? "Сохранено. Связи с сервером Бафии сейчас нет: отправится само, как только она появится." : "Спасибо! Отправлено, администратор увидит это на сайте." });
 		} else setStatus({ ok: false, text: feedbackProblems[result.error] });
 	};
 
@@ -75,6 +76,9 @@ export function FeedbackScreen({ ctx }: { ctx: GameContext }) @{
 				<button class="send" disabled={busy() || !text().trim()} onClick={() => void send()}>{busy() ? "Отправляю…" : "Отправить"}</button>
 				@if (status()) {
 					<div class={status()!.ok ? "status ok" : "status fail"}>{status()!.text}</div>
+				}
+				@if (queued() > 0) {
+					<div class="status">{"Ждут связи: " + queued() + ". Отправятся сами."}</div>
 				}
 				@if (mine().length) {
 					<>

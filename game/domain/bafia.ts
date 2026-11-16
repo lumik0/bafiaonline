@@ -286,10 +286,10 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** список комнат Бафии и можно ли тебе создать свою; `undefined` - нет связи */
-  async roomList(): Promise<{ rooms: BafiaRoomInfo[], canCreate: boolean } | undefined> {
+  async roomList(): Promise<{ rooms: BafiaRoomInfo[], canCreate: boolean, tabs: { official: boolean, bafia: boolean } } | undefined> {
     if(!this.ready) return undefined;
     const answer = await this.request({ t: "roomList" });
-    return answer?.t == "rooms" ? { rooms: answer.rooms, canCreate: answer.canCreate } : undefined;
+    return answer?.t == "rooms" ? { rooms: answer.rooms, canCreate: answer.canCreate, tabs: answer.tabs ?? { official: true, bafia: true } } : undefined;
   }
 
   private async joined(message: { t: "roomCreate", config: Record<string, unknown> } | { t: "roomJoin", id: string, password?: string } | { t: "roomWatch", id: string, password?: string }): Promise<{ room: BafiaRoomInfo, you: string, state: BafiaRoomState } | { error: string }> {
@@ -753,7 +753,7 @@ export interface FavoriteGif { id: string, title: string }
 /** сколько гифок можно хранить в избранном */
 export const FAVORITES_MAX = 200;
 
-export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[], watched?: string[], expiryWarned?: number, feedbackSeen?: Record<string, string> }
+export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[], watched?: string[], expiryWarned?: number, feedbackSeen?: Record<string, string>, outbox?: { kind: string, text: string, notice?: number, direct?: number }[] }
 
 export interface BafiaDeps {
   settings: { data: { bafia: BafiaSettings, lowPower?: boolean, game?: { animateChatAvatars?: boolean } }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
@@ -938,6 +938,8 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
       link.on("change", () => {
         this.scheduleExpiry(); this.warnExpiry(); this.emit("change");
         // связь появилась: список обращений подтягиваем один раз
+        // отложенные идеи и баги уходят, как только связь появилась
+        if(link.isReady) void this.flushOutbox();
         if(link.isReady && !this.feedbackLoaded) { this.feedbackLoaded = true; void this.refreshFeedback(); }
         // связь вернулась после обрыва: садимся в свою комнату Бафии снова
         if(link.isReady && !this.roomReady && this.activeRoom) void this.resumeRoom();
@@ -1216,10 +1218,50 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   }
 
   /** идеи и ответы - осознанное действие игрока, согласие на «гифки и историю ников» для них не нужно (уходят только текст и ник) */
-  async sendFeedback(kind: FeedbackKind, text: string, reply?: ReplyTarget) {
-    const result = await (this.link?.sendFeedback(kind, text, reply) ?? Promise.resolve({ error: "offline" } as const));
-    if("ok" in result) { this.track(kind == "reply" ? "feature:reply" : "feature:feedbackSend"); if(kind != "reply") void this.refreshFeedback(); }
+  async sendFeedback(kind: FeedbackKind, text: string, reply?: ReplyTarget): Promise<{ ok: true, queued?: boolean } | { error: FeedbackError }> {
+    const body = text.trim();
+    if(!body) return { error: "empty" };
+    if(body.length > BAFIA_LIMITS.feedback) return { error: "too-long" };
+    const result = await (this.link?.sendFeedback(kind, body, reply) ?? Promise.resolve({ error: "offline" } as const));
+    if("ok" in result) { this.track(kind == "reply" ? "feature:reply" : "feature:feedbackSend"); if(kind != "reply") void this.refreshFeedback(); return result; }
+    // нет связи с сервером Бафии: откладываем, отправится само, когда она появится
+    if(result.error == "offline") {
+      this.deps.settings.update(data => { data.bafia.outbox = [...(data.bafia.outbox ?? []), { kind, text: body, ...(reply?.notice !== undefined ? { notice: reply.notice } : {}), ...(reply?.direct !== undefined ? { direct: reply.direct } : {}) }].slice(-5); });
+      this.emit("change");
+      return { ok: true, queued: true };
+    }
     return result;
+  }
+
+  /** сколько обращений ждут связи */
+  get feedbackQueued(): number { return this.deps.settings.data.bafia.outbox?.length ?? 0; }
+
+  private flushing = false;
+  private flushTimer?: ReturnType<typeof setTimeout>;
+
+  /** отправляет отложенные обращения по одному; если сервер просит подождать, повторяет позже */
+  private async flushOutbox() {
+    const link = this.link;
+    if(this.flushing || !link?.isReady || !this.feedbackQueued) return;
+    this.flushing = true;
+    clearTimeout(this.flushTimer);
+    try {
+      while(this.feedbackQueued) {
+        const item = this.deps.settings.data.bafia.outbox![0]!;
+        const result = await link.sendFeedback(item.kind as FeedbackKind, item.text, { notice: item.notice, direct: item.direct });
+        if(!("ok" in result) && (result.error == "slow-down" || result.error == "quota" || result.error == "presence-first" || result.error == "offline")) {
+          this.flushTimer = setTimeout(() => void this.flushOutbox(), result.error == "quota" ? 600_000 : 25_000);
+          return;
+        }
+        // отправлено или не подлежит отправке (пусто, слишком длинно, отклонено): убираем из очереди
+        this.deps.settings.update(data => { data.bafia.outbox = (data.bafia.outbox ?? []).slice(1); });
+        if("ok" in result) this.track(item.kind == "reply" ? "feature:reply" : "feature:feedbackSend");
+      }
+      void this.refreshFeedback();
+    } finally {
+      this.flushing = false;
+      this.emit("change");
+    }
   }
   async uploadGif(title: string, bytes: Uint8Array) { const result = await (this.consented?.uploadGif(title, bytes) ?? Promise.resolve({ error: "offline" } as const)); if("ok" in result) this.track("feature:gifUpload"); return result; }
 

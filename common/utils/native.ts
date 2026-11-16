@@ -1,3 +1,5 @@
+import { isIOS } from "./mobile";
+
 interface CapacitorGlobal { isNativePlatform?: () => boolean, getPlatform?: () => string }
 
 /** запущено в оболочке приложения (Capacitor), а не в браузере */
@@ -15,5 +17,10 @@ export type AppPlatform = "android" | "ios";
 export function appPlatform(): AppPlatform {
   const native = (globalThis as { Capacitor?: CapacitorGlobal }).Capacitor?.getPlatform?.();
   if(native == "ios" || native == "android") return native;
-  return typeof location != "undefined" && new URLSearchParams(location.search).get("platform") == "ios" ? "ios" : "android";
+  if(typeof location != "undefined") {
+    const forced = new URLSearchParams(location.search).get("platform");
+    if(forced == "ios" || forced == "android") return forced;
+  }
+  // в браузере на iPhone и iPad тоже вид iOS
+  return isIOS() ? "ios" : "android";
 }

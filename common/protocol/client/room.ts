@@ -41,6 +41,11 @@ export const roomPackets = {
     modelType: field(K.ROOM_MODEL_TYPE, t.number)
   }),
 
+  /** убрать приглашение в комнату (крестик на карточке); в официальном клиенте без `uo`/`t` */
+  removeInvite: clientPacket(K.REMOVE_INVITATION_TO_ROOM, {
+    roomId: field(K.ROOM_OBJECT_ID, t.string)
+  }),
+
   kickUser: clientPacket(K.KICK_USER, {
     roomId: field(K.ROOM_OBJECT_ID, t.string),
     playerObjectId: field(K.PLAYER_OBJECT_ID, t.string)

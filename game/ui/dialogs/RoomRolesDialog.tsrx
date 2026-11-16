@@ -32,6 +32,6 @@ export function RoomRolesDialog({ ctx, session, close }: { ctx: GameContext, ses
 				</div>
 			}
 		</div>
-		<div class="buttons"><button onClick={() => close()}>{"Закрыть"}</button></div>
+		<div class="buttons"><button class="dark-gray" onClick={() => close()}>{"Закрыть"}</button></div>
 	</>
 }

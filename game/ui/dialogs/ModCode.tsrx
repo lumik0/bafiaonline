@@ -67,7 +67,7 @@ export function ModCode({ mod, close }: { mod: InstalledMod, close: () => void }
 		}
 		<div class="buttons">
 			<button onClick={copy}>{"Скопировать"}</button>
-			<button onClick={() => close()}>{"Закрыть"}</button>
+			<button class="dark-gray" onClick={() => close()}>{"Закрыть"}</button>
 		</div>
 	</>
 }

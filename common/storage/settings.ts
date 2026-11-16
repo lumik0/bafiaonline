@@ -35,7 +35,9 @@ export const defaultGameSettings = (mobile: boolean) => ({
     /** день (число суток с 1970), когда игроку напомнили, что премиум скоро закончится */
     expiryWarned: 0,
     /** какой статус обращения (id -> статус) игрок уже видел: новые ответы и «разобрано» показываются значком на кнопке «Идеи и баги» */
-    feedbackSeen: {} as Record<string, string>
+    feedbackSeen: {} as Record<string, string>,
+    /** обращения, которые не ушли из-за связи: отправятся сами, когда она появится (не больше пяти) */
+    outbox: [] as { kind: string, text: string, notice?: number, direct?: number }[]
   },
   /** пароли комнат, в которые игрок уже входил (id комнаты -> хеш пароля и когда): второй раз пароль не спрашивается, хранится сутки */
   roomPasswords: {} as Record<string, { hash: string, at: number }>,

@@ -4,7 +4,6 @@ import type { ChatUser } from "../domain/chat/message";
 import type { RoomSession } from "../domain/room/session";
 import { sortRoles } from "../domain/rooms/room";
 import { AppBar } from "../ui/AppBar.tsrx";
-import { InviteDialog } from "../ui/dialogs/InviteDialog.tsrx";
 import { GameOverDialog } from "../ui/dialogs/GameOverDialog.tsrx";
 import { RoomRolesDialog } from "../ui/dialogs/RoomRolesDialog.tsrx";
 import { RoomSettingsDialog } from "../ui/dialogs/RoomSettingsDialog.tsrx";
@@ -61,7 +60,6 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	const checkSettings = () => void ctx.mods.menuItems("roomSettings", roomInfoData(session)).then(items => setHasSettings(items.length > 0));
 	checkSettings();
 	const modsChange = ctx.mods.on("change", checkSettings);
-	const showInvite = () => void ctx.dialogs.manager.open({ title: "ПРИГЛАСИТЬ", render: close => InviteDialog({ ctx, close }) });
 	const showSettings = () => void ctx.dialogs.manager.open({ title: "НАСТРОЙКИ", render: close => RoomSettingsDialog({ ctx, session, close }) });
 	// игра закончилась: окно с итогом (один раз; в просмотре сохранённой игры его нет)
 	// сервер Бафии (если игрок согласился): кто из игроков комнаты играет в Бафии и сколько партий сыграно
@@ -207,7 +205,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 				stretch
 				subtitle={view().playersLine}
 				onBack={() => void back()}
-				right={<><RoleIcons roles={() => view().roles} images={() => images().roles} onClick={showRoles} phone={isMobile()} />{hasSettings() ? <button class="gear" onClick={showSettings} aria-label="Настройки комнаты"><Icon name="gear" size={24} /></button> : null}</>}
+				right={<><RoleIcons roles={() => view().roles} images={() => images().roles} onClick={showRoles} phone={isMobile()} />{hasSettings() || !session.replay ? <button class="gear" onClick={showSettings} aria-label="Настройки комнаты"><Icon name="gear" size={20} /></button> : null}</>}
 			/>
 			@if (!view().loaded) {
 				<div class="loading"><img src={images().loading} alt="" /></div>
@@ -215,11 +213,6 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 				<div class="body">
 					<div class="left">
 						<div class="info">{view().info}</div>
-						@if (!session.replay && !session.bafia) {
-							<div class="starts">
-								<button class="start" onClick={showInvite}>{"Пригласить"}</button>
-							</div>
-						}
 						@if (isBafiaHost()) {
 							<div class="starts">
 								<button class="start" disabled={!canStartNow()} title={canStartNow() ? "" : "Игроков меньше минимума"} onClick={() => void startNow()}>{"Начать"}</button>
@@ -268,7 +261,7 @@ function RoleIcons({ roles, images, onClick, phone }: { roles: () => { role: num
 		</style>
 		<div class={phone ? "roles phone" : "roles"} onClick={onClick}>
 			@for (const item of roles()) {
-				<div class="item">
+				<div class="item grow">
 					<img src={images()[item.role]} alt="" />
 					@if (item.count !== undefined) {
 						<span class="count">{item.count}</span>

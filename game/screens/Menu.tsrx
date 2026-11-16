@@ -52,8 +52,8 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 			.bar { position: relative; flex: 1; height: 18px; border-radius: 9px; background: var(--progress-track); overflow: hidden; }
 			.fill { position: absolute; inset: 0 auto 0 0; background: var(--progress-fill); transition: width .4s ease; }
 			.bar span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #111; }
-			.square { padding: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 6px; flex: none; }
-			.square img { width: 22px; height: 22px; }
+			.square { padding: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; flex: none; }
+			.square img { width: 18px; height: 18px; }
 
 			.corners { display: flex; justify-content: space-between; align-items: flex-start; }
 			.badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 8px; background: var(--badge-bg); color: var(--badge-text); font-size: 13px; font-weight: 600; }
@@ -87,7 +87,7 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 			.news { margin-left: 6px; padding: 0 6px; border-radius: 9px; background: #e5493a; color: #fff; font-size: 12px; font-weight: 700; }
 			.small { display: flex; flex-direction: column; gap: 4px; width: 46%; }
 			.shop { flex: 1; background: var(--button-shop-bg); color: var(--button-shop-text); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; }
-			.shop:enabled:hover { background: var(--button-shop-bg); filter: brightness(.92); }
+			@media (hover: hover) { .shop:enabled:hover { background: var(--button-shop-bg); filter: brightness(.92); } }
 			.shop:enabled:active { background: var(--button-shop-bg); filter: brightness(.82); }
 		</style>
 		<div class="menu">

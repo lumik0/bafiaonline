@@ -1,4 +1,5 @@
 import { fromEvents } from "@common/ui";
+import { useKeyboardOpen } from "../keyboard";
 import { roleNames, Role } from "../../domain/enums";
 import { isMafia } from "../../domain/room/state";
 import type { RoomSession } from "../../domain/room/session";
@@ -28,11 +29,13 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 	const hidden = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername);
 	const showIndex = fromEvents(ctx.settings, "change", () => ctx.settings.data.game.showIndexPl);
 	const showRole = () => void ctx.dialogs.manager.open({ title: "ТВОЯ РОЛЬ", render: close => YourRoleDialog({ ctx, role: info().role as Role, close }) });
+	// клавиатура открыта: панель сжимается до одной строки, чтобы были видны сообщения чата
+	const typing = useKeyboardOpen();
 	const timerColors = { normal: "var(--text-dark)", warning: "orange", danger: "red", critical: "darkred" };
 
 	<>
 		<style>
-			.info { position: relative; overflow: hidden; display: flex; align-items: stretch; margin: 5px 10px; min-height: 125px; box-sizing: border-box; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
+			.info { position: relative; overflow: hidden; display: flex; align-items: stretch; margin: 3px 10px 0; min-height: 110px; box-sizing: border-box; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
 			.me { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; font-size: 12px; text-align: center; }
 			.me img { width: 50px; height: 70px; object-fit: contain; }
 			.me .dead { position: absolute; top: 0; left: 0; width: 50px; height: 70px; }
@@ -42,12 +45,21 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 			.index { color: var(--chat-mention); font-weight: 700; }
 			.affected { width: 125px; display: flex; flex-wrap: wrap; align-content: center; gap: 2px; }
 			.affected img { width: 28px; height: 40px; object-fit: contain; animation: blink 1s linear alternate infinite; }
-			.side { flex: 1; display: flex; flex-direction: column; align-items: flex-end; padding: 8px; font-size: 13px; }
+			.side { flex: 1; display: flex; flex-direction: column; align-items: flex-end; padding: 6px 8px 2px; font-size: 13px; }
 			.mafia { color: #940000; }
 			.civil { color: #186400; }
-			.timer { font-size: 35px; font-weight: 700; margin-top: 12px; padding: 5px; transition: color 3s; }
+			.timer { font-size: 35px; font-weight: 700; margin-top: 6px; padding: 2px 5px; transition: color 3s; }
 			.timer.short { margin-top: 0; }
 			.giveup { margin-top: -5px; }
+			.info.compact { min-height: 0; margin-top: 2px; }
+			.compact .me { flex-direction: row; gap: 6px; padding: 2px 8px; }
+			.compact .me img { width: 24px; height: 34px; }
+			.compact .me .dead { width: 24px; height: 34px; }
+			.compact .me > span { display: none; }
+			.compact .affected { display: none; }
+			.compact .side { flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; padding: 2px 8px; }
+			.compact .timer { font-size: 20px; margin: 0; padding: 0 4px; }
+			.compact .giveup { margin: 0; padding: 3px 10px; font-size: 12px; }
 			.sky { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 			.sky > * { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; transition: transform 1.6s ease-in-out, opacity 1.6s; }
 			.sun { background: radial-gradient(circle, #fff6a8 0 35%, #ffd23c 36% 100%); box-shadow: 0 0 26px 10px rgba(255, 210, 60, .55); animation: pulse 4s ease-in-out infinite; }
@@ -60,14 +72,14 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 			@keyframes pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
 			@keyframes blink { from { opacity: 0; } to { opacity: 1; } }
 		</style>
-		<div class="info">
+		<div class={typing() ? "info compact" : "info"}>
 			@if (sky()) {
 				<div class={night() ? "sky night" : "sky day"}><div class="sun"></div><div class="moon"></div></div>
 			}
 			<div class="me">
 				<span>{"Твоя роль"}</span>
 				// <span>{roleNames[info().role as Role] ?? ""}</span>
-				<div class="picture" onClick={showRole}>
+				<div class="picture grow" onClick={showRole}>
 					<img src={images().roles[info().role]} alt="" />
 					@if (!info().alive) {
 						<img class="dead" src={images().dead} alt="" />

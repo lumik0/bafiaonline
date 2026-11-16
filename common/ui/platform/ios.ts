@@ -15,7 +15,7 @@ const css = `
   --appbar-title-size: 17px;
   --appbar-title-weight: 600;
   --appbar-title-align: center;
-  --appbar-icon-padding: 8px;
+  --appbar-icon-padding: 6px;
   --appbar-gap: 2px;
 
   --dialog-radius: 14px;
@@ -39,6 +39,8 @@ const css = `
   --switch-on-track: #34c759;
   --switch-off-track: rgba(120, 120, 128, .32);
 
+  --sheet-radius: 16px 16px 0 0;
+  --chip-radius: 10px;
   --card-radius: 10px;
   --field-padding: 12px 14px;
   --toolbar-wrap: wrap;
@@ -63,14 +65,11 @@ const css = `
 :where([data-platform="ios"]) .bafia button {
   border: none;
   border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 16px;
+  padding: 7px 14px;
+  font-size: 15px;
   font-weight: 600;
   transition: opacity .15s;
 }
-:where([data-platform="ios"]) .bafia button:enabled:hover { background-color: var(--button-bg); }
-:where([data-platform="ios"]) .bafia button.gray:enabled:hover { background-color: var(--button-gray-bg); }
-:where([data-platform="ios"]) .bafia button.dark-gray:enabled:hover { background-color: var(--button-dark-bg); }
 :where([data-platform="ios"]) .bafia button:enabled:active { opacity: .55; transform: none; }
 :where([data-platform="ios"]) .bafia button:disabled { opacity: .4; }
 

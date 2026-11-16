@@ -19,6 +19,8 @@ const css = `
   --appbar-icon-padding: 12px;
   --appbar-gap: 4px;
 
+  --sheet-radius: 28px 28px 0 0;
+  --chip-radius: 14px;
   --dialog-radius: 28px;
   --dialog-shadow: 0 8px 24px rgba(0, 0, 0, .35);
   --dialog-head-bg: transparent;
@@ -76,13 +78,13 @@ const css = `
   transition: background-size .6s, background-color .6s;
 }
 /* на сенсорном экране «наведение» залипает после нажатия: цвет не меняем */
-:where([data-platform="android"]) .bafia button:enabled:hover { background-color: var(--button-bg); }
-:where([data-platform="android"]) .bafia button:enabled:active { background-color: var(--button-active); background-size: 100%; transition: background-size 0s, background-color 0s; transform: none; }
+:where([data-platform="android"]) .bafia button:where(:enabled:hover) { background-color: var(--button-bg); }
+:where([data-platform="android"]) .bafia button:where(:enabled:active) { background-color: var(--button-active); background-size: 100%; transition: background-size 0s, background-color 0s; transform: none; }
 /* серые кнопки полупрозрачные: волна на них дала бы двойной слой, поэтому просто затемнение */
 :where([data-platform="android"]) .bafia button.gray, :where([data-platform="android"]) .bafia button.dark-gray { background-image: none; transition: filter .2s; }
-:where([data-platform="android"]) .bafia button.gray:enabled:hover, :where([data-platform="android"]) .bafia button.gray:enabled:active { background-color: var(--button-gray-bg); }
-:where([data-platform="android"]) .bafia button.dark-gray:enabled:hover, :where([data-platform="android"]) .bafia button.dark-gray:enabled:active { background-color: var(--button-dark-bg); }
-:where([data-platform="android"]) .bafia button.gray:enabled:active, :where([data-platform="android"]) .bafia button.dark-gray:enabled:active { filter: brightness(.85); }
+:where([data-platform="android"]) .bafia button.gray:where(:enabled:hover), :where([data-platform="android"]) .bafia button.gray:where(:enabled:active) { background-color: var(--button-gray-bg); }
+:where([data-platform="android"]) .bafia button.dark-gray:where(:enabled:hover), :where([data-platform="android"]) .bafia button.dark-gray:where(:enabled:active) { background-color: var(--button-dark-bg); }
+:where([data-platform="android"]) .bafia button.gray:where(:enabled:active), :where([data-platform="android"]) .bafia button.dark-gray:where(:enabled:active) { filter: brightness(.85); }
 :where([data-platform="android"]) .bafia button:disabled { background-image: none; opacity: .5; }
 
 :where([data-platform="android"]) .bafia input { border-radius: 8px; }

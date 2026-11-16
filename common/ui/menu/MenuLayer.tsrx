@@ -43,7 +43,7 @@ export function MenuLayer({ manager }: { manager: ContextMenuManager }) @{
 			.shield { position: absolute; inset: 0; pointer-events: auto; }
 			.menu { position: absolute; min-width: var(--menu-min-width, 170px); padding: 4px 0; border-radius: var(--menu-radius, 6px); background: var(--menu-bg, #f4f4f4); color: var(--menu-text, #111); overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, .45), 0 0 0 1px rgba(0, 0, 0, .15); animation: appear .1s ease; }
 			.item { padding: var(--menu-item-padding, 7px 16px); font-size: var(--menu-item-size, 14px); cursor: pointer; white-space: nowrap; }
-			.item:hover { background: var(--accent); color: #fff; }
+			@media (hover: hover) { .item:hover { background: var(--accent); color: #fff; } }
 			@keyframes appear { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
 		</style>
 		<div class="layer" ref={layer}>

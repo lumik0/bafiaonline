@@ -24,7 +24,7 @@ export function DialogLayer({ manager }: { manager: DialogManager }) @{
 			.head { flex: none; display: flex; align-items: center; justify-content: var(--dialog-head-justify, flex-start); text-align: var(--dialog-head-align, left); gap: 8px; padding: var(--dialog-head-padding, 12px 16px); background: var(--dialog-head-bg, var(--header-bg)); color: var(--dialog-head-text, var(--header-text)); font-weight: var(--dialog-title-weight, 600); font-size: var(--dialog-title-size, 15px); letter-spacing: .3px; }
 			.title { flex: 1; min-width: 0; }
 			.x { flex: none; width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; border-radius: 50%; background: transparent; color: inherit; border: none; opacity: .8; }
-			.x:hover { opacity: 1; background: rgba(255, 255, 255, .2); }
+			.x:hover, .x:active { opacity: 1; background: rgba(128, 128, 128, .35); }
 			.floating { position: absolute; top: 6px; right: 6px; z-index: 1; color: var(--text-dark); }
 			.card { position: relative; }
 			.body { padding: var(--dialog-body-padding, 14px 16px 16px); overflow: auto; color: var(--text-dark); }

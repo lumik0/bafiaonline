@@ -77,7 +77,12 @@ export class RoomsList extends Events<{ change: () => void }> {
       this.client.on("roomRemoved", data => update(() => { this.byId.delete(data.roomId); })),
       this.client.on("roomPlayersChanged", data => update(() => {
         const room = this.byId.get(data.state.roomId);
-        if(room && data.state.playersInRoom !== undefined) this.byId.set(room.id, { ...room, playersNum: data.state.playersInRoom });
+        if(!room) return;
+        this.byId.set(room.id, {
+          ...room,
+          ...(data.state.playersInRoom !== undefined ? { playersNum: data.state.playersInRoom } : {}),
+          ...(data.state.invited !== undefined ? { inviter: data.state.invited && data.state.inviter ? data.state.inviter : undefined } : {})
+        });
       })),
       this.client.on("roomStatusChanged", data => update(() => {
         const room = this.byId.get(data.roomId);
@@ -101,6 +106,13 @@ export class RoomsList extends Events<{ change: () => void }> {
   /** заново запросить список (кнопка «Обновить», переподключение) */
   refresh() {
     this.client.send("addClientToRoomsList");
+  }
+
+  /** убрать приглашение с карточки (крестик): сообщаем серверу и сразу прячем */
+  dismissInvite(roomId: string) {
+    const room = this.byId.get(roomId);
+    if(room?.inviter) { this.byId.set(roomId, { ...room, inviter: undefined }); this.emit("change"); }
+    this.client.send("removeInvite", { roomId });
   }
 
   async join(roomId: string, password = ""): Promise<JoinResult> {

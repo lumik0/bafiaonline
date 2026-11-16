@@ -75,7 +75,7 @@ export function HistoryScreen({ ctx }: { ctx: GameContext }) @{
 			.found span { flex: 1; }
 			.list { flex: 1; overflow-y: auto; padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
 			.game { padding: 8px 10px; border-radius: 10px; background: var(--surface); color: var(--text-dark); cursor: pointer; transition: filter .15s; }
-			.game:hover { filter: brightness(1.08); }
+			@media (hover: hover) { .game:hover { filter: brightness(1.08); } }
 			.game.win { background: rgba(137, 242, 165, .45); }
 			.game.lose { background: rgba(255, 138, 146, .45); }
 			.result { text-align: center; font-size: 13px; padding: 2px 0 6px; }

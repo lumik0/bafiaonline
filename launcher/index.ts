@@ -4,6 +4,8 @@ import { migrateOnFirstRun, openStorage } from "@common/storage";
 import { fromEvents, injectStyle, mount } from "@common/ui";
 import { ThemeManager } from "@common/ui/theme";
 import { baseCss } from "@common/ui/theme/base";
+import { applyPlatform } from "@common/ui/platform";
+import { appPlatform } from "@common/utils/native";
 import { NotificationCenter } from "@common/ui/notifications/center";
 import { NotificationLayer } from "@common/ui/notifications/NotificationLayer.tsrx";
 import { EffectsLayer } from "@common/ui/effects/EffectsLayer.tsrx";
@@ -24,6 +26,13 @@ import { mountInWindow } from "./windows/mount";
 export async function startLauncher(root: HTMLElement, launchGame: GameLauncher, assetsSource?: AssetsSource) {
   installErrorHooks();
   injectStyle("base", baseCss);
+  // в браузере на iPhone и iPad вид iOS, как в приложении (на остальных устройствах прежний)
+  if(isMobile() && appPlatform() == "ios") {
+    applyPlatform();
+    // в браузере окно закрывается красной кнопкой в заголовке (в приложении её нет), на телефоне её делаем крупнее под палец
+    document.documentElement.style.setProperty("--window-lights", "flex");
+    document.documentElement.style.setProperty("--window-light-size", "22px");
+  }
 
   const storage = await openStorage(isMobile());
   // игроки старой версии: аккаунты переезжают из её базы сами, один раз

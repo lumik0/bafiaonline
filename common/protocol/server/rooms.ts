@@ -25,7 +25,10 @@ export const roomInfo = t.object({
   status: optionalField(K.STATUS, t.numeric),
   /** ваше положение: 0 - играете, 1 - убиты, 2 - вы не в комнате */
   myStatus: optionalField(K.ROOM_STATUS, t.numeric),
-  dayTime: optionalField(K.DAYTIME, t.number)
+  dayTime: optionalField(K.DAYTIME, t.number),
+  /** 1 - тебя пригласили в эту комнату, `inviter` - кто */
+  invited: optionalField(K.IS_INVITED, t.flag),
+  inviter: optionalField(K.INVITATION_SENDER_USERNAME, t.string)
 });
 
 export const roomMessages = {
@@ -34,7 +37,10 @@ export const roomMessages = {
   roomPlayersChanged: serverPacket(K.ROOM_IN_LOBBY_STATE, {
     state: field(K.ROOM_IN_LOBBY_STATE, t.object({
       roomId: field(K.ROOM_OBJECT_ID, t.string),
-      playersInRoom: optionalField(K.PLAYERS_IN_ROOM, t.numeric)
+      playersInRoom: optionalField(K.PLAYERS_IN_ROOM, t.numeric),
+      /** приглашение: пришло (1 и ник) или отозвано (0) */
+      invited: optionalField(K.IS_INVITED, t.flag),
+      inviter: optionalField(K.INVITATION_SENDER_USERNAME, t.string)
     }))
   }),
   roomStatusChanged: serverPacket(K.GAME_STATUS_IN_ROOMS_LIST, {

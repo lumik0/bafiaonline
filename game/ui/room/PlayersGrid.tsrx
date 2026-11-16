@@ -64,7 +64,7 @@ export function PlayersGrid({ ctx, session, mention, tip }: { ctx: GameContext, 
 		<div class="grid">
 			@for (const view of views()) {
 				<div
-					class="cell"
+					class="cell grow"
 					data-player={view.playerObjectId}
 					onClick={() => press(view)}
 					onContextMenu={(event) => { event.preventDefault(); if((event as PointerEvent).pointerType != "touch") void menu(view, event); }}

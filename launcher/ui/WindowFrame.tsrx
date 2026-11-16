@@ -74,9 +74,9 @@ export function WindowFrame({ win, manager }: { win: WindowHandle, manager: Wind
 			.frame.inactive .title { opacity: .55; }
 			.title { font-size: var(--window-title-size, 12px); text-align: var(--window-title-align, center); padding: var(--window-title-padding, 0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
 
-			.lights { display: var(--window-lights, flex); gap: 7px; padding-left: 10px; }
+			.lights { display: var(--window-lights, flex); gap: calc(var(--window-light-size, 12px) * .6); padding-left: 10px; }
 			.light {
-				width: 12px; height: 12px; border-radius: 50%; padding: 0; border: .5px solid rgba(0, 0, 0, .2);
+				width: var(--window-light-size, 12px); height: var(--window-light-size, 12px); border-radius: 50%; padding: 0; border: .5px solid rgba(0, 0, 0, .2);
 				display: flex; align-items: center; justify-content: center;
 				font-size: 9px; line-height: 1; color: transparent; cursor: default;
 			}

@@ -21,6 +21,6 @@ export function YourRoleDialog({ ctx, role, close }: { ctx: GameContext, role: R
 				<p>{roleDescriptions[role]}</p>
 			</div>
 		</div>
-		<div class="buttons"><button onClick={() => close()}>{"Закрыть"}</button></div>
+		<div class="buttons"><button class="dark-gray" onClick={() => close()}>{"Закрыть"}</button></div>
 	</>
 }

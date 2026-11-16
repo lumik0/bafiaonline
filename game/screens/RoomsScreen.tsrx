@@ -9,6 +9,7 @@ import { statusColor, statusText } from "../domain/rooms/room";
 import type { BafiaRoomInfo } from "@common/bafia/protocol";
 import { titleMatches } from "../domain/rooms/title";
 import { waitForRoom } from "../ui/room-actions";
+import { Icon } from "../ui/Icon.tsrx";
 import { AppBar } from "../ui/AppBar.tsrx";
 import { RoomFilterDialog } from "../ui/dialogs/RoomFilterDialog.tsrx";
 import { RoomSortDialog } from "../ui/dialogs/RoomSortDialog.tsrx";
@@ -27,7 +28,7 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 	onMount(() => list.open());
 
 	// комнаты Бафии: свои комнаты на сервере Бафии (до 50 игроков, свои правила); список обновляется, пока открыт экран
-	const [bafia, setBafia] = createSignal<{ rooms: BafiaRoomInfo[], canCreate: boolean } | undefined>(undefined);
+	const [bafia, setBafia] = createSignal<{ rooms: BafiaRoomInfo[], canCreate: boolean, tabs: { official: boolean, bafia: boolean } } | undefined>(undefined);
 	const refreshBafia = async () => setBafia(await ctx.bafia.roomList());
 	onMount(() => {
 		void refreshBafia();
@@ -48,7 +49,11 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 		if("error" in result) return void await ctx.dialogs.alert(bafiaRoomProblems[result.error] ?? "Не получилось зайти.", { title: "Комната Бафии" });
 		openBafiaRoom(ctx, result.adapter);
 	};
-	const [tab, setTab] = createSignal<"official" | "bafia">("official");
+	const [picked, setTab] = createSignal<"official" | "bafia">("official");
+	// администратор может выключить вкладку, пока она не работает; нет связи с сервером Бафии - обе вкладки
+	const allowed = () => bafia()?.tabs ?? { official: true, bafia: true };
+	const none = () => !allowed().official && !allowed().bafia;
+	const tab = () => (picked() == "official" ? allowed().official : allowed().bafia) ? picked() : allowed().official ? "official" : "bafia";
 	const visibleBafia = () => (bafia()?.rooms ?? []).filter(room => !search().trim() || room.title.toLowerCase().includes(search().trim().toLowerCase()));
 	onCleanup(() => list.close());
 
@@ -83,6 +88,10 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 			.toolbar { display: flex; flex-wrap: var(--toolbar-wrap, nowrap); gap: 6px; padding: 8px 10px 0; }
 			.toolbar button { padding-left: var(--toolbar-button-inline, 20px); padding-right: var(--toolbar-button-inline, 20px); flex: var(--toolbar-button-flex, none); }
 			.toolbar input { flex: 1 1 var(--toolbar-input-basis, 0%); min-width: 0; padding: var(--toolbar-input-padding, 7px 10px); }
+			/* кнопки-значки: квадрат фиксированного размера, чтобы поиск не сжимался до крошки, а "Обновить" не уезжала за край */
+			.toolbar .tool { position: relative; flex: none; width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; }
+			.toolbar .tool .dot { position: absolute; top: 4px; right: 4px; margin: 0; }
+			.toolbar input { min-width: 140px; }
 			.dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: #3fe33f; }
 			.list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
 			.empty { padding: 40px 10px; text-align: center; opacity: .8; }
@@ -98,21 +107,27 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 		</style>
 		<div class="page">
 			<AppBar title={"Комнаты (" + visible().length + " из " + rooms().length + ")"} onBack={() => ctx.nav.pop()} />
-			<div class="tabs">
-				<button class={tab() == "official" ? "tab on" : "tab"} onClick={() => setTab("official")}>{"Официальные"}</button>
-				<button class={tab() == "bafia" ? "tab on" : "tab"} onClick={() => setTab("bafia")}>{"Комнаты Бафии"}</button>
-			</div>
+			@if (allowed().official && allowed().bafia) {
+				<div class="tabs">
+					<button class={tab() == "official" ? "tab on" : "tab"} onClick={() => setTab("official")}>{"Официальные"}</button>
+					<button class={tab() == "bafia" ? "tab on" : "tab"} onClick={() => setTab("bafia")}>{"Комнаты Бафии"}</button>
+				</div>
+			}
+			@if (none()) {
+				<div class="empty">{"Комнаты временно недоступны. Загляни позже."}</div>
+			} @else {
+			<>
 			<div class="toolbar">
 				<input placeholder="Поиск по названию" value={search()} onInput={(event) => setSearch(event.currentTarget.value)} />
 				@if (tab() == "official") {
 				<>
-				<button onClick={() => void ctx.dialogs.manager.open({ title: "СОРТИРОВКА", render: (close) => RoomSortDialog({ ctx, close }) })}>{"Сортировка"}</button>
-				<button onClick={() => void ctx.dialogs.manager.open({ title: "ФИЛЬТР", render: (close) => RoomFilterDialog({ ctx, close }) })}>{"Фильтр"}{filter().enabled ? <span class="dot"></span> : null}</button>
-				<button onClick={() => void waitByTitle()} title="Зайти сразу, когда появится комната с названием">{"Ждать"}</button>
-				<button onClick={() => list.refresh()} aria-label="Обновить">{"↻"}</button>
+				<button class="tool" title="Сортировка" aria-label="Сортировка" onClick={() => void ctx.dialogs.manager.open({ title: "СОРТИРОВКА", render: (close) => RoomSortDialog({ ctx, close }) })}><Icon name="sort" size={18} /></button>
+				<button class="tool" title="Фильтр" aria-label="Фильтр" onClick={() => void ctx.dialogs.manager.open({ title: "ФИЛЬТР", render: (close) => RoomFilterDialog({ ctx, close }) })}><Icon name="filter" size={18} />{filter().enabled ? <span class="dot"></span> : null}</button>
+				<button class="tool" onClick={() => void waitByTitle()} title="Ждать комнату: зайти сразу, когда появится комната с названием" aria-label="Ждать комнату"><Icon name="hourglass" size={18} /></button>
+				<button class="tool" onClick={() => list.refresh()} title="Обновить" aria-label="Обновить"><Icon name="refresh" size={18} /></button>
 				</>
 				} @else {
-					<button onClick={() => void refreshBafia()} aria-label="Обновить">{"↻"}</button>
+					<button class="tool" onClick={() => void refreshBafia()} title="Обновить" aria-label="Обновить"><Icon name="refresh" size={18} /></button>
 				}
 			</div>
 			<div class="list">
@@ -125,7 +140,7 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 									<span class="meta">{room.host + " · " + room.players + "/" + room.maxPlayers + (room.premium ? " · премиум" : "") + (room.startsIn !== undefined ? " · старт через " + room.startsIn : "")}</span>
 									<span class="status" style={{ color: statusColor(room.status) }}>{statusText(room.status)}</span>
 								</button>
-								<button class="watch" title="Смотреть игру" aria-label="Смотреть игру" onClick={() => void watchBafia(room)}>{"👁"}</button>
+								<button class="watch" title="Смотреть игру" aria-label="Смотреть игру" onClick={() => void watchBafia(room)}><Icon name="eye" size={18} /></button>
 							</div>
 						} @empty {
 							<div class="empty">{!bafia() ? "Загрузка…" : "Пока нет комнат Бафии"}</div>
@@ -145,6 +160,8 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 				<button class="create" onClick={() => ctx.nav.push("roomCreation")}>{"Создать комнату"}</button>
 			} @else {
 				<button class="create" disabled={!bafia()?.canCreate} title={bafia()?.canCreate ? "" : "Создавать комнаты Бафии пока может не каждый"} onClick={() => ctx.nav.push("bafiaRoomCreation")}>{"Создать комнату"}</button>
+			}
+			</>
 			}
 		</div>
 	</>

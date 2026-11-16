@@ -28,6 +28,9 @@ const LATE = [6, 7, 8];
 const TEAM = [{ id: 4, name: "Мафия" }, ...MAFIA];
 const PEACEFUL = [{ id: 2, name: "Доктор" }, { id: 3, name: "Шериф" }, { id: 5, name: "Любовница" }, { id: 7, name: "Журналист" }, { id: 8, name: "Телохранитель" }, { id: 10, name: "Шпион" }];
 
+/** в официальной комнате шериф есть всегда, дополнительной ролью он не выбирается (и из прежних сохранённых настроек убирается) */
+const withoutSheriff = (roles: number[]) => roles.filter(id => id != 3);
+
 /** создание комнаты. Выбранное запоминается и подставляется в следующий раз (как в старой версии) */
 export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, bafia?: boolean }) @{
 	// комната Бафии: те же поля, но свои значения (не трогают настройки официальной), игроков до 50, вместо VIP - только для премиума
@@ -121,7 +124,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 			}
 			const result = await ctx.rooms.create({
 				title: data.title, minPlayers: data.minPlayers, maxPlayers: data.maxPlayers, minLevel: data.minLevel,
-				selectedRoles: data.selectedRoles, password: data.password, vip: data.vip
+				selectedRoles: withoutSheriff(data.selectedRoles), password: data.password, vip: data.vip
 			});
 			if(result.status == "ok") {
 				// вышел и вернулся в свою комнату с паролем: заново вводить его не нужно
@@ -139,7 +142,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 	const summary = () => {
 		const data = draft();
 		const players = data.minPlayers == data.maxPlayers ? String(data.maxPlayers) : data.minPlayers + "-" + data.maxPlayers;
-		return `Игроков ${players}` + (bafia ? "" : ` · уровень ${data.minLevel}+`) + (bafia ? (roleTotal() ? ` · ролей +${roleTotal()}` : "") : data.selectedRoles.length ? ` · ролей +${data.selectedRoles.length}` : "") + (data.vip ? (bafia ? " · премиум" : " · VIP") : "") + (data.password ? " · с паролем" : "");
+		return `Игроков ${players}` + (bafia ? "" : ` · уровень ${data.minLevel}+`) + (bafia ? (roleTotal() ? ` · ролей +${roleTotal()}` : "") : withoutSheriff(data.selectedRoles).length ? ` · ролей +${withoutSheriff(data.selectedRoles).length}` : "") + (data.vip ? (bafia ? " · премиум" : " · VIP") : "") + (data.password ? " · с паролем" : "");
 	};
 
 	<>
@@ -193,7 +196,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 				<div class="card">
 					<div class="field">
 						<label>{"Название"}</label>
-						<input type="text" placeholder="Например, eriised крутая" maxlength="30" value={draft().title} onInput={(event) => edit(data => { data.title = event.currentTarget.value; })} />
+						<input type="text" maxlength="30" value={draft().title} onInput={(event) => edit(data => { data.title = event.currentTarget.value; })} />
 					</div>
 					<div class="field">
 						<label>{"Пароль (можно не ставить)"}</label>
@@ -310,7 +313,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 					</>
 				} @else {
 				<div class="card">
-					<h4>{"Дополнительные роли"}<small>{draft().selectedRoles.length ? "выбрано " + draft().selectedRoles.length : "не выбраны"}</small></h4>
+					<h4>{"Дополнительные роли"}<small>{withoutSheriff(draft().selectedRoles).length ? "выбрано " + withoutSheriff(draft().selectedRoles).length : "не выбраны"}</small></h4>
 					<span class="team mafia">{"Команда мафии"}</span>
 					<div class="roles">
 						@for (const role of MAFIA) {
@@ -319,7 +322,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 					</div>
 					<span class="team peaceful">{"Команда мирных жителей"}</span>
 					<div class="roles">
-						@for (const role of PEACEFUL) {
+						@for (const role of PEACEFUL.filter(role => role.id != 3)) {
 							<button class={draft().selectedRoles.includes(role.id) ? "role on" : "role"} aria-pressed={draft().selectedRoles.includes(role.id)} onClick={() => toggleRole(role.id)}><img src={images().roles[role.id]} alt="" />{role.name}</button>
 						}
 					</div>

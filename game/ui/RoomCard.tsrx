@@ -20,10 +20,14 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 	<>
 		<style>
 			.room { width: 100%; box-sizing: border-box; align-self: stretch; padding: 8px 10px; border-radius: 10px; background: var(--surface); color: var(--text-dark); cursor: pointer; animation: appear .3s ease; transition: background .15s; text-align: left; }
-			.room:hover { filter: brightness(1.08); }
+			@media (hover: hover) { .room:hover { filter: brightness(1.08); } }
 			.room.playing { background: rgba(137, 242, 165, .45); }
+			.room.invited { background: rgba(160, 140, 210, .5); }
 			.room.killed { background: rgba(255, 138, 146, .45); }
 			.banner { text-align: center; font-size: 13px; padding: 2px 0 6px; }
+			.invite { position: relative; text-align: center; font-size: 13px; padding: 2px 28px 6px; font-weight: 600; }
+			.invite button { position: absolute; right: -4px; top: -4px; width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: transparent; color: inherit; font-size: 15px; line-height: 1; }
+			.invite button:active { background: rgba(0, 0, 0, .15); }
 			.head { display: flex; align-items: center; gap: 6px; }
 			.head img { width: 24px; height: 24px; flex: none; }
 			.title { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -36,7 +40,7 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 			@keyframes appear { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 		</style>
 		<div
-			class={"room" + (room.myStatus == 0 ? " playing" : room.myStatus == 1 ? " killed" : "")}
+			class={"room" + (room.myStatus == 0 ? " playing" : room.myStatus == 1 ? " killed" : room.inviter ? " invited" : "")}
 			onClick={open}
 			onContextMenu={(event) => { if(!menu) return; event.preventDefault(); if((event as PointerEvent).pointerType != "touch") menu(event); }}
 			onPointerDown={(event) => { if(menu) press.down(event, () => menu(event)); }}
@@ -45,6 +49,9 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 			onPointerCancel={press.cancel}
 			onPointerLeave={press.cancel}
 		>
+			@if (room.inviter) {
+				<div class="invite"><span data-keep>{"Приглашение от: " + room.inviter}</span><button aria-label="Убрать приглашение" onClick={(event) => { event.stopPropagation(); ctx.rooms.dismissInvite(room.id); }}>{"✕"}</button></div>
+			}
 			@if (room.myStatus == 0) {
 				<div class="banner">{"Ты играешь в этой комнате"}</div>
 			} @else if (room.myStatus == 1) {

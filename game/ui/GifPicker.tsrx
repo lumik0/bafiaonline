@@ -79,24 +79,26 @@ export function GifPicker({ bafia, pick: pickGif }: { bafia: Bafia, pick: (id: s
 
 	<>
 		<style>
-			.picker { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 6px; color: var(--text-dark); }
-			.picker input[type=text] { padding: 7px 10px; min-width: 0; }
-			.tabs { display: flex; gap: 6px; align-items: center; }
-			.tabs button { padding: 4px 12px; border-radius: 999px; font-size: 13px; opacity: .7; }
-			.tabs button.on { opacity: 1; font-weight: 700; }
-			.tabs .add { margin-left: auto; opacity: 1; }
-			.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; max-height: 190px; overflow-y: auto; }
+			.picker { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 0; color: var(--text-dark); }
+			.picker input[type=text] { padding: 8px 14px; min-width: 0; border-radius: 999px; background: rgba(128, 128, 128, .16); border: none; }
+			.tabs { flex: none; display: flex; gap: 6px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+			.tabs::-webkit-scrollbar { display: none; }
+			.tabs button { flex: none; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; border: none; background: rgba(128, 128, 128, .16) !important; color: inherit; opacity: .8; white-space: nowrap; }
+			.tabs button.on { opacity: 1; background: var(--accent) !important; color: #fff; }
+			.tabs .add { margin-left: auto; }
+			.grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); grid-auto-rows: 100px; gap: 4px; overflow-y: auto; overscroll-behavior: contain; align-content: start; }
 			.cell { position: relative; }
-			.star { position: absolute; top: 2px; right: 2px; padding: 0 5px; line-height: 1.5; border-radius: 999px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 14px; }
+			.star { position: absolute; top: 3px; right: 3px; padding: 0 6px; line-height: 1.5; border-radius: 999px; background: rgba(0, 0, 0, .45); color: #fff; font-size: 14px; border: none; }
 			.star.on { color: #ffd54a; }
-			.grid img { width: 100%; height: 72px; object-fit: cover; border-radius: 6px; cursor: pointer; background: rgba(128, 128, 128, .25); }
-			.credit { font-size: 11px; opacity: .7; text-align: right; }
+			.grid img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--chip-radius, 8px); cursor: pointer; background: rgba(128, 128, 128, .25); }
+			.credit { flex: none; font-size: 11px; opacity: .7; text-align: right; padding-bottom: 2px; }
 			.credit a, .status a { color: inherit; }
 			.empty, .status { font-size: 13px; opacity: .85; padding: 4px 2px; }
 			.upload { display: flex; gap: 6px; }
 			.upload input { flex: 1; }
 		</style>
 		<div class="picker">
+			<input type="text" placeholder={source() == "giphy" ? "Поиск в Giphy" : source() == "bafia" ? "Поиск по гифкам Бафии" : source() == "favorites" ? "Поиск в избранном" : "Поиск среди моих"} maxlength="40" onInput={(event) => { clearTimeout(timer); query = event.currentTarget.value; timer = setTimeout(search, 300); }} />
 			<div class="tabs">
 				<button class={source() == "favorites" ? "on" : ""} onClick={() => choose("favorites")}>{"★ Избранное"}</button>
 				<button class={source() == "giphy" ? "on" : ""} onClick={() => choose("giphy")}>{"Giphy"}</button>
@@ -125,7 +127,6 @@ export function GifPicker({ bafia, pick: pickGif }: { bafia: Bafia, pick: (id: s
 					}
 				</div>
 			}
-			<input type="text" placeholder={source() == "giphy" ? "Поиск в Giphy" : source() == "bafia" ? "Поиск по гифкам Бафии" : source() == "favorites" ? "Поиск в избранном" : "Поиск среди моих"} maxlength="40" onInput={(event) => { clearTimeout(timer); query = event.currentTarget.value; timer = setTimeout(search, 300); }} />
 			@if (items() && items()!.length) {
 				<>
 					<div class="grid">

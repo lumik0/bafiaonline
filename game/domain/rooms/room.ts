@@ -19,6 +19,8 @@ export interface RoomItem {
   status: number
   /** 0 - вы играете здесь, 1 - вас убили здесь, 2 - вы не в комнате */
   myStatus: number
+  /** ник того, кто пригласил тебя в эту комнату */
+  inviter?: string
 }
 
 export function toRoom(info: Info): RoomItem | undefined {
@@ -36,7 +38,8 @@ export function toRoom(info: Info): RoomItem | undefined {
     playersNum: info.playersNum ?? 0,
     creator: info.creator,
     status: info.status ?? 0,
-    myStatus: info.myStatus ?? 2
+    myStatus: info.myStatus ?? 2,
+    inviter: info.invited && info.inviter ? info.inviter : undefined
   };
 }
 
@@ -94,6 +97,8 @@ export function orderRooms(rooms: readonly RoomItem[], rules: readonly SortRule[
   const active = rules.filter(rule => rule.on);
   return sortRooms(rooms).sort((a, b) => {
     if(a.myStatus != b.myStatus) return a.myStatus - b.myStatus;
+    // комнаты, куда тебя пригласили, выше остальных
+    if(!!a.inviter != !!b.inviter) return a.inviter ? -1 : 1;
     for(const rule of active) {
       const difference = sortCriteria[rule.key].compare(a, b);
       if(difference) return rule.desc ? -difference : difference;

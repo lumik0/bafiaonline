@@ -19,6 +19,7 @@ export function Launcher({ model, openSettings }: { model: LauncherModel, openSe
 
 	<>
 		<style>
+			.launcher button { padding: 5px 14px; font-size: 13px; border-radius: 8px; }
 			.launcher { display: flex; flex-direction: column; gap: 10px; padding: 10px; height: 100%; box-sizing: border-box; overflow: auto; }
 			.heading { margin: 0 4px; font-size: 13px; opacity: .8; }
 			.accounts { display: flex; gap: 8px; overflow-x: auto; padding: 10px; border-radius: 8px; background: rgba(255, 255, 255, .06); min-height: 96px; }
@@ -27,13 +28,13 @@ export function Launcher({ model, openSettings }: { model: LauncherModel, openSe
 				padding: 8px 4px 6px; border-radius: 8px; background: rgba(255, 255, 255, .1); cursor: pointer;
 				transition: background .15s, transform .15s; border: 2px solid transparent;
 			}
-			.card:hover { background: rgba(255, 255, 255, .16); }
+			@media (hover: hover) { .card:hover { background: rgba(255, 255, 255, .16); } }
 			.card.selected { border-color: var(--accent); background: rgba(255, 255, 255, .18); }
 			.avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
 			.avatar img { width: 100%; height: 100%; object-fit: cover; }
 			.nick { font-size: 11px; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 			.remove { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; padding: 0; line-height: 1; font-size: 11px; border-radius: 50%; opacity: 0; }
-			.card:hover .remove { opacity: 1; }
+			@media (hover: hover) { .card:hover .remove { opacity: 1; } }
 			.add .avatar { background: transparent; border: 2px dashed var(--surface-border); font-size: 26px; }
 			.actions { display: flex; gap: 6px; }
 			.actions .play { flex: 1; padding: 10px; font-size: 16px; }

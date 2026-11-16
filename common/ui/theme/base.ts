@@ -28,12 +28,19 @@ export const baseCss = `
   cursor: pointer;
   transition: background-color .15s, transform .15s;
 }
-.bafia button:enabled:hover { background: var(--button-hover); }
-.bafia button:enabled:active { background: var(--button-active); transform: scale(.97); }
+/* hover только там, где есть мышь: на iOS первое касание иначе считается наведением, и кнопку приходится нажимать дважды */
+/* :where() не прибавляет веса: у кнопки со своим фоном (белая, серая) наведение и нажатие не перекрашивают её в цвет темы */
+@media (hover: hover) { .bafia button:where(:enabled:hover) { background: var(--button-hover); } }
+.bafia button:where(:enabled:active) { background: var(--button-active); }
+.bafia button:enabled:active { transform: scale(.97); }
+/* роли и игроки (класс "grow"): пока зажаты, увеличиваются */
+.bafia .grow { transition: transform .55s cubic-bezier(.3, .1, .2, 1); -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.bafia .grow:active { transform: scale(1.1); position: relative; z-index: 3; }
 .bafia button:disabled { background: var(--button-disabled); cursor: default; }
 
 .bafia button.gray { color: var(--button-gray-text); background: var(--button-gray-bg); border-color: var(--surface-border); }
 .bafia button.dark-gray { color: var(--button-dark-text); background: var(--button-dark-bg); }
+@media (hover: hover) { .bafia button.gray:enabled:hover, .bafia button.dark-gray:enabled:hover { filter: brightness(.92); } }
 
 .bafia input {
   background: var(--input-bg);

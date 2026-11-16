@@ -48,9 +48,10 @@ export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 			.text { font-size: 13px; color: var(--sub); line-height: 1.3; margin-top: 1px; overflow-wrap: anywhere; }
 			.close { position: absolute; top: -7px; left: -7px; width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 0; background: var(--close-bg); color: var(--close-text); box-shadow: 0 0 0 .5px var(--border), 0 1px 4px rgba(0, 0, 0, .3); display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(.7); transition: opacity .12s, transform .12s; cursor: pointer; }
 			.close svg { width: 10px; height: 10px; display: block; }
-			.banner:hover .close, .close:focus-visible { opacity: 1; transform: none; }
+			.close:focus-visible { opacity: 1; transform: none; }
+			@media (hover: hover) { .banner:hover .close { opacity: 1; transform: none; } }
 			.reply-btn { margin-top: 6px; padding: 2px 10px; border: 0; border-radius: 999px; font: inherit; font-size: 11px; font-weight: 600; color: var(--text); background: var(--close-bg); box-shadow: 0 0 0 .5px var(--border); cursor: pointer; }
-			.reply-btn:hover { filter: brightness(.95); }
+			@media (hover: hover) { .reply-btn:hover { filter: brightness(.95); } }
 			.composer { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 			.composer textarea { width: 100%; box-sizing: border-box; min-height: 52px; resize: none; padding: 6px 8px; border-radius: 8px; border: 0; font: inherit; font-size: 13px; color: var(--text); background: var(--close-bg); box-shadow: 0 0 0 .5px var(--border); }
 			.composer .row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }

@@ -27,6 +27,7 @@ export function Settings({ model, openTheme }: { model: LauncherModel, openTheme
 
 	<>
 		<style>
+			.settings button { padding: 4px 12px; font-size: 13px; border-radius: 8px; }
 			.settings { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
 			.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; padding: 0 10px; border-radius: 8px; background: rgba(255, 255, 255, .08); font-size: 13px; }
 			.row input { zoom: 1.3; }

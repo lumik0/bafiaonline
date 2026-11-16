@@ -3,12 +3,11 @@ import type { Assets } from "@common/assets";
 import { isMobile } from "@common/utils/mobile";
 import { expandMentionNumber, toggleMention } from "../domain/chat/message";
 import type { Bafia } from "../domain/bafia";
-import { GifPicker } from "./GifPicker.tsrx";
+import { ChatPanel } from "./ChatPanel.tsrx";
+import { backspaceAt } from "./emoji-data";
 import { Icon } from "./Icon.tsrx";
 import type { ChatController } from "./ChatView.tsrx";
 import type { GameContext } from "../context";
-
-const EMOJI = ["sm1", "sm2", "sm3", "sm4", "sm5", "sm6"];
 
 export function ChatInput({ ctx, assets, send, expand, controller, bafia, history, placeholder = "Сообщение" }: {
 	ctx: GameContext,
@@ -19,10 +18,18 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 	expand?: (number: number) => string | undefined
 }) @{
 	let input!: HTMLInputElement;
-	const [emojiOpen, setEmojiOpen] = createSignal(false);
-	const [gifOpen, setGifOpen] = createSignal(false);
+	// упоминание и смайлик на телефоне вставляются без фокуса, а iOS при нажатии на поле ставит курсор в начало: переносим его в конец
+	let caretToEnd = false;
+	const onFocus = () => {
+		if(!caretToEnd) return;
+		caretToEnd = false;
+		const end = () => { if(document.activeElement === input) input.setSelectionRange(input.value.length, input.value.length); };
+		setTimeout(end, 0);
+		setTimeout(end, 60);
+	};
+	const [panelOpen, setPanelOpen] = createSignal(false);
+	const [tab, setTab] = createSignal<"emoji" | "gif">("emoji");
 	const gifsOn = bafia ? fromEvents(bafia, "change", () => bafia.enabled) : () => false;
-	const emoji = fromEvents(assets, "change", () => Object.fromEntries(EMOJI.map(name => [name, assets.url(`textures/emoji/${name}.png`)])) as Record<string, string>);
 
 	// Enter где угодно переводит курсор в поле сообщения (кроме других полей ввода и кнопок)
 	onMount(() => {
@@ -55,15 +62,23 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 	const insert = (text: string) => {
 		const start = input.selectionStart ?? input.value.length;
 		input.value = input.value.slice(0, start) + text + input.value.slice(input.selectionEnd ?? start);
-		input.focus();
+		// на телефоне фокус открыл бы клавиатуру поверх панели: смайлики вставляем без него
+		if(!isMobile()) input.focus(); else caretToEnd = true;
 		input.setSelectionRange(start + text.length, start + text.length);
+	};
+	const erase = () => {
+		const caret = input.selectionStart ?? input.value.length;
+		const result = backspaceAt(input.value, caret);
+		input.value = result.text;
+		input.setSelectionRange(result.caret, result.caret);
+		if(!isMobile()) input.focus();
 	};
 	if(controller) controller.mention = (username: string) => {
 		if(!input) return;
 		const result = toggleMention(input.value, input.selectionStart ?? input.value.length, username);
 		input.value = result.value;
 		// на телефоне фокус открыл бы клавиатуру на каждый ник: упоминание вставляем без фокуса
-		if(!isMobile()) input.focus();
+		if(!isMobile()) input.focus(); else caretToEnd = true;
 		input.setSelectionRange(result.caret, result.caret);
 	};
 
@@ -71,32 +86,20 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 		<style>
 			.footer { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px 5px; }
 			.footer input { flex: 1; min-width: 0; padding: 8px 10px; }
-			.icon-button { background: none !important; border: none; padding: 0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-			.icon-button img { width: 30px; height: 30px; }
+			.icon-button { background: none !important; border: none; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #8a8f98; }
+			.icon-button.on { color: var(--accent); }
 			.gif-button { flex: none; padding: 4px 6px; font-size: 12px; font-weight: 700; border-radius: 6px; }
-			.emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 6px; }
-			.emoji-panel img { width: 44px; height: 44px; cursor: pointer; }
 		</style>
-		@if (emojiOpen()) {
-			<div class="emoji-panel">
-				@for (const name of EMOJI) {
-					<img src={emoji()[name]} alt={name} onClick={() => insert(":" + name + ":")} />
-				}
-			</div>
-		}
-		@if (bafia && gifsOn() && gifOpen()) {
-			<GifPicker bafia={bafia!} pick={(id: string) => { setGifOpen(false); send("[gif:" + id + "]"); }} />
+		@if (panelOpen()) {
+			<ChatPanel assets={assets} bafia={bafia} gifsOn={gifsOn} tab={tab} setTab={setTab} insert={insert} erase={erase} pickGif={(id: string) => { setPanelOpen(false); send("[gif:" + id + "]"); }} close={() => setPanelOpen(false)} />
 		}
 		<div class="footer">
-			<button class="icon-button" onClick={() => setEmojiOpen(!emojiOpen())} aria-label="Смайлики"><img src={emoji().sm1} alt="" /></button>
+			<button class={panelOpen() ? "icon-button on" : "icon-button"} onClick={() => setPanelOpen(!panelOpen())} aria-label="Смайлики и GIF"><Icon name="smile" size={26} /></button>
 			@if (bafia && history && gifsOn()) {
 				<button class="gif-button" onClick={history} aria-label="Отправить игру">{"Игра"}</button>
 			}
-			@if (bafia && gifsOn()) {
-				<button class="gif-button" onClick={() => setGifOpen(!gifOpen())} aria-label="Гифки">{"GIF"}</button>
-			}
-			<input ref={input} type="text" placeholder={placeholder} onInput={onInput} onKeyDown={(event) => { if(event.key == "Enter") submit(); }} />
-			<button class="icon-button" onClick={submit} aria-label="Отправить"><Icon name="send" color="black" size={30} /></button>
+			<input ref={input} type="text" onFocus={onFocus} placeholder={placeholder} onInput={onInput} onKeyDown={(event) => { if(event.key == "Enter") submit(); }} />
+			<button class="icon-button" onClick={submit} aria-label="Отправить"><Icon name="send" color="black" size={24} /></button>
 		</div>
 	</>
 }
