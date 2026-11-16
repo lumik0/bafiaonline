@@ -14,6 +14,7 @@ import { resetTips } from "../domain/tips";
 import { SettingGroup, SettingRow, Toggle } from "../ui/SettingRow.tsrx";
 import { PinPicker } from "../ui/dialogs/PinPicker.tsrx";
 import { LanguageChoice } from "../ui/dialogs/LanguageChoice.tsrx";
+import { MutedDialog } from "../ui/dialogs/MutedDialog.tsrx";
 import { DevicesDialog } from "../ui/dialogs/DevicesDialog.tsrx";
 import { LogsView } from "../ui/dialogs/LogsView.tsrx";
 import { resetPassword } from "../ui/reset-password";
@@ -474,6 +475,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 				@if (tab() == "more") {
 					<>
 						<SettingGroup title="ДОПОЛНИТЕЛЬНО">
+							<SettingRow label="Заглушённые игроки" hint={data().muted.length ? "Заглушено: " + data().muted.length : "Их сообщения скрыты только у тебя"}>
+								<button onClick={() => void ctx.dialogs.manager.open({ title: "ЗАГЛУШЁННЫЕ", render: (close) => MutedDialog({ ctx, close }) })}>{"Список"}</button>
+							</SettingRow>
 							<SettingRow label="Моды" hint="Расширения игры"><button onClick={() => ctx.nav.push("mods")}>{"Открыть"}</button></SettingRow>
 							<SettingRow label="Режим разработчика">
 								<Toggle label="Режим разработчика" checked={data().developer} onChange={(value) => set(settings => { settings.developer = value; })} />

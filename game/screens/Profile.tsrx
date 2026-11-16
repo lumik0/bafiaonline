@@ -141,10 +141,17 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 		roles: Object.fromEntries(roleIds.map(role => [role, ctx.assets.url(`textures/roles/${role}.png`)])) as Record<number, string>
 	}));
 	// заглушка по постоянному id пользователя: playerObjectId в каждой игре новый
-	const userId = player.objectId;
+	// заглушка локальная: ключ - id пользователя, а если сервер его не прислал, id игрока (чат проверяет оба)
+	const userId = player.objectId || playerObjectId;
 	const isMuted = fromEvents(ctx.settings, "change", () => !!userId && ctx.settings.data.muted.includes(userId));
 	const toggleMute = () => userId && ctx.settings.update(settings => {
-		settings.muted = settings.muted.includes(userId) ? settings.muted.filter(id => id != userId) : [...settings.muted, userId];
+		if(settings.muted.includes(userId)) {
+			settings.muted = settings.muted.filter(id => id != userId);
+			delete settings.mutedNames[userId];
+		} else {
+			settings.muted = [...settings.muted, userId];
+			if(player.username) settings.mutedNames[userId] = player.username;
+		}
 	});
 	const hidden = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername && isMe);
 
@@ -275,9 +282,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				}
 				@if (!isMe) {
 					<>
-					@if (userId) {
 					<button class={isMuted() ? "dark-gray" : ""} onClick={toggleMute}>{isMuted() ? "Включить звук" : "Заглушить"}</button>
-					}
 					@if (!friendship && !flag) {
 						<button onClick={() => void friendAction("Отправить этому игроку заявку в друзья?", "ДОБАВИТЬ В ДРУЗЬЯ", () => ctx.profile.addFriend(playerObjectId))}>{"Добавить в друзья"}</button>
 					} @else if (flag == 2) {

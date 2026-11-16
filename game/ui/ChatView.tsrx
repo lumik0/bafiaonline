@@ -72,7 +72,8 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	let previous: Row[] = [];
 	// заглушенные игроки: их сообщения не показываем
 	const muted = ctx?.settings ? fromEvents(ctx.settings, "change", () => new Set(ctx.settings.data.muted)) : () => new Set<string>();
-	const visible = () => entries().filter(entry => entry.kind != "message" || !entry.user?.objectId || !muted().has(entry.user.objectId));
+	const isMuted = (user: { objectId?: string, playerObjectId?: string } | undefined) => !!user && ((!!user.objectId && muted().has(user.objectId)) || (!!user.playerObjectId && muted().has(user.playerObjectId)));
+	const visible = () => entries().filter(entry => entry.kind != "message" || !isMuted(entry.user));
 	const rows = () => previous = stableRows(previous, toRows(visible()));
 
 	// чат всегда внизу, пока читатель сам не ушёл вверх читать старое. «Ушёл» определяем только по его собственной прокрутке:

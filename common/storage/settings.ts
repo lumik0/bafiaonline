@@ -18,6 +18,8 @@ export const defaultGameSettings = (mobile: boolean) => ({
   hiddenPrivate: {} as Record<string, string[]>,
   /** заглушенные игроки (постоянный `objectId` пользователя, `playerObjectId` в каждой игре новый): их сообщения в чатах не показываются */
   muted: [] as string[],
+  /** ники заглушённых (id -> ник на момент заглушки): чтобы в списке настроек было видно, кого заглушил */
+  mutedNames: {} as Record<string, string>,
   /** сервер Бафии: только с согласия; `key` - случайный ключ установки, с аккаунтом не связан */
   bafia: {
     enabled: false,
