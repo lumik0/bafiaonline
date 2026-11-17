@@ -58,7 +58,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 	const room = profile.room ? toRoom(profile.room) : undefined;
 	/** история ников от сервера Бафии: только то, что увидели хотя бы двое игроков Бафии */
 	const showNicks = async () => {
-		const names = await ctx.bafia.nicks(player.playerObjectId ?? playerObjectId);
+		const names = await ctx.bafia.nicks(player.playerObjectId ?? playerObjectId, player.objectId);
 		const date = (time: number) => new Date(time).toLocaleDateString("ru-RU");
 		await ctx.dialogs.alert(
 			!names ? "Сервер Бафии сейчас недоступен." : names.length ? names.map(record => `${record.nick} - ${date(record.first)}${record.last - record.first > 86_400_000 ? " … " + date(record.last) : ""}`).join("\n") : "Пока ничего нет: ники попадают сюда, когда их увидят хотя бы двое игроков Бафии.",
@@ -126,7 +126,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 		const result = await ctx.bafia.report(player.playerObjectId ?? playerObjectId, kind);
 		await ctx.dialogs.alert(result == "ok" ? "Спасибо, жалоба отправлена." : result == "slow-down" ? "Слишком много жалоб, попробуй завтра." : result == "nothing" ? "Этой картинки уже нет." : "Сервер Бафии сейчас недоступен.", { title: "Жалоба" });
 	};
-	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "" }]));
+	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "", user: player.objectId }]));
 	// ник в профиле приходит позже запроса: значки по нему запрашиваем, когда ник появился
 	createEffect(() => { if(player.username) ctx.bafia.watchNicks([player.username]); });
 	const friendship = typeof profile.friendship == "string" ? profile.friendship : undefined;

@@ -38,7 +38,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 		meAlive: state.me?.alive ?? true
 	}));
 	const entries = fromEvents(session, "change", () => state.messages.entries);
-	const lobby = fromEvents(session, "change", (): ChatUser[] => state.lobby.map(player => ({ username: player.username, playerObjectId: player.playerObjectId, photo: player.photo, vip: player.vip })));
+	const lobby = fromEvents(session, "change", (): ChatUser[] => state.lobby.map(player => ({ username: player.username, objectId: player.userObjectId, playerObjectId: player.playerObjectId, photo: player.photo, vip: player.vip })));
 	// в просмотре чужой игры «я» - тот, кто её играл
 	const myName = fromEvents(ctx.user, "change", () => session.playerName(ctx.user.username));
 	const hideName = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername);
@@ -65,7 +65,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	// сервер Бафии (если игрок согласился): кто из игроков комнаты играет в Бафии и сколько партий сыграно
 	const bafiaOnline = fromEvents(ctx.bafia, "change", () => ctx.bafia.online);
 	const bafiaPremium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumOnline);
-	createEffect(() => ctx.bafia.watch(lobby().map(user => ({ id: user.playerObjectId, nick: user.username }))));
+	createEffect(() => ctx.bafia.watch(lobby().map(user => ({ id: user.playerObjectId, nick: user.username, user: user.objectId }))));
 	const composition = session.on("roles", info => ctx.bafia.gameRoles(info));
 	onCleanup(() => composition.remove());
 	const over = session.on("over", () => { ctx.bafia.played(state.won); void ctx.dialogs.manager.open({ title: "ИГРА ОКОНЧЕНА", render: close => GameOverDialog({ ctx, session, close }) }); });

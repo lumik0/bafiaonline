@@ -140,6 +140,8 @@ export interface MenuItem {
 /** профиль игрока (чужой или свой), который открыт в окне */
 export interface ProfileData {
   playerObjectId: string
+  /** постоянный id пользователя (пустая строка, если сервер его не прислал) */
+  userObjectId: string
   username: string
   isMe: boolean
   level: number

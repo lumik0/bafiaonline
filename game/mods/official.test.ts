@@ -91,11 +91,11 @@ describe("официальный мод", () => {
 
   test("профиль: расширенная статистика, кнопка винрейта открывает окно с подсказкой", async() => {
     const { manager, log } = await setup();
-    const profile = { playerObjectId: "p2", username: "Игрок", isMe: false, level: 12, playedGames: 20, winsAsMafia: 4, winsAsPeaceful: 6, roleStatistics: { 4: 5, 1: 10, 2: 5 }, matchMakingScore: 0 };
+    const profile = { playerObjectId: "p2", userObjectId: "u2", username: "Игрок", isMe: false, level: 12, playedGames: 20, winsAsMafia: 4, winsAsPeaceful: 6, roleStatistics: { 4: 5, 1: 10, 2: 5 }, matchMakingScore: 0 };
 
     const [section] = await manager.profileSections(profile);
     expect(section!.rows.map(row => [row.label, row.value])).toEqual([
-      ["Сыграно игр за Мафию", "5"], ["Сыграно игр за Мирных", "15"], ["Всего побед", "(50.00%) 10"], ["M/M", "1.50"], ["player object id", "p2"]
+      ["Сыграно игр за Мафию", "5"], ["Сыграно игр за Мирных", "15"], ["Всего побед", "(50.00%) 10"], ["M/M", "1.50"], ["player object id", "p2"], ["user object id", "u2"]
     ]);
     const button = section!.rows[2]!.button!;
     expect(button.id).toBe("winrate");

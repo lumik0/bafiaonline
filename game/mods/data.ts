@@ -18,6 +18,7 @@ export const playerMenuData = (view: PlayerView, autoAllowed = true) => ({
 
 export const profileData = (profile: PlayerProfile, playerObjectId: string, isMe: boolean) => ({
   playerObjectId,
+  userObjectId: profile.user.objectId ?? "",
   username: profile.user.username ?? "",
   isMe,
   level: profile.user.level ?? 1,

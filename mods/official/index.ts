@@ -55,7 +55,8 @@ mod.profile.section({
       { label: "Сыграно игр за Мирных", value: stats.gamesAsPeaceful },
       { label: "Всего побед", value: `(${percent(stats.winRate, 2)}) ${stats.totalWins}`, button: { id: "winrate", text: "?" } },
       { label: "M/M", value: stats.peacefulToMafiaRatio === undefined ? "-" : stats.peacefulToMafiaRatio.toFixed(2) },
-      { label: "player object id", value: profile.playerObjectId }
+      { label: "player object id", value: profile.playerObjectId },
+      { label: "user object id", value: profile.userObjectId || "-" }
     ];
   },
   action(id, profile) {

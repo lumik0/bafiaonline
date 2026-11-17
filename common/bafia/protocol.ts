@@ -186,7 +186,8 @@ export const nickKey = (nick: string) => nick.normalize("NFKC").toLowerCase().re
 /** результат партии: победил ли игрок; `undefined`, если неизвестно */
 export interface PlayedEvent { won?: boolean }
 
-export interface SeenPlayer { id: string, nick: string }
+/** `user` - постоянный id пользователя (`userObjectId`): по нему собирается история ников, id игрока для этого не годится */
+export interface SeenPlayer { id: string, nick: string, user?: string }
 
 /** сообщения клиента; `n` - номер запроса, ответ приходит с тем же номером */
 export type ClientMessage =
@@ -195,7 +196,7 @@ export type ClientMessage =
   /** войти в сеть: ключ клиента и версия протокола */
   | { t: "hello", n: number, key: string, version: number }
   /** «Я играю под этим ником»: появляется в списке «в Бафии» до закрытия соединения */
-  | { t: "presence", n: number, id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string, /** файл фото профиля игры (для стола в комнате Бафии) */ photo?: string }
+  | { t: "presence", n: number, id: string, nick: string, user?: string, platform?: Platform, version?: string, browser?: Browser, site?: string, /** файл фото профиля игры (для стола в комнате Бафии) */ photo?: string }
   /** кто из этих игроков сейчас в Бафии */
   | { t: "who", n: number, ids: string[] }
   /** значки «Позор» и «БАН» по никам (игрок может быть и не в сети): друзья, чат, комната, профиль */
@@ -209,7 +210,7 @@ export type ClientMessage =
   /** эти игроки замечены под такими никами (из комнат, чатов и профилей) */
   | { t: "seen", n: number, players: SeenPlayer[] }
   /** история ников игрока */
-  | { t: "nicks", n: number, id: string }
+  | { t: "nicks", n: number, id: string, user?: string }
   /** адрес гифки из сообщения `[gif:id]` */
   | { t: "gif", n: number, id: string }
   /** поиск гифок в каталоге; пустой запрос - последние добавленные */
@@ -438,7 +439,9 @@ const clean = (value: string) => !/[\u0000-\u001f\u007f]/.test(value);
 
 function player(value: unknown): SeenPlayer | undefined {
   if(!isRecord(value) || !text(value.id, BAFIA_LIMITS.id) || !text(value.nick, BAFIA_LIMITS.nick)) return undefined;
-  return clean(value.id) && clean(value.nick) ? { id: value.id, nick: value.nick } : undefined;
+  if(!clean(value.id) || !clean(value.nick)) return undefined;
+  const user = typeof value.user == "string" && value.user.length > 0 && value.user.length <= BAFIA_LIMITS.id && clean(value.user) ? value.user : undefined;
+  return { id: value.id, nick: value.nick, ...(user ? { user } : {}) };
 }
 
 function ids(value: unknown): string[] | undefined {
@@ -469,7 +472,7 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return text(value.key, BAFIA_LIMITS.key.max) && value.key.length >= BAFIA_LIMITS.key.min && typeof value.version == "number"
         ? { t: "hello", n, key: value.key, version: value.version } : undefined;
     case "presence": {
-      const self = player({ id: value.id, nick: value.nick });
+      const self = player({ id: value.id, nick: value.nick, user: value.user });
       return self && { t: "presence", n, ...self, platform: isPlatform(value.platform) ? value.platform : undefined, browser: isBrowser(value.browser) ? value.browser : undefined, site: isSite(value.site) ? value.site : undefined, version: typeof value.version == "string" && /^[A-Za-z0-9._ -]{1,20}$/.test(value.version) ? value.version : undefined, photo: typeof value.photo == "string" && /^[A-Za-z0-9._-]{1,80}$/.test(value.photo) ? value.photo : undefined };
     }
     case "banned": {
@@ -595,7 +598,7 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "gifs":
       return typeof value.query == "string" && value.query.length <= BAFIA_LIMITS.query && clean(value.query) ? { t: "gifs", n, query: value.query } : undefined;
     case "nicks":
-      return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "nicks", n, id: value.id } : undefined;
+      return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "nicks", n, id: value.id, ...(text(value.user, BAFIA_LIMITS.id) && clean(value.user) ? { user: value.user } : {}) } : undefined;
     default:
       return undefined;
   }

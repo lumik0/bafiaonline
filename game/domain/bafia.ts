@@ -226,11 +226,11 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** «Я играю под этим ником»: сервер запоминает до разрыва связи, при переподключении повторяется само */
-  identify(id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string, photo?: string) {
+  identify(id: string, nick: string, platform?: Platform, version?: string, browser?: Browser, site?: string, photo?: string, user?: string) {
     const old = this.identity;
-    if(old?.id == id && old.nick == nick && old.platform == platform && old.version == version && old.browser == browser && old.site == site && old.photo == photo) return;
-    this.identity = { id, nick, platform, version, browser, site, photo };
-    if(this.ready) void this.request({ t: "presence", id, nick, platform, version, browser, site, photo });
+    if(old?.id == id && old.nick == nick && old.platform == platform && old.version == version && old.browser == browser && old.site == site && old.photo == photo && old.user == user) return;
+    this.identity = { id, nick, platform, version, browser, site, photo, user };
+    if(this.ready) void this.request({ t: "presence", id, nick, user, platform, version, browser, site, photo });
   }
 
   private async greet() {
@@ -757,9 +757,9 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** история ников игрока; `undefined` - сервер недоступен */
-  async nicks(id: string): Promise<NickRecord[] | undefined> {
+  async nicks(id: string, user?: string): Promise<NickRecord[] | undefined> {
     if(!this.ready) return undefined;
-    const answer = await this.request({ t: "nicks", id });
+    const answer = await this.request({ t: "nicks", id, ...(user ? { user } : {}) });
     return answer?.t == "nicks" ? answer.names : undefined;
   }
 }
@@ -776,7 +776,7 @@ export interface SettingsData { bafia: BafiaSettings, lowPower?: boolean, game?:
 
 export interface BafiaDeps {
   settings: { data: SettingsData, on(event: "change", listener: () => void): unknown, update(change: (data: SettingsData) => void): unknown }
-  user: { playerObjectId: string, username: string, photo?: string, on(event: "change", listener: () => void): unknown }
+  user: { playerObjectId: string, userObjectId?: string, username: string, photo?: string, on(event: "change", listener: () => void): unknown }
   url: string | string[]
   createSocket?: BafiaLinkOptions["createSocket"]
   timeout?: number
@@ -972,7 +972,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
       link.start();
     }
     const { playerObjectId, username } = this.deps.user;
-    if(playerObjectId && username) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber, this.deps.browser ?? detectBrowser(), this.deps.site ?? detectSite(), this.deps.user.photo || undefined);
+    if(playerObjectId && username) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber, this.deps.browser ?? detectBrowser(), this.deps.site ?? detectSite(), this.deps.user.photo || undefined, this.deps.user.userObjectId || undefined);
   }
 
   /** официальный сервер не пустил игрока (бан): сообщаем серверу Бафии; игрок ещё не вошёл, поэтому ник и id берутся из сохранённого аккаунта */
@@ -982,9 +982,9 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   }
 
   /** видимые игроки: отправляем не чаще раза в 10 секунд, узнаём, кто в Бафии */
-  watch(players: { id?: string, nick: string }[]) {
+  watch(players: { id?: string, nick: string, user?: string }[]) {
     const list = players.filter((player): player is SeenPlayer => !!player.id && !!player.nick);
-    const signature = list.map(player => player.id + ":" + player.nick).join("|");
+    const signature = list.map(player => player.id + ":" + player.nick + ":" + (player.user ?? "")).join("|");
     const now = Date.now();
     if(!this.link || (signature == this.lastWatch.signature && now - this.lastWatch.at < 10_000)) return;
     this.lastWatch = { signature, at: now };
@@ -1334,7 +1334,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   played(won: boolean | undefined) { void this.link?.played(won); }
   gameRoles(composition: { room: string, players: number, enabled: number[], counts: Record<number, number> }) { void this.link?.gameRoles(composition); }
 
-  nicks(id: string) { return this.consented?.nicks(id) ?? Promise.resolve(undefined); }
+  nicks(id: string, user?: string) { return this.consented?.nicks(id, user) ?? Promise.resolve(undefined); }
 
   dispose() { clearInterval(this.watchTimer); clearTimeout(this.expiryTimer); clearTimeout(this.usageTimer); this.expiryAt = 0; this.link?.stop(); this.link = undefined; this.images.clear(); }
 }
