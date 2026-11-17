@@ -14,6 +14,7 @@ import { resetTips } from "../domain/tips";
 import { SettingGroup, SettingRow, Toggle } from "../ui/SettingRow.tsrx";
 import { PinPicker } from "../ui/dialogs/PinPicker.tsrx";
 import { LanguageChoice } from "../ui/dialogs/LanguageChoice.tsrx";
+import { BlacklistDialog } from "../ui/dialogs/BlacklistDialog.tsrx";
 import { MutedDialog } from "../ui/dialogs/MutedDialog.tsrx";
 import { DevicesDialog } from "../ui/dialogs/DevicesDialog.tsrx";
 import { LogsView } from "../ui/dialogs/LogsView.tsrx";
@@ -475,6 +476,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 				@if (tab() == "more") {
 					<>
 						<SettingGroup title="ДОПОЛНИТЕЛЬНО">
+							<SettingRow label="Чёрный список" hint={"В официальных комнатах таких игроков сразу пробуют выгнать: " + data().blacklist.length}>
+								<button onClick={() => void ctx.dialogs.manager.open({ title: "ЧЁРНЫЙ СПИСОК", render: (close) => BlacklistDialog({ ctx, close }) })}>{"Список"}</button>
+							</SettingRow>
 							<SettingRow label="Заглушённые игроки" hint={data().muted.length ? "Заглушено: " + data().muted.length : "Их сообщения скрыты только у тебя"}>
 								<button onClick={() => void ctx.dialogs.manager.open({ title: "ЗАГЛУШЁННЫЕ", render: (close) => MutedDialog({ ctx, close }) })}>{"Список"}</button>
 							</SettingRow>

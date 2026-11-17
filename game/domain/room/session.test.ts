@@ -265,6 +265,33 @@ describe("RoomSession", () => {
     expect(session.kickVote).toEqual({ targetPlayerObjectId: "p6", timer: 10, voted: false });
   });
 
+  test("чёрный список: вошедшего игрока сразу пробуют выгнать (по id пользователя, id игрока или нику), себя и выключенный автокик - нет", async() => {
+    const { network, session, first, deps } = await setup();
+    session.start(first);
+    deps.settings.update(data => { data.blacklist = [{ userId: "o7", nick: "x", at: 1 }, { playerId: "p8", nick: "y", at: 1 }, { nick: "Ник9", at: 1 }]; data.blacklistKick = true; });
+    const kicks = () => network.last.sent.filter(packet => packet.ty == "ku").map(packet => packet.puo);
+
+    network.last.receive({ ty: "ap", p: { o: "o2", pu: { puo: "p2", u: "Обычный" } } });
+    expect(kicks()).toEqual([]);
+    network.last.receive({ ty: "ap", p: { o: "o7", pu: { puo: "p7", u: "Первый" } } });
+    expect(kicks()).toEqual(["p7"]);
+    // второго в очереди выгоняют после первого голосования, а не одновременно
+    network.last.receive({ ty: "ap", p: { o: "o8", pu: { puo: "p8", u: "Второй" } } });
+    expect(kicks()).toEqual(["p7"]);
+    network.last.receive({ ty: "ap", p: { o: "o9", pu: { puo: "p9", u: "ник9" } } });
+    expect(kicks()).toEqual(["p7"]);
+    session.leave();
+  });
+
+  test("чёрный список выключен или игра идёт - никого не выгоняют", async() => {
+    const { network, session, first, deps } = await setup();
+    session.start(first);
+    deps.settings.update(data => { data.blacklist = [{ nick: "Враг", at: 1 }]; data.blacklistKick = false; });
+    network.last.receive({ ty: "ap", p: { o: "o5", pu: { puo: "p5", u: "Враг" } } });
+    expect(network.last.sent.some(packet => packet.ty == "ku")).toBe(false);
+    session.leave();
+  });
+
   test("конец игры сохраняется в историю в формате старой версии один раз; без настройки не сохраняется", async() => {
     const { network, files, session, first } = await setup();
     session.start(first);

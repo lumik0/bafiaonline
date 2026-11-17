@@ -35,8 +35,10 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 
 	<>
 		<style>
-			.info { position: relative; overflow: hidden; display: flex; align-items: stretch; margin: 3px 10px 0; min-height: 110px; box-sizing: border-box; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
-			.me { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; font-size: 12px; text-align: center; }
+			.info { position: relative; overflow: hidden; display: flex; align-items: stretch; margin: 3px 10px 0; min-height: 124px; box-sizing: border-box; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
+			.me { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 8px; font-size: 12px; text-align: center; }
+			/* ник - отдельная крупная цель нажатия под карточкой роли: не обрезается краем панели и не попадает под карточку */
+			.me .nickline { display: block; margin-top: 2px; padding: 5px 10px; min-height: 18px; line-height: 1.2; cursor: pointer; }
 			.me img { width: 50px; height: 70px; object-fit: contain; }
 			.me .dead { position: absolute; top: 0; left: 0; width: 50px; height: 70px; }
 			.picture { position: relative; cursor: pointer; }
@@ -56,7 +58,11 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 			.compact .me img { width: 24px; height: 34px; }
 			.compact .me .dead { width: 24px; height: 34px; }
 			.compact .me > span { display: none; }
-			.compact .affected { display: none; }
+			.compact .me .nickline { display: none; }
+			/* вместо счёта команд - роли, которые сейчас действуют на тебя */
+			.compact .affected { display: flex; flex: 1; width: auto; min-width: 0; flex-wrap: nowrap; align-content: center; justify-content: center; }
+			.compact .affected img { width: 20px; height: 28px; }
+			.compact .mafia, .compact .civil { display: none; }
 			.compact .side { flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; padding: 2px 8px; }
 			.compact .timer { font-size: 20px; margin: 0; padding: 0 4px; }
 			.compact .giveup { margin: 0; padding: 3px 10px; font-size: 12px; }
@@ -88,7 +94,7 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 						<div class="vote">{info().vote}</div>
 					}
 				</div>
-				<span class={hidden() ? "blur" : ""} data-keep onClick={() => mention?.(myName())}>{showIndex() ? <span class="index">{(info().index + 1) + " "}</span> : null}{myName()}</span>
+				<span class={hidden() ? "nickline blur" : "nickline"} data-keep onClick={(event) => { event.stopPropagation(); mention?.(myName()); }}>{showIndex() ? <span class="index">{(info().index + 1) + " "}</span> : null}{myName()}</span>
 			</div>
 			<div class="affected">
 				@for (const role of info().affected) {

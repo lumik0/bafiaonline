@@ -26,6 +26,9 @@ export const BAFIA_LIMITS = {
   /** код премиума: длина записи, на скольких устройствах можно активировать */
   code: 32,
   codeDevices: 5,
+  /** чёрный список (официальные комнаты): сколько игроков, с премиумом больше */
+  blacklist: 5,
+  blacklistPremium: 15,
   /** загрузка гифки (для всех игроков, без премиума - после проверки): размер файла, очередь проверки и лимит загрузок в сутки */
   gifBytes: 16 * 1024 * 1024,
   gifPending: 3,
@@ -175,6 +178,9 @@ export const isPlatform = (value: unknown): value is Platform => typeof value ==
 /** устройство в списке кода премиума; `id` - короткий отпечаток установки */
 export interface DeviceInfo { id: string, platform: string, browser: string, version: string, nick: string, since: number, last: number, site: string, current: boolean }
 
+/** запись чёрного списка игрока (хранится на сервере, чтобы список был одним на всех устройствах) */
+export interface BlackWire { userId?: string, playerId?: string, nick: string, at: number }
+
 export const nickKey = (nick: string) => nick.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 
 /** результат партии: победил ли игрок; `undefined`, если неизвестно */
@@ -231,6 +237,10 @@ export type ClientMessage =
   | { t: "premium", n: number }
   /** активировать код премиума (выдаётся за донат) на этой установке */
   | { t: "redeem", n: number, code: string }
+  /** мой чёрный список с сервера */
+  | { t: "blacklistGet", n: number }
+  /** заменить мой чёрный список целиком (не больше 5, с премиумом 15) */
+  | { t: "blacklistPut", n: number, list: BlackWire[] }
   /** устройства, на которых активирован мой код премиума */
   | { t: "devices", n: number, /** код, если на этой установке премиума ещё нет (например, упёрлись в лимит) */ code?: string }
   /** убрать устройство из кода (освободить место), `id` из списка устройств */
@@ -414,6 +424,8 @@ export type ServerMessage =
   /** ответ на premium/redeem; без запроса (`n` 0) приходит, когда премиум включили: `code` игра сохраняет, чтобы он вернулся и на новой установке */
   | { t: "premium", n: number, until?: number, code?: string }
   | { t: "devices", n: number, list: DeviceInfo[] }
+  /** чёрный список игрока и когда он менялся на сервере в последний раз (0 - списка ещё нет) */
+  | { t: "blacklist", n: number, list: BlackWire[], at: number, limit: number }
   | { t: "mine", n: number, items: (GifItem & { status: "pending" | "approved" })[] }
   /** ответ на выкладывание (`id`) или на получение (`data`; нет - снимка нет или он устарел) */
   | { t: "hist", n: number, id: string, data?: string };
@@ -510,6 +522,19 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return Array.isArray(value.nicks) && value.nicks.length <= 20 && nicks.length == value.nicks.length ? { t: "whoNicks", n, nicks } : undefined;
     }
     case "premium": return { t: "premium", n };
+    case "blacklistGet": return { t: "blacklistGet", n };
+    case "blacklistPut": {
+      if(!Array.isArray(value.list) || value.list.length > BAFIA_LIMITS.blacklistPremium) return undefined;
+      const list: BlackWire[] = [];
+      for(const item of value.list as unknown[]) {
+        const entry = item as Record<string, unknown> | null;
+        if(!entry || typeof entry != "object" || !text(entry.nick, BAFIA_LIMITS.nick) || !clean(entry.nick)) return undefined;
+        const ids = [entry.userId, entry.playerId];
+        if(ids.some(id => id !== undefined && (!text(id, BAFIA_LIMITS.id) || !clean(id)))) return undefined;
+        list.push({ ...(typeof entry.userId == "string" ? { userId: entry.userId } : {}), ...(typeof entry.playerId == "string" ? { playerId: entry.playerId } : {}), nick: entry.nick as string, at: typeof entry.at == "number" ? entry.at : 0 });
+      }
+      return { t: "blacklistPut", n, list };
+    }
     case "devices": return value.code === undefined ? { t: "devices", n } : text(value.code, BAFIA_LIMITS.code) && clean(value.code) ? { t: "devices", n, code: value.code } : undefined;
     case "deviceRemove": {
       if(!text(value.id, 32) || !/^[0-9a-f]{6,32}$/.test(value.id)) return undefined;

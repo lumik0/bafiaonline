@@ -1,10 +1,11 @@
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
+import { blacklistLimit, cleanBlacklist, type BlackEntry } from "./blacklist";
 import type { ModPackage } from "@mods/index";
 import { BafiaRoomAdapter } from "./bafia-room";
 import { BAFIA_DIRECT_URL } from "@common/constants";
-import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type BafiaRoomEvent, type BafiaRoomInfo, type BafiaRoomState, type Browser, type DeviceInfo, type FeedbackItem, type OfficialStatus, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
+import { isPremiumColor, nickKey, USAGE_KEY, PREMIUM_COLORS, AVATAR_FILE_PATH, BANNER_FILE_PATH, PROFILE_BG, parseLook, type ProfileLook, BAFIA_LIMITS, BAFIA_PROTOCOL_VERSION, GIF_FILE_PATH, GIF_ID, giphyIdOf, giphyUrl, isGifUrl, type BafiaRoomEvent, type BafiaRoomInfo, type BafiaRoomState, type Browser, type BlackWire, type DeviceInfo, type FeedbackItem, type OfficialStatus, type FeedbackKind, type GifItem, type NickRecord, type Platform, type SeenPlayer, type ServerMessage } from "@common/bafia/protocol";
 import type { SocketLike } from "@common/net/connection";
 import { Connection } from "@common/net/connection";
 import Events from "@common/utils/emitter";
@@ -631,6 +632,21 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     return answer?.t == "devices" ? answer.list : undefined;
   }
 
+  /** чёрный список с сервера: список и время последнего изменения, `undefined` - связи нет или игрок ещё не назвался */
+  async blacklist(): Promise<{ list: BlackWire[], at: number } | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "blacklistGet" });
+    return answer?.t == "blacklist" ? { list: answer.list, at: answer.at } : undefined;
+  }
+
+  /** заменить чёрный список на сервере; ответ - принятый список или причина отказа */
+  async putBlacklist(list: BlackWire[]): Promise<{ list: BlackWire[], at: number } | { error: string }> {
+    if(!this.ready) return { error: "offline" };
+    const answer = await this.request({ t: "blacklistPut", list });
+    if(answer?.t == "blacklist") return { list: answer.list, at: answer.at };
+    return { error: answer?.t == "error" ? answer.reason : "offline" };
+  }
+
   /** сообщить серверу цвет моего значка (имеет смысл только с премиумом) */
   async sendColor() {
     if(this.ready && this.premiumUntil && isPremiumColor(this.color)) await this.request({ t: "style", color: this.color });
@@ -755,8 +771,11 @@ export const FAVORITES_MAX = 200;
 
 export interface BafiaSettings { enabled: boolean, asked: boolean, key: string, code: string, color: string, favorites: FavoriteGif[], watched?: string[], expiryWarned?: number, feedbackSeen?: Record<string, string>, outbox?: { kind: string, text: string, notice?: number, direct?: number }[] }
 
+/** то, что Bafia читает и пишет в настройках игры */
+export interface SettingsData { bafia: BafiaSettings, lowPower?: boolean, game?: { animateChatAvatars?: boolean }, blacklist?: BlackEntry[], blacklistAt?: number, blacklistDirty?: boolean }
+
 export interface BafiaDeps {
-  settings: { data: { bafia: BafiaSettings, lowPower?: boolean, game?: { animateChatAvatars?: boolean } }, on(event: "change", listener: () => void): unknown, update(change: (data: { bafia: BafiaSettings }) => void): unknown }
+  settings: { data: SettingsData, on(event: "change", listener: () => void): unknown, update(change: (data: SettingsData) => void): unknown }
   user: { playerObjectId: string, username: string, photo?: string, on(event: "change", listener: () => void): unknown }
   url: string | string[]
   createSocket?: BafiaLinkOptions["createSocket"]
@@ -939,7 +958,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
         this.scheduleExpiry(); this.warnExpiry(); this.emit("change");
         // связь появилась: список обращений подтягиваем один раз
         // отложенные идеи и баги уходят, как только связь появилась
-        if(link.isReady) void this.flushOutbox();
+        if(link.isReady) { void this.flushOutbox(); if(!this.blacklistChecked) { this.blacklistChecked = true; this.blacklistRetries = 0; void this.runBlacklistSync(); } } else this.blacklistChecked = false;
         if(link.isReady && !this.feedbackLoaded) { this.feedbackLoaded = true; void this.refreshFeedback(); }
         // связь вернулась после обрыва: садимся в свою комнату Бафии снова
         if(link.isReady && !this.roomReady && this.activeRoom) void this.resumeRoom();
@@ -1014,6 +1033,49 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     if(next == Infinity) return;
     // setTimeout не принимает больше ~24 суток; дольше ждать и не нужно: по «change» срок пересчитается
     this.expiryTimer = setTimeout(() => { this.expiryAt = 0; this.emit("change"); this.scheduleExpiry(); }, Math.min(next - now + 300, 2 ** 31 - 1));
+  }
+
+  /**
+   * чёрный список: со своими ников и id он лежит на сервере (только с согласием игрока), чтобы быть одним на всех устройствах.
+   * Изменения помечаются и уходят, как только есть связь; при входе сервер главнее, если его список новее
+   */
+  syncBlacklist() {
+    this.deps.settings.update(data => { data.blacklistDirty = true; });
+    void this.runBlacklistSync();
+  }
+
+  private blacklistBusy = false;
+  private blacklistRetries = 0;
+
+  /** игрок ещё не назвался серверу или связь моргнула: пробуем ещё пару раз; отказ по лимиту повторять незачем */
+  private retryBlacklist(reason: string) {
+    if(reason == "limit" || this.blacklistRetries >= 3) return;
+    this.blacklistRetries++;
+    setTimeout(() => void this.runBlacklistSync(), 3000);
+  }
+
+  private async runBlacklistSync() {
+    const link = this.consented;
+    if(this.blacklistBusy || !link?.isReady) return;
+    this.blacklistBusy = true;
+    try {
+      const data = this.deps.settings.data;
+      const premium = !!this.premiumUntil && this.premiumUntil > Date.now();
+      if(data.blacklistDirty) {
+        const result = await link.putBlacklist((data.blacklist ?? []).map(({ userId, playerId, nick, at }) => ({ ...(userId ? { userId } : {}), ...(playerId ? { playerId } : {}), nick, at })));
+        if("list" in result) this.deps.settings.update(value => { value.blacklistDirty = false; value.blacklistAt = result.at; });
+        else this.retryBlacklist(result.error);
+        return;
+      }
+      const remote = await link.blacklist();
+      if(!remote) return this.retryBlacklist("presence-first");
+      if(remote.at > (data.blacklistAt ?? 0)) {
+        const list = cleanBlacklist(remote.list, blacklistLimit(premium));
+        this.deps.settings.update(value => { value.blacklist = list; value.blacklistAt = remote.at; });
+      }
+    } finally {
+      this.blacklistBusy = false;
+    }
   }
 
   devices(code?: string) { return this.link?.devices(code) ?? Promise.resolve(undefined); }
@@ -1236,6 +1298,7 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   /** сколько обращений ждут связи */
   get feedbackQueued(): number { return this.deps.settings.data.bafia.outbox?.length ?? 0; }
 
+  private blacklistChecked = false;
   private flushing = false;
   private flushTimer?: ReturnType<typeof setTimeout>;
 

@@ -2,6 +2,7 @@ import type { ServerClient } from "@common/net";
 import { parseChatMessage, type ServerMessage } from "@common/protocol";
 import type { GameSettings } from "@common/storage";
 import Events from "@common/utils/emitter";
+import { isBlacklisted } from "../blacklist";
 import { applyBarmanEffect } from "../chat/message";
 import { withRecord, type HistoryFile, type HistoryRecord } from "../history";
 import type { DocumentStore } from "../store";
@@ -39,6 +40,11 @@ export interface RoleComposition { room: string, players: number, enabled: numbe
 export class RoomSession extends Events<{ change: () => void, ended: (reason: EndReason) => void, over: () => void, notice: (text: string) => void, roles: (composition: RoleComposition) => void }> {
   readonly state: RoomState;
   kickVote?: KickVote;
+  /** чёрный список: кого уже пытались выгнать, очередь, таймер между голосованиями и последний, кого отправили */
+  private autoKicked = new Set<string>();
+  private kickQueue: string[] = [];
+  private autoKickTimer?: ReturnType<typeof setTimeout>;
+  private lastAutoKick?: string;
   /** номер голосования: растёт с каждым новым, чтобы окно открывалось на каждое, даже если конец прежнего потерялся */
   kickVoteSerial = 0;
   /** до какого времени (мс) голосование считается идущим, если пакет о его конце не пришёл */
@@ -126,8 +132,8 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     switch(message.name) {
       case "roomStatistics": return this.statistics(message.data.statistics);
       case "chatMessage": return this.addMessage(message.data.message, (message.raw as { m?: unknown }).m);
-      case "chatUsers": return state.inGame ? undefined : state.setLobby(message.data.users);
-      case "playerJoined": return state.inGame ? undefined : state.playerJoined(message.data.player);
+      case "chatUsers": if(state.inGame) return; state.setLobby(message.data.users); return this.watchBlacklist();
+      case "playerJoined": if(state.inGame) return; state.playerJoined(message.data.player); return this.watchBlacklist();
       case "playerLeft": return state.inGame ? undefined : state.playerLeft(message.data.playerObjectId);
       case "timer": return state.setTimer(message.data.seconds);
       case "playersStat": {
@@ -150,11 +156,14 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
       }
       case "userDoubleAccount": return this.emit("ended", "doubleAccount");
       case "userKicked": return this.emit("ended", "kicked");
-      case "kickAlreadyStarted": return this.emit("notice", "Голосование за исключение уже идёт, дождись его конца");
-      case "kickGameStarted": return this.emit("notice", "Пока идёт игра, выгонять игроков нельзя");
+      case "kickAlreadyStarted":
+        // чужое голосование уже идёт: наш автокик возвращается в очередь и повторится после него
+        if(this.lastAutoKick) { this.kickQueue.unshift(this.lastAutoKick); this.lastAutoKick = undefined; }
+        return this.emit("notice", "Голосование за исключение уже идёт, дождись его конца");
+      case "kickGameStarted": this.kickQueue = []; return this.emit("notice", "Пока идёт игра, выгонять игроков нельзя");
       case "kickNotInRoom": return this.emit("notice", "Этого игрока уже нет в комнате");
-      case "kickPrice": return this.emit("notice", `Чтобы выгнать игрока, нужно серебра: ${message.data.silver}`);
-      case "kickNotEnough": return this.emit("notice", `Не хватает серебра, чтобы выгнать игрока. У тебя: ${message.data.mine}, у него: ${message.data.theirs}`);
+      case "kickPrice": this.kickQueue = []; return this.emit("notice", `Чтобы выгнать игрока, нужно серебра: ${message.data.silver}`);
+      case "kickNotEnough": this.kickQueue = []; return this.emit("notice", `Не хватает серебра, чтобы выгнать игрока. У тебя: ${message.data.mine}, у него: ${message.data.theirs}`);
     }
   }
 
@@ -262,6 +271,32 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     this.deps.client.send("sendRoomMessage", { message: { text: message, style: 0, sticker: false }, roomId: this.roomId, modelType: this.state.settings.modelType });
   }
 
+  /** игроки из чёрного списка в лобби: их по одному пробуем выгнать (если автокик включён); только официальные комнаты и только до игры */
+  private watchBlacklist() {
+    const { settings } = this.deps;
+    if(this.replay || this.bafia || this.state.inGame || !settings.data.blacklistKick || !settings.data.blacklist.length) return;
+    for(const player of this.state.lobby) {
+      if(player.playerObjectId == this.deps.myPlayerObjectId || this.autoKicked.has(player.playerObjectId)) continue;
+      if(!isBlacklisted(settings.data.blacklist, { userId: player.userObjectId, playerId: player.playerObjectId, nick: player.username })) continue;
+      this.autoKicked.add(player.playerObjectId);
+      this.kickQueue.push(player.playerObjectId);
+    }
+    this.pumpKicks();
+  }
+
+  private pumpKicks(): void {
+    if(this.autoKickTimer || !this.kickQueue.length || this.left) return;
+    if(this.state.inGame) { this.kickQueue = []; return; }
+    const id = this.kickQueue.shift()!;
+    const name = this.state.lobby.find(player => player.playerObjectId == id)?.username;
+    if(!name) return this.pumpKicks();   // уже вышел
+    this.lastAutoKick = id;
+    this.emit("notice", `Чёрный список: голосование за исключение «${name}»`);
+    this.kick(id);
+    // голосование идёт около 10 секунд: следующее (если есть) после него
+    this.autoKickTimer = setTimeout(() => { this.autoKickTimer = undefined; this.lastAutoKick = undefined; this.pumpKicks(); }, 12_000);
+  }
+
   /** начать голосование за исключение игрока; условия (серебро, регистрация) проверяет сервер */
   kick(playerObjectId: string) {
     if(this.replay) return;
@@ -279,6 +314,8 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   leave() {
     if(this.left || this.replay) return;
     this.left = true;
+    clearTimeout(this.autoKickTimer);
+    this.kickQueue = [];
     this.handle?.remove();
     try {
       this.deps.client.send("leaveRoom", { roomId: this.roomId });

@@ -3,6 +3,7 @@ import { copyText } from "@common/utils/clipboard";
 import { roomInfoData } from "../../mods/data";
 import type { MenuEntry } from "../../mods/manager";
 import type { RoomSession } from "../../domain/room/session";
+import { BlacklistDialog } from "./BlacklistDialog.tsrx";
 import { InviteDialog } from "./InviteDialog.tsrx";
 import type { GameContext } from "../../context";
 
@@ -22,6 +23,12 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 	/** позвать друзей в комнату (только официальные комнаты: в Бафии свои приглашения) */
 	const canInvite = !session.replay && !session.bafia;
 	const invite = () => { close(); void ctx.dialogs.manager.open({ title: "ПРИГЛАСИТЬ", render: done => InviteDialog({ ctx, close: done }) }); };
+	/** чёрный список с игроками этой комнаты под рукой: их можно добавить одним нажатием */
+	const blacklist = () => {
+		close();
+		const candidates = session.state.lobby.filter(player => player.playerObjectId != session.state.myPlayerObjectId).map(player => ({ userId: player.userObjectId, playerId: player.playerObjectId, nick: player.username }));
+		void ctx.dialogs.manager.open({ title: "ЧЁРНЫЙ СПИСОК", render: done => BlacklistDialog({ ctx, close: done, candidates }) });
+	};
 	onMount(() => void ctx.mods.menuItems("roomSettings", data).then(setEntries));
 
 	<>
@@ -54,7 +61,10 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 		}
 		<div class="list">
 			@if (canInvite) {
-				<button onClick={invite}>{"Пригласить друзей"}</button>
+				<>
+					<button onClick={invite}>{"Пригласить друзей"}</button>
+					<button onClick={blacklist}>{"Чёрный список"}</button>
+				</>
 			}
 			@for (const entry of entries() ?? []) {
 				<button disabled={!!entry.disabled} onClick={() => { close(); ctx.mods.selectMenu(entry, "roomSettings", data); }}>{entry.label}</button>

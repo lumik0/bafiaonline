@@ -18,6 +18,7 @@ import { enterRoom } from "../domain/rooms/enter";
 import { toRoom } from "../domain/rooms/room";
 import { RoomCard } from "../ui/RoomCard.tsrx";
 import { RoomPlayersDialog } from "../ui/dialogs/RoomPlayersDialog.tsrx";
+import { addToBlacklist, blacklistLimit, isBlacklisted, removeFromBlacklist } from "../domain/blacklist";
 import type { ProfileSection } from "../mods/manager";
 import type { GameContext } from "../context";
 
@@ -153,6 +154,17 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 			if(player.username) settings.mutedNames[userId] = player.username;
 		}
 	});
+	// чёрный список (официальные комнаты): по id пользователя, id игрока и нику
+	const whoIs = { userId: player.objectId, playerId: playerObjectId, nick: player.username };
+	const blacklisted = fromEvents(ctx.settings, "change", () => isBlacklisted(ctx.settings.data.blacklist, whoIs));
+	const toggleBlacklist = async () => {
+		if(blacklisted()) { ctx.settings.update(data => { data.blacklist = removeFromBlacklist(data.blacklist, whoIs); }); ctx.bafia.syncBlacklist(); return; }
+		const premium = !!ctx.bafia.premiumUntil && ctx.bafia.premiumUntil > Date.now();
+		const result = addToBlacklist(ctx.settings.data.blacklist, whoIs, blacklistLimit(premium));
+		if("error" in result) return void await ctx.dialogs.alert(result.error == "limit" ? "Чёрный список заполнен. С премиумом в него помещается больше игроков." : "Не получилось добавить игрока.", { title: "ЧЁРНЫЙ СПИСОК" });
+		ctx.settings.update(data => { data.blacklist = result.list; });
+		ctx.bafia.syncBlacklist();
+	};
 	const hidden = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername && isMe);
 
 	/** подтвердить, выполнить действие с дружбой и перезагрузить профиль, чтобы кнопки обновились */
@@ -282,7 +294,10 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 				}
 				@if (!isMe) {
 					<>
+					<>
 					<button class={isMuted() ? "dark-gray" : ""} onClick={toggleMute}>{isMuted() ? "Включить звук" : "Заглушить"}</button>
+					<button class={blacklisted() ? "dark-gray" : ""} onClick={() => void toggleBlacklist()}>{blacklisted() ? "Убрать из чёрного списка" : "В чёрный список"}</button>
+					</>
 					@if (!friendship && !flag) {
 						<button onClick={() => void friendAction("Отправить этому игроку заявку в друзья?", "ДОБАВИТЬ В ДРУЗЬЯ", () => ctx.profile.addFriend(playerObjectId))}>{"Добавить в друзья"}</button>
 					} @else if (flag == 2) {
