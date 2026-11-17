@@ -74,24 +74,24 @@ mod.profile.section({
 
 // --- авто-клик: игрок из меню стола, на которого ход делается сам один раз, как только он станет доступен ---
 
-const auto = new Set<string>();
+/** выбран ровно один игрок: новый выбор заменяет прежний (иначе старый выбор мог сработать раньше нового и проверить не того) */
+let auto: string | undefined;
 
-/** один автоматический ход: после него выбор снимается, для следующего хода нужно выбрать игрока снова */
+/** один автоматический ход: выбор снимается сразу, до отправки, чтобы быстрые обновления комнаты не отправили второй ход */
 async function autoClick(room: RoomSnapshot | null) {
-  if(!room || room.phase != "game" || !room.me?.alive) return;
-  const target = room.players.find(player => auto.has(player.playerObjectId) && player.action);
+  if(!auto || !room || room.phase != "game" || !room.me?.alive) return;
+  const target = room.players.find(player => player.playerObjectId == auto && player.action);
   if(!target) return;
-  auto.delete(target.playerObjectId);
+  auto = undefined;
   await mod.room.act(target.index).catch(() => {});
 }
 
 mod.menu.add("player", {
   // в рулетке авто-клик есть только у «своего» игрока: меню остальных пункта не показывает
-  items: player => player.alive && player.autoAllowed !== false ? [{ id: "auto", label: `${auto.has(player.playerObjectId) ? "✅ " : ""}Авто-клик` }] : [],
+  items: player => player.alive && player.autoAllowed !== false ? [{ id: "auto", label: `${auto == player.playerObjectId ? "✅ " : ""}Авто-клик` }] : [],
   async select(id, player) {
     if(id != "auto") return;
-    if(auto.has(player.playerObjectId)) auto.delete(player.playerObjectId);
-    else auto.add(player.playerObjectId);
+    auto = auto == player.playerObjectId ? undefined : player.playerObjectId;
     await autoClick(await mod.room.state());
   }
 });
@@ -100,7 +100,7 @@ mod.on("room:state", room => void autoClick(room));
 // вышли из комнаты - выбор забывается
 mod.on("screen:change", ({ name }) => {
   if(name == "room") return;
-  auto.clear();
+  auto = undefined;
 });
 
 type RoomSnapshot = import("bafia:api").RoomSnapshot;

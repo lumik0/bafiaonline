@@ -1,4 +1,5 @@
 import type { Browser, Platform } from "@common/bafia/protocol";
+import { isNativeApp } from "@common/utils/native";
 
 /** с какого устройства играет игрок: только грубая платформа, для статистики сервера Бафии */
 export function detectPlatform(nav: { userAgent?: string, platform?: string, maxTouchPoints?: number, userAgentData?: { platform?: string } } = navigator): Platform {
@@ -13,7 +14,10 @@ export function detectPlatform(nav: { userAgent?: string, platform?: string, max
 }
 
 /** в каком браузере играет игрок; порядок важен: Edge, Opera, Yandex и Samsung тоже называют себя Chrome */
-export function detectBrowser(agent: string = navigator.userAgent): Browser {
+export function detectBrowser(agent?: string): Browser {
+  // в оболочке приложения (Android, iOS) сообщаем "app", а не браузер WebView
+  if(agent === undefined && isNativeApp()) return "app";
+  agent ??= navigator.userAgent;
   if(/edg(e|a|ios)?\//i.test(agent)) return "edge";
   if(/opr\/|opera|opios/i.test(agent)) return "opera";
   if(/yabrowser/i.test(agent)) return "yandex";

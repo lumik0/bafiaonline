@@ -163,7 +163,7 @@ export function isGifUrl(value: string): boolean {
 export const PLATFORMS = ["ios", "android", "windows", "macos", "linux", "other"] as const;
 export type Platform = typeof PLATFORMS[number];
 /** в каком браузере играют (грубо, для статистики) */
-export const BROWSERS = ["chrome", "safari", "firefox", "edge", "opera", "samsung", "yandex", "other"] as const;
+export const BROWSERS = ["chrome", "safari", "firefox", "edge", "opera", "samsung", "yandex", "app", "other"] as const;
 export type Browser = typeof BROWSERS[number];
 export const isBrowser = (value: unknown): value is Browser => typeof value == "string" && (BROWSERS as readonly string[]).includes(value);
 /** с какой ссылки открыта игра: только адрес сайта (хост), без пути и параметров */

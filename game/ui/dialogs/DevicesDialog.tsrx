@@ -3,7 +3,7 @@ import { BAFIA_LIMITS, type DeviceInfo } from "@common/bafia/protocol";
 import type { GameContext } from "../../context";
 
 const platforms: Record<string, string> = { ios: "iPhone / iPad", android: "Android", windows: "Windows", macos: "Mac", linux: "Linux", other: "Другое", unknown: "Неизвестно" };
-const browsers: Record<string, string> = { safari: "Safari", chrome: "Chrome", firefox: "Firefox", edge: "Edge", opera: "Opera", yandex: "Яндекс", samsung: "Samsung", other: "", unknown: "" };
+const browsers: Record<string, string> = { safari: "Safari", chrome: "Chrome", firefox: "Firefox", edge: "Edge", opera: "Opera", yandex: "Яндекс", samsung: "Samsung", app: "Приложение", other: "", unknown: "" };
 
 const when = (time: number) => new Date(time).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 

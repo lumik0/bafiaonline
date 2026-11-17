@@ -23,7 +23,8 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 	const loaded = fromEvents(list, "change", () => list.loaded);
 	const filter = fromEvents(ctx.roomFilter, "change", () => ({ ...ctx.roomFilter.data, roles: [...ctx.roomFilter.data.roles], sortRules: ctx.roomFilter.data.sortRules.map(rule => ({ ...rule })) }));
 	const [search, setSearch] = createSignal("");
-	const visible = () => orderRooms(rooms().filter(room => matchesRoom(room, filter(), search())), filter().sortRules);
+	// комнаты, где ты играешь или тебя убили, видны всегда: ни фильтр, ни поиск их не скрывают
+	const visible = () => orderRooms(rooms().filter(room => room.myStatus < 2 || matchesRoom(room, filter(), search())), filter().sortRules);
 
 	onMount(() => list.open());
 

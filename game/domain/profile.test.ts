@@ -129,3 +129,14 @@ describe("ProfileService", () => {
     expect(await profile.setSex(0, async() => {})).toBe(false);
   });
 });
+
+describe("поиск по id", () => {
+  test("id вида uuid или 24 знака распознаётся, ник нет", async() => {
+    const { looksLikeId } = await import("./friends");
+    expect(looksLikeId("4cedea70-ad2d-4c24-b650-dabfebfaddb3")).toBe(true);
+    expect(looksLikeId("4CEDEA70-AD2D-4C24-B650-DABFEBFADDB3")).toBe(true);
+    expect(looksLikeId("507f1f77bcf86cd799439011")).toBe(true);
+    expect(looksLikeId("Euaek")).toBe(false);
+    expect(looksLikeId("abcdef12")).toBe(false);
+  });
+});

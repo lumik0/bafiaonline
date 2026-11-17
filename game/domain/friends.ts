@@ -47,6 +47,9 @@ export function toSearchItem(user: SearchUser): FriendItem | undefined {
 
 const compact = <T>(items: (T | undefined)[]) => items.filter((item): item is T => item !== undefined);
 
+/** id игрока вместо ника (вида 4cedea70-ad2d-4c24-b650-dabfebfaddb3 или 24 шестнадцатеричных знака): в поиске сразу открывается профиль */
+export const looksLikeId = (text: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text) || /^[0-9a-f]{24}$/i.test(text);
+
 /** друг в окне «Пригласить в комнату» */
 export interface InviteItem {
   playerObjectId: string

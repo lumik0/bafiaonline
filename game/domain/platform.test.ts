@@ -30,3 +30,15 @@ test("ссылка: только хост, мусор отбрасывается
   expect(detectSite({ host: "" })).toBeUndefined();
   expect(detectSite({ host: "a b" })).toBeUndefined();
 });
+
+test("в оболочке приложения браузер - app, а с переданным ua определяется по нему", () => {
+  const globals = globalThis as { Capacitor?: unknown };
+  const before = globals.Capacitor;
+  globals.Capacitor = { isNativePlatform: () => true };
+  try {
+    expect(detectBrowser()).toBe("app");
+    expect(detectBrowser("Mozilla/5.0 Firefox/120.0")).toBe("firefox");
+  } finally {
+    globals.Capacitor = before;
+  }
+});

@@ -1,6 +1,6 @@
 import { createSignal, onMount } from "@common/ui";
 import { formatDateTime } from "@common/utils/format";
-import type { FriendItem } from "../domain/friends";
+import { looksLikeId, type FriendItem } from "../domain/friends";
 import { AppBar } from "../ui/AppBar.tsrx";
 import { nickStyle, photoRing } from "../domain/decorations";
 import { Avatar } from "../ui/Avatar.tsrx";
@@ -9,6 +9,7 @@ import { enterRoom } from "../domain/rooms/enter";
 import { Marks } from "../ui/Marks.tsrx";
 
 type Tab = "friends" | "requests" | "search";
+
 
 /** друзья, заявки и поиск игроков */
 export function FriendsScreen({ ctx }: { ctx: GameContext }) @{
@@ -87,7 +88,7 @@ export function FriendsScreen({ ctx }: { ctx: GameContext }) @{
 				<button class={tab() == "search" ? "" : "dark-gray"} onClick={() => load("search")}>{"Поиск"}</button>
 			</div>
 			@if (tab() == "search") {
-				<form class="search" onSubmit={(event) => { event.preventDefault(); void load("search", query.value.trim()); }}>
+				<form class="search" onSubmit={(event) => { event.preventDefault(); const text = query.value.trim(); if(looksLikeId(text)) ctx.openProfile(text); else void load("search", text); }}>
 					<input ref={query} placeholder="Ник игрока" />
 					<button type="submit">{"Найти"}</button>
 				</form>
