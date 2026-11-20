@@ -1,4 +1,3 @@
-import { knownUser, rememberUser } from "./known-users";
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
@@ -758,13 +757,6 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** история ников игрока; `undefined` - сервер недоступен */
-  /** постоянный id пользователя по id игрока, если сервер Бафии его знает */
-  async userOf(id: string): Promise<string | undefined> {
-    if(!this.ready) return undefined;
-    const answer = await this.request({ t: "userOf", id }, 3000);
-    return answer?.t == "userOf" ? answer.user : undefined;
-  }
-
   async nicks(id: string, user?: string): Promise<NickRecord[] | undefined> {
     if(!this.ready) return undefined;
     const answer = await this.request({ t: "nicks", id, ...(user ? { user } : {}) });
@@ -999,20 +991,11 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     this.link?.reportBan(id, nick, seconds);
   }
 
-  /** id пользователя: из реестра, а если там нет - спрашиваем сервер Бафии */
-  async userIdOf(playerObjectId: string): Promise<string | undefined> {
-    const known = knownUser(playerObjectId);
-    if(known || !this.enabled) return known;
-    const user = await this.consented?.userOf(playerObjectId);
-    if(user) rememberUser(playerObjectId, user);
-    return user;
-  }
-
   /** видимые игроки: отправляем не чаще раза в 10 секунд, узнаём, кто в Бафии */
   watch(players: { id?: string, nick: string, user?: string }[]) {
-    const list = players.filter((player): player is SeenPlayer => !!player.id && !!player.nick);
-    for(const player of list) rememberUser(player.id, player.user);
-    const signature = list.map(player => player.id + ":" + player.nick + ":" + (player.user ?? "")).join("|");
+    // у других игроков постоянного id пользователя в пакетах игры нет (поле комнаты - запись внутри неё), поэтому уходят только id игрока и ник
+    const list = players.filter((player): player is SeenPlayer => !!player.id && !!player.nick).map(({ id, nick }) => ({ id, nick }));
+    const signature = list.map(player => player.id + ":" + player.nick).join("|");
     const now = Date.now();
     if(!this.link || (signature == this.lastWatch.signature && now - this.lastWatch.at < 10_000)) return;
     this.lastWatch = { signature, at: now };

@@ -1,4 +1,3 @@
-import { rememberUser } from "../known-users";
 import { GIF_TAG, HIST_TAG } from "@common/bafia/protocol";
 import type { ServerData } from "@common/protocol";
 import { normalizeDecorations, type Decorations } from "../decorations";
@@ -56,7 +55,6 @@ let nextId = 1;
 const vipText = (vip: unknown) => typeof vip == "string" && vip ? vip : typeof vip == "number" && vip ? String(vip) : undefined;
 
 export function toChatUser(raw: NonNullable<RawMessage["user"]>): ChatUser {
-  rememberUser(raw.playerObjectId, raw.objectId);
   return { objectId: raw.objectId, playerObjectId: raw.playerObjectId, username: raw.username ?? "", photo: raw.photo, vip: vipText(raw.vip), decorations: normalizeDecorations(raw.decorations) };
 }
 

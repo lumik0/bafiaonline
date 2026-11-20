@@ -32,10 +32,7 @@ export function Profile({ ctx, playerObjectId, close }: { ctx: GameContext, play
 	const load = async () => {
 		setState("loading");
 		// любая ошибка запроса - «не удалось», а не вечная загрузка
-		const loaded = await ctx.profile.loadProfile(playerObjectId).catch(() => undefined);
-		// сервер игры не прислал id пользователя: спрашиваем сервер Бафии, если он знает
-		if(loaded?.user && !loaded.user.objectId) loaded.user.objectId = await ctx.bafia.userIdOf(loaded.user.playerObjectId ?? playerObjectId).catch(() => undefined);
-		setState(loaded ?? "failed");
+		setState(await ctx.profile.loadProfile(playerObjectId).catch(() => undefined) ?? "failed");
 	};
 	onMount(load);
 
