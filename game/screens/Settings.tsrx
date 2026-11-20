@@ -48,6 +48,22 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 		}
 	};
 
+	const nickName = fromEvents(ctx.user, "change", () => ctx.user.username);
+	const changeNick = async () => {
+		const value = await ctx.dialogs.prompt({
+			title: "СМЕНА НИКА", text: "Смена ника платная: сервер игры спишет серебро (если его не хватит, ник не изменится).\n3-12 символов: цифры и буквы", initial: ctx.user.username, placeholder: "Никнейм", ok: "Сменить",
+			validate: text => text.trim().length < 3 || text.trim().length > 12 ? "От 3 до 12 символов" : undefined
+		});
+		const name = value?.trim();
+		if(!name || name == ctx.user.username) return;
+		try {
+			const result = await ctx.profile.setUsername(name);
+			await ctx.dialogs.alert(result.status == "ok" ? `Теперь тебя зовут ${result.username}.` : result.status == "noCoins" ? `Не хватает серебра${result.price ? `: нужно ${result.price}` : ""}.` : usernameProblems[result.status], { title: result.status == "ok" ? "Готово" : "Не получилось" });
+		} catch {
+			await ctx.dialogs.alert("Сервер не ответил. Попробуй ещё раз.", { title: "Ошибка" });
+		}
+	};
+
 	const registered = fromEvents(ctx.user, "change", () => ctx.user.created);
 
 	const bafiaOn = fromEvents(ctx.settings, "change", () => ctx.settings.data.bafia.enabled);
@@ -327,6 +343,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 				@if (tab() == "account") {
 					<>
 						<SettingGroup title="ПРОФИЛЬ">
+							<SettingRow label="Никнейм" hint={nickName()}><button onClick={() => void changeNick()}>{"Сменить"}</button></SettingRow>
 							<SettingRow label="Пол">
 								<div class="sexes">
 									<button class={sex() === 0 ? "sex on" : "sex"} disabled={sexBusy()} onClick={() => void changeSex(0)}>{"♂ Мужской"}</button>

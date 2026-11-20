@@ -8,7 +8,8 @@ export type PlayerProfile = ServerData<"userProfile">["profile"];
 
 export type UsernameResult =
   | { status: "ok", username: string }
-  | { status: "wrongSymbols" | "exists" | "outOfBounds" | "empty" };
+  | { status: "wrongSymbols" | "exists" | "outOfBounds" | "empty" }
+  | { status: "noCoins", price?: number };
 
 export type FriendResult = { status: "ok" } | { status: "listFull", limit: number };
 
@@ -18,7 +19,8 @@ export const usernameProblems: Record<Exclude<UsernameResult["status"], "ok">, s
   wrongSymbols: "Для никнейма можно использовать только символы 0-9, а-Я, a-Z",
   exists: "Этот никнейм уже занят",
   outOfBounds: "Никнейм слишком короткий или длинный.\nОн должен состоять из 3–12 символов",
-  empty: "Никнейм не может быть пустым"
+  empty: "Никнейм не может быть пустым",
+  noCoins: "Не хватает серебра: смена ника платная"
 };
 
 /** мужские (m1, m2…) раньше женских (f1…), внутри - по номеру */
@@ -58,7 +60,7 @@ export class ProfileService {
   }
 
   async setUsername(username: string): Promise<UsernameResult> {
-    const answer = await this.client.request("setUsername", { username }, ["usernameSet", "usernameWrongSymbols", "usernameExists", "usernameOutOfBounds", "usernameEmpty"]);
+    const answer = await this.client.request("setUsername", { username }, ["usernameSet", "usernameWrongSymbols", "usernameExists", "usernameOutOfBounds", "usernameEmpty", "usernameNoCoins"]);
     switch(answer.name) {
       case "usernameSet": {
         const name = answer.data.username ?? username;
@@ -70,6 +72,7 @@ export class ProfileService {
       case "usernameExists": return { status: "exists" };
       case "usernameOutOfBounds": return { status: "outOfBounds" };
       case "usernameEmpty": return { status: "empty" };
+      case "usernameNoCoins": { const price = Number(answer.data.price); return { status: "noCoins", ...(price > 0 ? { price } : {}) }; }
     }
   }
 

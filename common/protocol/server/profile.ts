@@ -88,6 +88,8 @@ export const profileMessages = {
   usernameExists: serverPacket(K.USERNAME_IS_EXISTS, {}),
   usernameOutOfBounds: serverPacket(K.USERNAME_IS_OUT_OF_BOUNDS, {}),
   usernameEmpty: serverPacket(K.USERNAME_IS_EMPTY, {}),
+  /** смена ника платная, а монет не хватает; в `data` цена */
+  usernameNoCoins: serverPacket("nece", { price: optionalField("data", t.any) }),
 
   photoRemoved: serverPacket(K.REMOVE_PHOTO, {}),
   defaultPhotoSet: serverPacket("ussdph", {}),
