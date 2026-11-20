@@ -187,7 +187,8 @@ export const nickKey = (nick: string) => nick.normalize("NFKC").toLowerCase().re
 export interface PlayedEvent { won?: boolean }
 
 /** `user` - постоянный id пользователя (`userObjectId`): по нему собирается история ников, id игрока для этого не годится */
-export interface SeenPlayer { id: string, nick: string, user?: string }
+/** `photo` - имя файла аватарки */
+export interface SeenPlayer { id: string, nick: string, user?: string, photo?: string }
 
 /** сообщения клиента; `n` - номер запроса, ответ приходит с тем же номером */
 export type ClientMessage =
@@ -441,7 +442,8 @@ function player(value: unknown): SeenPlayer | undefined {
   if(!isRecord(value) || !text(value.id, BAFIA_LIMITS.id) || !text(value.nick, BAFIA_LIMITS.nick)) return undefined;
   if(!clean(value.id) || !clean(value.nick)) return undefined;
   const user = typeof value.user == "string" && value.user.length > 0 && value.user.length <= BAFIA_LIMITS.id && clean(value.user) ? value.user : undefined;
-  return { id: value.id, nick: value.nick, ...(user ? { user } : {}) };
+  const photo = typeof value.photo == "string" && /^[A-Za-z0-9._-]{1,80}$/.test(value.photo) ? value.photo : undefined;
+  return { id: value.id, nick: value.nick, ...(user ? { user } : {}), ...(photo ? { photo } : {}) };
 }
 
 function ids(value: unknown): string[] | undefined {

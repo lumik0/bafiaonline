@@ -13,7 +13,7 @@ export function GlobalChatScreen({ ctx }: { ctx: GameContext }) @{
 	const users = fromEvents(chat, "change", () => chat.users);
 	const bafiaOnline = fromEvents(ctx.bafia, "change", () => ctx.bafia.online);
 	const bafiaPremium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumOnline);
-	createEffect(() => ctx.bafia.watch(users().map(user => ({ id: user.playerObjectId, nick: user.username, user: user.objectId }))));
+	createEffect(() => ctx.bafia.watch(users().map(user => ({ id: user.playerObjectId, nick: user.username, photo: user.photo }))));
 	const myName = fromEvents(ctx.user, "change", () => ctx.user.username);
 	const hideName = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername);
 	const background = fromEvents(ctx.assets, "change", () => ctx.assets.url("textures/backgrounds/day3.png"));

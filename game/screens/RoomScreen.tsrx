@@ -65,7 +65,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	// сервер Бафии (если игрок согласился): кто из игроков комнаты играет в Бафии и сколько партий сыграно
 	const bafiaOnline = fromEvents(ctx.bafia, "change", () => ctx.bafia.online);
 	const bafiaPremium = fromEvents(ctx.bafia, "change", () => ctx.bafia.premiumOnline);
-	createEffect(() => ctx.bafia.watch(lobby().map(user => ({ id: user.playerObjectId, nick: user.username, user: user.objectId }))));
+	createEffect(() => ctx.bafia.watch(lobby().map(user => ({ id: user.playerObjectId, nick: user.username, photo: user.photo }))));
 	const composition = session.on("roles", info => ctx.bafia.gameRoles(info));
 	onCleanup(() => composition.remove());
 	const over = session.on("over", () => { ctx.bafia.played(state.won); void ctx.dialogs.manager.open({ title: "ИГРА ОКОНЧЕНА", render: close => GameOverDialog({ ctx, session, close }) }); });

@@ -992,10 +992,10 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   }
 
   /** видимые игроки: отправляем не чаще раза в 10 секунд, узнаём, кто в Бафии */
-  watch(players: { id?: string, nick: string, user?: string }[]) {
+  watch(players: { id?: string, nick: string, user?: string, photo?: string }[]) {
     // у других игроков постоянного id пользователя в пакетах игры нет (поле комнаты - запись внутри неё), поэтому уходят только id игрока и ник
-    const list = players.filter((player): player is SeenPlayer => !!player.id && !!player.nick).map(({ id, nick }) => ({ id, nick }));
-    const signature = list.map(player => player.id + ":" + player.nick).join("|");
+    const list = players.filter((player): player is SeenPlayer => !!player.id && !!player.nick).map(({ id, nick, photo }) => ({ id, nick, ...(photo ? { photo } : {}) }));
+    const signature = list.map(player => player.id + ":" + player.nick + ":" + (player.photo ?? "")).join("|");
     const now = Date.now();
     if(!this.link || (signature == this.lastWatch.signature && now - this.lastWatch.at < 10_000)) return;
     this.lastWatch = { signature, at: now };
