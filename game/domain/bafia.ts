@@ -708,6 +708,12 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     return answer?.t == "error" && answer.reason == "premium" ? "premium" : "offline";
   }
 
+  /** цифры из профиля игрока: игры, победы, опыт и роли; ответа не ждём */
+  async profileStats(id: string, nick: string, stats: number[]) {
+    if(!this.ready) return;
+    await this.request({ t: "profileStats", id, nick, stats });
+  }
+
   /** жалоба на баннер или аватарку игрока, который сейчас в сети */
   async report(id: string, kind: "banner" | "avatar"): Promise<"ok" | "nothing" | "self" | "slow-down" | "offline"> {
     if(!this.ready) return "offline";
@@ -876,6 +882,13 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   }
   get myLook(): ProfileLook { return this.look(this.deps.user.playerObjectId); }
   setLook(look: ProfileLook) { return this.consented?.setLook(look) ?? Promise.resolve("offline" as const); }
+  /** профиль открыт: отправляем его цифры (игры, победы, опыт, роли) */
+  profileStats(player: { playerObjectId?: string, username?: string, playedGames?: number, winsAsMafia?: number, winsAsPeaceful?: number, experience?: number, roleStatistics?: Record<string, number> }, fallbackId: string) {
+    const id = player.playerObjectId ?? fallbackId;
+    if(!this.consented || !id || !player.username) return;
+    const stats = [player.playedGames ?? 0, player.winsAsMafia ?? 0, player.winsAsPeaceful ?? 0, player.experience ?? 0, ...Array.from({ length: 11 }, (_, index) => player.roleStatistics?.[index + 1] ?? 0)];
+    void this.consented.profileStats(id, player.username, stats).catch(() => {});
+  }
   report(id: string, kind: "banner" | "avatar") { return this.consented?.report(id, kind) ?? Promise.resolve("offline" as const); }
 
   /** избранные игроки (ники): когда зайдут в Бафию, приходит уведомление */

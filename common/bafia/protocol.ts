@@ -188,6 +188,9 @@ export interface PlayedEvent { won?: boolean }
 
 /** `user` - постоянный id пользователя (`userObjectId`): по нему собирается история ников, id игрока для этого не годится */
 /** `photo` - имя файла аватарки */
+/** сколько чисел в снимке статистики профиля: игры, победы за мафию и за мирных, опыт, 11 ролей */
+export const PROFILE_STATS_LENGTH = 15;
+
 export interface SeenPlayer { id: string, nick: string, user?: string, photo?: string }
 
 /** сообщения клиента; `n` - номер запроса, ответ приходит с тем же номером */
@@ -233,6 +236,8 @@ export type ClientMessage =
   | { t: "look", n: number, look: ProfileLook }
   /** пожаловаться на баннер или аватарку игрока, который сейчас в сети (по id игрока) */
   | { t: "report", n: number, id: string, kind: "banner" | "avatar" }
+  /** цифры из профиля: игры, победы, опыт и роли (см. `PROFILE_STATS_LENGTH`) */
+  | { t: "profileStats", n: number, id: string, nick: string, stats: number[] }
   /** кто из этих ников сейчас в Бафии (для избранных игроков, до 20 ников) */
   | { t: "whoNicks", n: number, nicks: string[] }
   /** статус премиума и мои загрузки */
@@ -522,6 +527,12 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
     case "look": return { t: "look", n, look: parseLook(value.look) };
     case "report":
       return text(value.id, BAFIA_LIMITS.id) && clean(value.id) && (value.kind == "banner" || value.kind == "avatar") ? { t: "report", n, id: value.id, kind: value.kind as "banner" | "avatar" } : undefined;
+    case "profileStats": {
+      const stats = value.stats;
+      return text(value.id, BAFIA_LIMITS.id) && clean(value.id) && text(value.nick, BAFIA_LIMITS.nick) && clean(value.nick)
+        && Array.isArray(stats) && stats.length == PROFILE_STATS_LENGTH && stats.every(item => Number.isInteger(item) && item >= 0 && item <= 1e9)
+        ? { t: "profileStats", n, id: value.id, nick: value.nick, stats: stats as number[] } : undefined;
+    }
     case "whoNicks": {
       const nicks = Array.isArray(value.nicks) ? value.nicks.filter((nick): nick is string => text(nick, BAFIA_LIMITS.nick) && clean(nick)) : [];
       return Array.isArray(value.nicks) && value.nicks.length <= 20 && nicks.length == value.nicks.length ? { t: "whoNicks", n, nicks } : undefined;

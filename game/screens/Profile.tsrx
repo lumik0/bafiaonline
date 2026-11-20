@@ -126,6 +126,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 		const result = await ctx.bafia.report(player.playerObjectId ?? playerObjectId, kind);
 		await ctx.dialogs.alert(result == "ok" ? "Спасибо, жалоба отправлена." : result == "slow-down" ? "Слишком много жалоб, попробуй завтра." : result == "nothing" ? "Этой картинки уже нет." : "Сервер Бафии сейчас недоступен.", { title: "Жалоба" });
 	};
+	onMount(() => ctx.bafia.profileStats(player, playerObjectId));
 	onMount(() => ctx.bafia.watch([{ id: player.playerObjectId ?? playerObjectId, nick: player.username ?? "", photo: player.photo }]));
 	// ник в профиле приходит позже запроса: значки по нему запрашиваем, когда ник появился
 	createEffect(() => { if(player.username) ctx.bafia.watchNicks([player.username]); });
