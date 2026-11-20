@@ -8,3 +8,7 @@ dist/
 /docs/
 dist-app/
 deletethis/
+# копии баз
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
