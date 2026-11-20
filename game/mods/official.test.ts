@@ -95,7 +95,7 @@ describe("официальный мод", () => {
 
     const [section] = await manager.profileSections(profile);
     expect(section!.rows.map(row => [row.label, row.value])).toEqual([
-      ["Сыграно игр за Мафию", "5"], ["Сыграно игр за Мирных", "15"], ["Всего побед", "(50.00%) 10"], ["M/M", "1.50"], ["player object id", "p2"], ["user object id", "u2"]
+      ["Сыграно игр за Мафию", "5"], ["Сыграно игр за Мирных", "15"], ["Всего побед", "(50.00%) 10"], ["M/M", "1.50"], ["player object id", "p2"]
     ]);
     const button = section!.rows[2]!.button!;
     expect(button.id).toBe("winrate");
