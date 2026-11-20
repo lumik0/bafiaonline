@@ -368,7 +368,7 @@ describe("BafiaLink", () => {
       data = data;
       update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
     }();
-    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я", userObjectId: "u-me" });
     const server = serverSocket([], []);
     const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: server.create });
     const shown: string[] = [];
@@ -386,7 +386,7 @@ describe("BafiaLink", () => {
         data = data;
         update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
       }();
-      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я", userObjectId: "u-me" });
       return { data, bafia: new Bafia({ settings, user, url: "ws://test", createSocket: create }) };
     };
 
@@ -456,7 +456,7 @@ describe("BafiaLink", () => {
         data = data;
         update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
       }();
-      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я", userObjectId: "u-me" });
       const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: serverSocket([], []).create });
       await tickMany();
       expect(bafia.status).toMatchObject({ state: "connected", attempts: 0, problem: undefined, insecure: false });
@@ -487,7 +487,7 @@ describe("Bafia", () => {
       data = data;
       update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
     }();
-    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "", username: "" });
+    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "", username: "", userObjectId: "" });
     const log: Record<string, unknown>[] = [];
     const server = serverSocket([], log);
     const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: server.create });
@@ -581,7 +581,7 @@ describe("Bafia", () => {
     expect(data.bafia.enabled).toBe(false);
 
     user.playerObjectId = "p1";
-    user.username = "Euaek";
+    user.username = "Euaek"; user.userObjectId = "u-me";
     user.emit("change");
     await tick();
     expect(server.sockets).toHaveLength(1);
@@ -626,7 +626,7 @@ describe("Bafia", () => {
       data = data;
       update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
     }();
-    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я", userObjectId: "u-me" });
     const bafia = new Bafia({ settings, user, url: "wss://bafia.example.com", createSocket: serverSocket(["pp", "p9"], []).create });
     await tick();
 
@@ -655,7 +655,7 @@ describe("Bafia", () => {
         data = data;
         update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
       }();
-      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+      const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я", userObjectId: "u-me" });
       const log: Record<string, unknown>[] = [];
       const bafia = new Bafia({ settings, user, url: "ws://test", createSocket: serverSocket([], log).create });
       return { bafia, data, log };
@@ -711,7 +711,7 @@ describe("Bafia", () => {
       data = data;
       update(change: (value: typeof data) => void) { change(data); this.emit("change"); }
     }();
-    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я" });
+    const user = Object.assign(new Events<{ change: () => void }>(), { playerObjectId: "me", username: "Я", userObjectId: "u-me" });
     const bafia = new Bafia({ settings, user, url: "wss://bafia.example.com", createSocket: serverSocket(["pp"], []).create });
     await tick();
     bafia.watch([{ id: "pp", nick: "Премиум" }]);

@@ -3,6 +3,7 @@ import Events from "@common/utils/emitter";
 import { MessageList } from "../chat/message";
 import { normalizeDecorations, type Decorations } from "../decorations";
 import { Role, mafiaRoles } from "../enums";
+import { rememberUser } from "../known-users";
 import { isHostFree, isRoulette, rouletteTarget } from "./roulette";
 
 type Statistics = ServerData<"roomStatistics">["statistics"];
@@ -68,6 +69,7 @@ const vipText = (vip: unknown) => typeof vip == "string" && vip ? vip : undefine
 function toLobbyPlayer(raw: RosterPlayer | undefined): LobbyPlayer | undefined {
   const user = raw?.user?.playerUser ?? raw?.user;
   if(!user?.playerObjectId) return undefined;
+  rememberUser(user.playerObjectId, raw?.objectId ?? raw?.user?.objectId);
   return { userObjectId: raw?.objectId ?? raw?.user?.objectId, playerObjectId: user.playerObjectId, username: user.username ?? "", photo: user.photo, vip: vipText(user.vip), decorations: normalizeDecorations(user.decorations) };
 }
 

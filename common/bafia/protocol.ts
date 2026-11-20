@@ -211,6 +211,7 @@ export type ClientMessage =
   | { t: "seen", n: number, players: SeenPlayer[] }
   /** история ников игрока */
   | { t: "nicks", n: number, id: string, user?: string }
+  | { t: "userOf", n: number, id: string }
   /** адрес гифки из сообщения `[gif:id]` */
   | { t: "gif", n: number, id: string }
   /** поиск гифок в каталоге; пустой запрос - последние добавленные */
@@ -397,6 +398,8 @@ export type ServerMessage =
   /** `special` - подпись особых игроков (например "разработчик"): у них горящая галочка */
   | { t: "marks", n: number, shame?: Record<string, number>, bans?: Record<string, number>, special?: Record<string, string> }
   | { t: "nicks", n: number, id: string, names: NickRecord[] }
+  /** постоянный id пользователя по id игрока; пусто, если сервер не знает */
+  | { t: "userOf", n: number, id: string, user?: string }
   /** мои обращения (последние 30) со статусом */
   | { t: "myFeedback", n: number, items: FeedbackItem[] }
   /** `seconds` - время в Бафии, `days` - в сколько разных дней играл, `since` - первый день (ГГГГ-ММ-ДД); `since` нет, если ещё не считалось */
@@ -599,6 +602,8 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return typeof value.query == "string" && value.query.length <= BAFIA_LIMITS.query && clean(value.query) ? { t: "gifs", n, query: value.query } : undefined;
     case "nicks":
       return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "nicks", n, id: value.id, ...(text(value.user, BAFIA_LIMITS.id) && clean(value.user) ? { user: value.user } : {}) } : undefined;
+    case "userOf":
+      return text(value.id, BAFIA_LIMITS.id) && clean(value.id) ? { t: "userOf", n, id: value.id } : undefined;
     default:
       return undefined;
   }

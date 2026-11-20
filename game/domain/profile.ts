@@ -1,3 +1,4 @@
+import { knownUser, rememberUser } from "./known-users";
 import type { ServerClient } from "@common/net";
 import type { ServerData } from "@common/protocol";
 import type { Accounts } from "@common/storage";
@@ -83,7 +84,11 @@ export class ProfileService {
   /** `undefined`, если сервер не ответил (игрок вышел, скрыл профиль) */
   async loadProfile(playerObjectId: string, timeout = 5000): Promise<PlayerProfile | undefined> {
     try {
-      return (await this.client.request("getUserProfile", { playerObjectId }, "userProfile", { timeout })).data.profile;
+      const profile = (await this.client.request("getUserProfile", { playerObjectId }, "userProfile", { timeout })).data.profile;
+      // профиль чужого игрока приходит без id пользователя: берём тот, что видели в комнате или чате
+      if(profile.user && !profile.user.objectId) profile.user.objectId = knownUser(profile.user.playerObjectId ?? playerObjectId);
+      else rememberUser(profile.user?.playerObjectId ?? playerObjectId, profile.user?.objectId);
+      return profile;
     } catch(error) {
       if(error instanceof RequestTimeoutError) return undefined;
       throw error;

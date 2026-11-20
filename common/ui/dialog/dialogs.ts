@@ -25,6 +25,8 @@ export interface PromptOptions {
   validate?: (value: string) => string | undefined
   /** без этого окно нельзя закрыть, пока не введено значение (например, первый ник) */
   required?: boolean
+  /** поле пароля с глазком */
+  secret?: boolean
 }
 
 /** привычные окна поверх DialogManager: сообщение, подтверждение, ввод строки */
@@ -55,10 +57,10 @@ export function createDialogs(manager: DialogManager, menu = new ContextMenuMana
     },
 
     /** введённая строка или `undefined`, если отказались */
-    prompt({ title = "Ввод", text, initial, placeholder, ok = "OK", cancel = "Отмена", validate, required }: PromptOptions = {}): Promise<string | undefined> {
+    prompt({ title = "Ввод", text, initial, placeholder, ok = "OK", cancel = "Отмена", validate, required, secret }: PromptOptions = {}): Promise<string | undefined> {
       return manager.open<string>({
         title, dismissable: !required,
-        render: close => PromptContent({ text, initial, placeholder, ok, cancel: required ? "" : cancel, validate, submit: (value: string | undefined) => close(value) })
+        render: close => PromptContent({ text, initial, placeholder, ok, cancel: required ? "" : cancel, validate, secret, submit: (value: string | undefined) => close(value) })
       });
     }
   };

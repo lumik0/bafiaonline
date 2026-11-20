@@ -1,4 +1,5 @@
 import { createEffect, fromEvents } from "@common/ui";
+import { PasswordInput } from "@common/ui/dialog/PasswordInput.tsrx";
 import { createSignal } from "@common/ui";
 import { openRoom } from "../domain/rooms/enter";
 import { rememberRoomPassword } from "../domain/rooms/passwords";
@@ -200,7 +201,7 @@ export function RoomCreationScreen({ ctx, bafia = false }: { ctx: GameContext, b
 					</div>
 					<div class="field">
 						<label>{"Пароль (можно не ставить)"}</label>
-						<input type="text" name="room-secret" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore placeholder="Без пароля" style={{ "-webkit-text-security": "disc" }} value={draft().password} onInput={(event) => edit(data => { data.password = event.currentTarget.value; })} />
+						<PasswordInput plain name="room-secret" autocomplete="off" placeholder="Без пароля" value={draft().password} onInput={(value: string) => edit(data => { data.password = value; })} />
 					</div>
 					<label class="switch"><span class="name">{bafia ? null : <img src={images().vip} alt="" />}{bafia ? "Только для премиума" : "VIP-комната"}</span><input type="checkbox" checked={draft().vip} onChange={(event) => edit(data => { data.vip = event.currentTarget.checked; })} /></label>
 				</div>

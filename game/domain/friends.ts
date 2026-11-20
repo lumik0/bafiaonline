@@ -1,3 +1,4 @@
+import { rememberUser } from "./known-users";
 import type { ServerClient } from "@common/net";
 import type { ServerData } from "@common/protocol";
 import { normalizeDecorations, type Decorations } from "./decorations";
@@ -24,6 +25,7 @@ type SearchUser = ServerData<"searchResults">["users"][number];
 export function toFriendItem(entry: Entry): FriendItem | undefined {
   const user = entry.friend ?? entry.user;
   if(!user?.playerObjectId) return undefined;
+  rememberUser(user.playerObjectId, user.objectId);
   const room = entry.room as { o?: unknown } | undefined;
 
   return {

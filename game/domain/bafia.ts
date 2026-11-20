@@ -1,3 +1,4 @@
+import { knownUser, rememberUser } from "./known-users";
 import { sanitizeRecord, sharedForm, type HistoryRecord } from "./history";
 import { versionNumber } from "@common/version";
 import { detectBrowser, detectPlatform, detectSite } from "./platform";
@@ -757,6 +758,13 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
   }
 
   /** история ников игрока; `undefined` - сервер недоступен */
+  /** постоянный id пользователя по id игрока, если сервер Бафии его знает */
+  async userOf(id: string): Promise<string | undefined> {
+    if(!this.ready) return undefined;
+    const answer = await this.request({ t: "userOf", id }, 3000);
+    return answer?.t == "userOf" ? answer.user : undefined;
+  }
+
   async nicks(id: string, user?: string): Promise<NickRecord[] | undefined> {
     if(!this.ready) return undefined;
     const answer = await this.request({ t: "nicks", id, ...(user ? { user } : {}) });
@@ -891,15 +899,24 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
       data.bafia.watched = had ? rest : [nick, ...rest].slice(0, 20);
     });
     this.emit("change");
+    // сразу спрашиваем сервер: сообщаем, в Бафии ли игрок сейчас, а дальше уведомляем только о новых заходах
+    if(!had) void this.pollWatched(nick);
     return !had;
   }
   private watchedOnline = new Set<string>();
   private watchTimer?: ReturnType<typeof setInterval>;
   /** раз в минуту спрашивает сервер об избранных игроках и сообщает о тех, кто только что зашёл */
-  private pollWatched = async () => {
+  private pollWatched = async (added?: string) => {
     if(!this.enabled || !this.watched.length) { this.watchedOnline = new Set(); return; }
     const now = await this.consented?.nicksOnline([...this.watched]);
-    if(!now) return;
+    if(!now) { if(added) this.emit("notice", `Слежу за ${added}: сервер Бафии сейчас недоступен, проверю позже`); return; }
+    if(added) {
+      // новый игрок в списке: сразу говорим, где он, и берём состояние за основу без лишних уведомлений
+      this.emit("notice", now.has(nickKey(added)) ? `${added} сейчас в Бафии` : `Слежу за ${added}: сообщу, когда зайдёт в Бафию`);
+      this.polled = true;
+      this.watchedOnline = now;
+      return;
+    }
     // первый ответ только запоминаем: при запуске игры никого «только что зашедшим» считать не нужно
     const first = this.watchedOnline.size == 0 && !this.polled;
     this.polled = true;
@@ -971,8 +988,9 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
       link.on("premium", code => { if(code) this.deps.settings.update(data => { data.bafia.code = code; }); });
       link.start();
     }
-    const { playerObjectId, username } = this.deps.user;
-    if(playerObjectId && username) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber, this.deps.browser ?? detectBrowser(), this.deps.site ?? detectSite(), this.deps.user.photo || undefined, this.deps.user.userObjectId || undefined);
+    const { playerObjectId, username, userObjectId } = this.deps.user;
+    // после выхода (бан) ник в памяти остаётся: без входа "я играю" слать нельзя, иначе сервер снимет значок БАН
+    if(playerObjectId && username && userObjectId) this.link.identify(playerObjectId, username, this.deps.platform ?? detectPlatform(), this.deps.version ?? versionNumber, this.deps.browser ?? detectBrowser(), this.deps.site ?? detectSite(), this.deps.user.photo || undefined, this.deps.user.userObjectId || undefined);
   }
 
   /** официальный сервер не пустил игрока (бан): сообщаем серверу Бафии; игрок ещё не вошёл, поэтому ник и id берутся из сохранённого аккаунта */
@@ -981,9 +999,19 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
     this.link?.reportBan(id, nick, seconds);
   }
 
+  /** id пользователя: из реестра, а если там нет - спрашиваем сервер Бафии */
+  async userIdOf(playerObjectId: string): Promise<string | undefined> {
+    const known = knownUser(playerObjectId);
+    if(known || !this.enabled) return known;
+    const user = await this.consented?.userOf(playerObjectId);
+    if(user) rememberUser(playerObjectId, user);
+    return user;
+  }
+
   /** видимые игроки: отправляем не чаще раза в 10 секунд, узнаём, кто в Бафии */
   watch(players: { id?: string, nick: string, user?: string }[]) {
     const list = players.filter((player): player is SeenPlayer => !!player.id && !!player.nick);
+    for(const player of list) rememberUser(player.id, player.user);
     const signature = list.map(player => player.id + ":" + player.nick + ":" + (player.user ?? "")).join("|");
     const now = Date.now();
     if(!this.link || (signature == this.lastWatch.signature && now - this.lastWatch.at < 10_000)) return;

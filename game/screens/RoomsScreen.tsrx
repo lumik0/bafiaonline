@@ -63,7 +63,7 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 		const title = (await ctx.dialogs.prompt({ title: "ЖДАТЬ КОМНАТУ", text: "Введи название (или его часть). Как только комната с таким названием появится, игра сразу в неё зайдёт.", placeholder: "Название комнаты", ok: "Ждать", validate: value => value.trim().length < 2 ? "Хотя бы 2 символа" : undefined }))?.trim();
 		if(!title) return;
 		// пароль заранее: если у комнаты он будет, игра сама введёт его и зайдёт; пустой - значит, комната без пароля или спросим, когда появится
-		const password = await ctx.dialogs.prompt({ title: "ПАРОЛЬ КОМНАТЫ", text: "Если у комнаты будет пароль, введи его, и игра зайдёт сама. Если пароля нет, оставь поле пустым.", placeholder: "Пароль (необязательно)", ok: "Ждать", cancel: "Назад" });
+		const password = await ctx.dialogs.prompt({ title: "ПАРОЛЬ КОМНАТЫ", text: "Если у комнаты будет пароль, введи его, и игра зайдёт сама. Если пароля нет, оставь поле пустым.", placeholder: "Пароль (необязательно)", secret: true, ok: "Ждать", cancel: "Назад" });
 		if(password === undefined) return;
 		await waitForRoom(ctx, `Ждём комнату «${title}»` + (password.trim() ? " (с паролем)" : ""), room => titleMatches(room, title), undefined, password.trim());
 	};

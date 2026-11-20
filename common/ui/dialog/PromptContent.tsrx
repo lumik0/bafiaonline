@@ -1,9 +1,10 @@
 import { createSignal } from "@common/ui";
+import { PasswordInput } from "./PasswordInput.tsrx";
 
 /** ввод одной строки. `validate` возвращает текст ошибки - окно тогда остаётся открытым */
-export function PromptContent({ text, initial = "", placeholder = "", ok, cancel, validate, submit }: {
+export function PromptContent({ text, initial = "", placeholder = "", ok, cancel, validate, secret, submit }: {
 	text?: string, initial?: string, placeholder?: string, ok: string, cancel: string,
-	validate?: (value: string) => string | undefined, submit: (value: string | undefined) => void
+	validate?: (value: string) => string | undefined, secret?: boolean, submit: (value: string | undefined) => void
 }) @{
 	const [error, setError] = createSignal("");
 	let input: HTMLInputElement;
@@ -27,7 +28,11 @@ export function PromptContent({ text, initial = "", placeholder = "", ok, cancel
 			@if (text) {
 				<div class="text">{text}</div>
 			}
-			<input ref={input} value={initial} placeholder={placeholder} autofocus />
+			@if (secret) {
+				<PasswordInput inputRef={(element: HTMLInputElement) => { input = element; }} value={initial} placeholder={placeholder} autocomplete="off" autofocus plain />
+			} @else {
+				<input ref={input} value={initial} placeholder={placeholder} autofocus />
+			}
 			<div class="error">{error()}</div>
 			<div class="buttons">
 				@if (cancel) {

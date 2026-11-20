@@ -1,5 +1,6 @@
 import { createSignal } from "@common/ui";
 import { DISCLAIMER_SHORT } from "@common/constants";
+import { PasswordInput } from "@common/ui/dialog/PasswordInput.tsrx";
 import { AppBar } from "../ui/AppBar.tsrx";
 
 /** вход по почте и паролю. submit возвращает текст ошибки или undefined, если вошли */
@@ -31,7 +32,7 @@ export function Authorization({ email = "", error = "", submit, forgot }: { emai
 			<AppBar title="Вход" />
 			<form onSubmit={send}>
 				<input ref={emailInput} type="text" placeholder="Почта или логин" autocomplete="username" autocapitalize="off" spellcheck={false} value={email} required />
-				<input ref={passwordInput} type="password" placeholder="Пароль" autocomplete="current-password" required />
+				<PasswordInput inputRef={(element: HTMLInputElement) => { passwordInput = element; }} placeholder="Пароль" required />
 				<div class="error">{message()}</div>
 				<button type="submit" disabled={pending()}>{pending() ? "Входим…" : "Войти"}</button>
 				@if (forgot) {

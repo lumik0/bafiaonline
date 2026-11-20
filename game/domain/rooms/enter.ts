@@ -48,7 +48,7 @@ export async function enterRoom(ctx: GameContext, roomId: string, hasPassword: b
     saved = !!hash;
     if(!hash) {
       const password = (await ctx.dialogs.prompt({
-        title: "ВВЕСТИ ПАРОЛЬ", text: "Эта комната под замком\n\nПожалуйста, введи пароль", ok: "Применить", placeholder: "Пароль"
+        title: "ВВЕСТИ ПАРОЛЬ", text: "Эта комната под замком\n\nПожалуйста, введи пароль", ok: "Применить", placeholder: "Пароль", secret: true
       }))?.trim() ?? "";
       if(!password) return;
       hash = md5salt(password);
