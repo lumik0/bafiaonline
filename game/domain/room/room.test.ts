@@ -20,6 +20,23 @@ function startGame(myRole: number, dayTime = 1, title = settings.title) {
   return state;
 }
 
+describe("визиты ночью", () => {
+  test("гость, пришедший и в первую, и во вторую ночь, виден оба раза", () => {
+    const state = startGame(Role.Civilian, 2);
+    const visits: number[][] = [];
+    state.onVisited = roles => visits.push(roles);
+    state.setDayTime(1);
+    state.applyPlayersData([{ playerObjectId: "p1", affectedByRoles: [Role.Mafia] }]);
+    state.setDayTime(2);
+    state.setDayTime(1);
+    state.applyPlayersData([{ playerObjectId: "p1", affectedByRoles: [Role.Mafia] }]);
+    expect(visits).toEqual([[Role.Mafia], [Role.Mafia]]);
+    // внутри одной ночи (0 -> 1) визиты не сбрасываются
+    state.setDayTime(0);
+    expect(state.me!.affectedByRoles).toEqual([Role.Mafia]);
+  });
+});
+
 describe("регистрация", () => {
   test("игроки в списке, заголовок с числом игроков, строка с таймером", () => {
     const state = new RoomState(settings, "p1");

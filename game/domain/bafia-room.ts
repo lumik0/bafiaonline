@@ -24,7 +24,7 @@ type Listener = (message: ServerMessage) => void;
  * `client` - то, что нужно отдать сессии комнаты вместо настоящего клиента
  */
 export class BafiaRoomAdapter {
-  readonly client: Pick<ServerClient, "on" | "send" | "request"> & { adapter: BafiaRoomAdapter };
+  readonly client: Pick<ServerClient, "on" | "send" | "trySend" | "request"> & { adapter: BafiaRoomAdapter };
   private listeners = new Set<Listener>();
   private names = new Map<string, string>();
   private roster: { id: string, nick: string, alive: boolean, photo?: string }[];
@@ -62,6 +62,7 @@ export class BafiaRoomAdapter {
         return { remove: () => { this.listeners.delete(listener); } };
       }) as never,
       send: ((name: string, data: Record<string, unknown>) => this.outgoing(name, data)) as never,
+      trySend: ((name: string, data: Record<string, unknown>) => { this.outgoing(name, data); return true; }) as never,
       request: (() => Promise.reject(new Error("В комнате Бафии это недоступно"))) as never
     };
     this.unsubscribe = link.subscribe(info.id, events => this.apply(events), () => this.close());

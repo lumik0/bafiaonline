@@ -38,7 +38,7 @@ export function Authorization({ email = "", error = "", submit, forgot }: { emai
 				@if (forgot) {
 					<button type="button" class="link" onClick={() => forgot(emailInput.value.trim())}>{"Забыли пароль?"}</button>
 				}
-				<div class="hint">{"Регистрация: напиши @bafiaonlinebot"}</div>
+				<div class="hint">{"Бафия - порт Мафии, а не отдельная игра: входи с почтой и паролем от аккаунта Мафии. Если аккаунта нет, напиши @bafiaonlinebot - мы создадим его."}</div>
 				<div class="hint">{DISCLAIMER_SHORT}</div>
 			</form>
 		</div>

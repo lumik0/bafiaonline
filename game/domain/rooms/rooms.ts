@@ -89,7 +89,7 @@ export class RoomsList extends Events<{ change: () => void }> {
         if(room) this.byId.set(room.id, { ...room, status: data.status });
       }))
     );
-    this.client.send("addClientToRoomsList");
+    this.client.trySend("addClientToRoomsList");
     this.watchLoad(0);
   }
 
@@ -105,7 +105,7 @@ export class RoomsList extends Events<{ change: () => void }> {
 
   /** заново запросить список (кнопка «Обновить», переподключение) */
   refresh() {
-    this.client.send("addClientToRoomsList");
+    this.client.trySend("addClientToRoomsList");
   }
 
   /** убрать приглашение с карточки (крестик): сообщаем серверу и сразу прячем */

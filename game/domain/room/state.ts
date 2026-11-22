@@ -208,6 +208,11 @@ export class RoomState extends Events<{ change: () => void }> {
   }
 
   setDayTime(dayTime: number, timer?: number) {
+    // новая ночь: прежние визиты забываем, иначе тот же гость во вторую ночь не будет «новым» и сообщения о нём не будет
+    if(dayTime < 2 && this.dayTime >= 2) {
+      const me = this.me;
+      if(me) me.affectedByRoles = [];
+    }
     this.dayTime = dayTime;
     if(timer !== undefined) this.timer = timer;
     this.changed();

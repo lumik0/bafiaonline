@@ -71,6 +71,17 @@ export class ServerClient extends Events<ClientEvents> {
     this.emit("traffic", { direction: "out", name, data: redact(data) });
   }
 
+  /** как `send`, но без связи ничего не делает и возвращает `false`: для подписок при открытии экрана (после переподключения их шлют заново) */
+  trySend<N extends ClientPacketName>(name: N, ...args: Parameters<this["send"]> extends [unknown, ...infer R] ? R : never): boolean {
+    try {
+      (this.send as (name: string, ...rest: unknown[]) => void)(name, ...args);
+      return true;
+    } catch(error) {
+      if(error instanceof ConnectionError) return false;
+      throw error;
+    }
+  }
+
   /**
    * отправляет пакет и ждёт один из ответов
    * ждём до отправки, чтобы быстрый ответ не потерялся; обрыв и таймаут - ошибка

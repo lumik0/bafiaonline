@@ -115,7 +115,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
 
     if(first) this.receive(first);
     // игрока создаём после входа: сервер тогда присылает состояние комнаты
-    client.send("createPlayer", { roomId: this.roomId, modelType: this.state.settings.modelType });
+    client.trySend("createPlayer", { roomId: this.roomId, modelType: this.state.settings.modelType });
   }
 
   /** связь вернулась: сервер забыл игрока, садимся за стол заново (как официальное приложение) */
@@ -123,7 +123,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     if(this.replay || this.left || this.state.status == 4) return;
     this.kickVote = undefined;
     this.kickVoteUntil = 0;
-    this.deps.client.send("createPlayer", { roomId: this.roomId, modelType: this.state.settings.modelType });
+    this.deps.client.trySend("createPlayer", { roomId: this.roomId, modelType: this.state.settings.modelType });
     this.emit("change");
   }
 

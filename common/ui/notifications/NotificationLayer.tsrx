@@ -29,11 +29,48 @@ export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 		center.show({ title: "Ответ отправлен", kind: "success", timeout: 2500, key: "reply-sent" });
 	};
 
+	// смахивание в сторону закрывает уведомление; после жеста нажатие не срабатывает
+	let swiped = false;
+	const startSwipe = (event: PointerEvent, id: number) => {
+		if(event.button || (event.target as HTMLElement).closest("textarea, input, button")) return;
+		const element = event.currentTarget as HTMLElement;
+		const startX = event.clientX;
+		let dx = 0, moved = false;
+		const move = (next: PointerEvent) => {
+			dx = next.clientX - startX;
+			if(!moved && Math.abs(dx) < 8) return;
+			moved = true;
+			element.style.transition = "none";
+			element.style.transform = "translateX(" + dx + "px)";
+			element.style.opacity = String(Math.max(.2, 1 - Math.abs(dx) / 220));
+		};
+		const end = () => {
+			window.removeEventListener("pointermove", move);
+			window.removeEventListener("pointerup", end);
+			window.removeEventListener("pointercancel", end);
+			if(!moved) return;
+			swiped = true;
+			setTimeout(() => { swiped = false; }, 50);
+			element.style.transition = "transform .18s, opacity .18s";
+			if(Math.abs(dx) > 70) {
+				element.style.transform = "translateX(" + Math.sign(dx) * 400 + "px)";
+				element.style.opacity = "0";
+				setTimeout(() => center.dismissId(id), 170);
+			} else {
+				element.style.transform = "";
+				element.style.opacity = "";
+			}
+		};
+		window.addEventListener("pointermove", move);
+		window.addEventListener("pointerup", end);
+		window.addEventListener("pointercancel", end);
+	};
+
 	<>
 		<style>
 			.stack { --bg: rgba(248, 248, 250, .78); --text: #1d1d1f; --sub: rgba(29, 29, 31, .68); --meta: rgba(29, 29, 31, .45); --border: rgba(0, 0, 0, .12); --close-bg: rgba(250, 250, 252, .95); --close-text: rgba(0, 0, 0, .6); position: fixed; top: 10px; right: 10px; width: min(344px, calc(100vw - 20px)); display: flex; flex-direction: column; gap: 8px; z-index: 9500; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
 			@media (prefers-color-scheme: dark) { .stack { --bg: rgba(48, 48, 52, .74); --text: #f5f5f7; --sub: rgba(245, 245, 247, .72); --meta: rgba(245, 245, 247, .45); --border: rgba(255, 255, 255, .14); --close-bg: rgba(70, 70, 76, .95); --close-text: rgba(255, 255, 255, .75); } }
-			.banner { position: relative; pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 11px 10px; border-radius: 14px; background: var(--bg); color: var(--text); box-shadow: 0 0 0 .5px var(--border), 0 10px 30px rgba(0, 0, 0, .25), 0 1px 4px rgba(0, 0, 0, .18); backdrop-filter: blur(30px) saturate(1.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); animation: slide-in .42s cubic-bezier(.22, 1.1, .36, 1); cursor: default; user-select: none; -webkit-user-select: none; }
+			.banner { position: relative; pointer-events: auto; touch-action: pan-y; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 11px 10px; border-radius: 14px; background: var(--bg); color: var(--text); box-shadow: 0 0 0 .5px var(--border), 0 10px 30px rgba(0, 0, 0, .25), 0 1px 4px rgba(0, 0, 0, .18); backdrop-filter: blur(30px) saturate(1.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); animation: slide-in .42s cubic-bezier(.22, 1.1, .36, 1); cursor: default; user-select: none; -webkit-user-select: none; }
 			.icon { flex: none; width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .2); }
 			.banner.action { cursor: pointer; }
 			.icon svg { width: 22px; height: 22px; display: block; }
@@ -65,7 +102,7 @@ export function NotificationLayer({ center }: { center: NotificationCenter }) @{
 		</style>
 		<div class="stack" role="status" aria-live="polite">
 			@for (const item of items()) {
-				<div class={item.action ? "banner action" : "banner"} onClick={() => { if(replying() == item.id) return; item.action?.(); center.dismissId(item.id); }}>
+				<div class={item.action ? "banner action" : "banner"} onPointerDown={(event) => startSwipe(event, item.id)} onClick={() => { if(swiped || replying() == item.id) return; item.action?.(); center.dismissId(item.id); }}>
 					<button class="close" aria-label="Закрыть" onClick={(event) => { event.stopPropagation(); center.dismissId(item.id); }}>
 						<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l6 6M8 2L2 8"></path></svg>
 					</button>

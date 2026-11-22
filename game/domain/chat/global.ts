@@ -23,7 +23,7 @@ export class GlobalChat extends Events<{ change: () => void }> {
       this.client.on("chatMessage", data => { this.list.add(toEntry(data.message)); this.emit("change"); }),
       this.client.on("chatUsers", data => { this.users = data.users.map(toChatUser); this.emit("change"); })
     );
-    this.client.send("addClientToChat");
+    this.client.trySend("addClientToChat");
   }
 
   /**
@@ -31,7 +31,7 @@ export class GlobalChat extends Events<{ change: () => void }> {
    * (свои сообщения уходят, а их и чужие не видно). Подписываемся заново, сервер пришлёт чат целиком
    */
   resubscribe() {
-    if(this.handles.length) this.client.send("addClientToChat");
+    if(this.handles.length) this.client.trySend("addClientToChat");
   }
 
   send(text: string, options: { style?: number, sticker?: boolean } = {}) {

@@ -125,6 +125,15 @@ describe("Connection: разброс пауз", () => {
 });
 
 describe("ServerClient", () => {
+  test("trySend без соединения не бросает (экран открывается при обрыве), с соединением отправляет", async() => {
+    const { client } = setup();
+    expect(client.trySend("getDefaultPhotos")).toBe(false);
+    expect(() => client.send("getDefaultPhotos")).toThrow(ConnectionError);
+    client.connect();
+    await tick();
+    expect(client.trySend("getDefaultPhotos")).toBe(true);
+  });
+
   test("request отвечает на пакет, пришедший сразу после отправки", async() => {
     const { network, client } = setup();
     client.connect();
