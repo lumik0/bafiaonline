@@ -12,6 +12,8 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 	// режим рулетки включён, если в названии комнаты «рулетка» или «позор мафии 2.0»; выключить его можно только у себя
 	const [rouletteOn, setRouletteOn] = createSignal(!session.state.rouletteOff);
 	const toggleRoulette = (on: boolean) => { setRouletteOn(on); session.state.rouletteOff = !on; session.state.changed(); };
+	const [chainOn, setChainOn] = createSignal(!session.state.rouletteChainOff);
+	const toggleChain = (on: boolean) => { setChainOn(on); session.state.rouletteChainOff = !on; session.state.changed(); };
 	const [entries, setEntries] = createSignal<MenuEntry[] | undefined>(undefined);
 	const data = roomInfoData(session);
 	/** создатель закрывает комнату Бафии (бесконечная или скучная игра): все выходят */
@@ -57,6 +59,12 @@ export function RoomSettingsDialog({ ctx, session, close }: { ctx: GameContext, 
 			<>
 				<label class="switch"><span>{"Режим рулетки"}</span><input type="checkbox" checked={rouletteOn()} onChange={(event) => toggleRoulette(event.currentTarget.checked)} /></label>
 				<div class="hint" style={{ "margin-bottom": "10px" }}>{"Только для тебя: правила рулетки (мафия не убивает, голос по кругу в «Позоре мафии 2.0») соблюдает твоя игра, остальным она ничего не меняет."}</div>
+			</>
+		}
+		@if (session.state.canSendChain) {
+			<>
+				<label class="switch"><span>{"Цепочка голосов в чат"}</span><input type="checkbox" checked={chainOn()} onChange={(event) => toggleChain(event.currentTarget.checked)} /></label>
+				<div class="hint" style={{ "margin-bottom": "10px" }}>{"В начале дня (обсуждение) ты сам отправляешь в чат, кто за кого голосует: [Ник] => [Ник2] => [Ник]. Хост в цепочку не входит."}</div>
 			</>
 		}
 		<div class="list">

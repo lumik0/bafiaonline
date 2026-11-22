@@ -3,7 +3,7 @@ import Events from "@common/utils/emitter";
 import { MessageList } from "../chat/message";
 import { normalizeDecorations, type Decorations } from "../decorations";
 import { Role, mafiaRoles } from "../enums";
-import { isHostFree, isRoulette, rouletteTarget } from "./roulette";
+import { isHostFree, isRoulette, rouletteChain, rouletteTarget } from "./roulette";
 
 type Statistics = ServerData<"roomStatistics">["statistics"];
 type PlayerUpdate = ServerData<"userData">["players"][number];
@@ -385,6 +385,20 @@ export class RoomState extends Events<{ change: () => void }> {
     if(target.playerObjectId == host) return false;
     const voteOnly = me.role === undefined || me.role == Role.Civilian || me.role == Role.Mafia;
     return !voteOnly || rouletteTarget(this.players, me.playerObjectId, host)?.playerObjectId == target.playerObjectId;
+  }
+
+  /** хост-игрок сам пишет в чат цепочку голосов; можно выключить в настройках комнаты */
+  rouletteChainOff = false;
+
+  /** я хост «Позора мафии 2.0» в режиме рулетки: могу слать цепочку голосов */
+  get canSendChain(): boolean {
+    const me = this.me;
+    return this.roulette && isHostFree(this.settings.title) && !!me && me.playerObjectId == this.rouletteHost;
+  }
+
+  /** текст цепочки для чата (пусто, если слать нечего или не положено) */
+  get chainText(): string {
+    return this.canSendChain && !this.rouletteChainOff ? rouletteChain(this.players, this.rouletteHost) : "";
   }
 
   /** создатель комнаты, если он известен и комната - «Позор мафии 2.0» (там он не участвует) */

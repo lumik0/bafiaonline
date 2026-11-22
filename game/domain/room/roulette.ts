@@ -19,3 +19,10 @@ export function rouletteTarget<T extends { playerObjectId: string, alive: boolea
   }
   return undefined;
 }
+
+/** цепочка голосов по кругу для чата: "[ник] => [ник2] => [ник]"; хост не считается, живых меньше двух - пусто */
+export function rouletteChain(players: readonly { username: string, alive: boolean, playerObjectId: string }[], hostId?: string): string {
+  const alive = players.filter(player => player.alive && player.playerObjectId != hostId);
+  if(alive.length < 2) return "";
+  return [...alive, alive[0]!].map(player => `[${player.username}]`).join(" => ");
+}

@@ -142,7 +142,16 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
         return state.setStat({ ...counts, canGiveUp: canGiveUp === undefined ? undefined : !!canGiveUp });
       }
       case "gameStatus": state.applyStatus(message.data.status); state.changed(); return this.maybeSave();
-      case "gameDayTime": return state.setDayTime(message.data.dayTime, message.data.timer);
+      case "gameDayTime": {
+        const wasDay = state.dayTime == 2;
+        state.setDayTime(message.data.dayTime, message.data.timer);
+        // хост рулетки в начале дня (обсуждение) пишет в чат, кто за кого голосует
+        if(!this.replay && !wasDay && message.data.dayTime == 2 && state.phase == "game") {
+          const chain = state.chainText;
+          if(chain) this.send(chain);
+        }
+        return;
+      }
       case "userData": return state.applyPlayersData(message.data.players);
       case "rolesRevealed": state.revealRoles(message.data.roles); this.refreshRecord(); return this.shareComposition();
       case "knownRoles": return state.setKnownRoles(message.data.players, !!message.data.reset);
