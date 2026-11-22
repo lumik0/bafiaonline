@@ -18,6 +18,13 @@ export interface MonitorDeps {
   reconnect?: () => void
   /** сокет открыт, а данных нет (`true`), и данные снова пошли (`false`): так узнаётся, что сервер игры молчит при «живом» соединении */
   onStall?: (stalled: boolean) => void
+  /**
+   * "пинг" вне игры (там таймер идёт каждую секунду): запрос, на который сервер обязательно отвечает (профиль), чтобы отличить тихий обрыв от простоя.
+   * Вызывается после `pingAfter` мс тишины; нет ответа за `pongWait` мс - соединение считается мёртвым
+   */
+  ping?: () => void
+  pingAfter?: number
+  pongWait?: number
   schedule?: (callback: () => void, ms: number) => unknown
   cancel?: (handle: unknown) => void
 }
@@ -38,6 +45,7 @@ export class ConnectionMonitor {
   private lastReconnect = -Infinity;
   private reconnects = 0;
   private quiet = false;
+  private pinged = false;
   private handles: { remove(): void }[] = [];
   private timer?: unknown;
   private cleanup: (() => void)[] = [];
@@ -55,6 +63,7 @@ export class ConnectionMonitor {
       client.on("open", () => {
         this.wasOpen = true;
         this.attempts = 0;
+        this.pinged = false;
         this.lastMessage = this.now();
         if(this.down || this.stale) this.recovered();
       }),
@@ -71,6 +80,7 @@ export class ConnectionMonitor {
       }),
       client.on("message", () => {
         this.lastMessage = this.now();
+        this.pinged = false;
         this.reconnects = 0;
         if(this.stale) this.recovered();
       })
@@ -105,10 +115,21 @@ export class ConnectionMonitor {
 
   /** сокет открыт, игра идёт, а данных нет дольше обычного */
   private check() {
-    const { client, notifier, inGame, reconnect, staleAfter = 8000 } = this.deps;
-    if(this.down || client.connection.state != "open" || !inGame()) return;
+    const { client, notifier, inGame, reconnect, ping, staleAfter = 8000, pingAfter = 15_000, pongWait = 8000 } = this.deps;
+    if(this.down || client.connection.state != "open") return;
     const now = this.now();
-    if(now - this.lastMessage < staleAfter) return;
+    if(inGame()) {
+      if(now - this.lastMessage < staleAfter) return;
+    } else {
+      // вне игры тишина - это норма, поэтому сначала спрашиваем сервер и ждём ответ
+      if(!ping || now - this.lastMessage < pingAfter) return;
+      if(!this.pinged) {
+        this.pinged = true;
+        try { ping(); } catch { /* сокет закрылся: обрыв заметит само соединение */ }
+        return;
+      }
+      if(now - this.lastMessage < pingAfter + pongWait) return;
+    }
     if(!this.stale) {
       this.stale = true;
       this.deps.onStall?.(true);

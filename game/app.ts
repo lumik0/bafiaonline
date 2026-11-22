@@ -401,6 +401,8 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
     // соединение «живое», а сервер игры молчит: сообщаем серверу Бафии, он предупредит остальных, чтобы не ждали зря
     onStall: stalled => ctx.bafia.reportOfficial(!stalled),
     reconnect: () => client.connection.reset(),
+    // вне игры пинг - запрос своего профиля: ответ придёт, только если связь жива
+    ping: () => { if(client.session && user.playerObjectId) client.send("getUserProfile", { playerObjectId: user.playerObjectId }); },
     inGame: () => {
       const session = nav.top?.name == "room" ? (nav.top.params as { session?: RoomSession }).session : undefined;
       // после конца игры (статус 4) таймер не идёт: тишина не означает обрыв

@@ -174,3 +174,40 @@ describe("уведомления о связи", () => {
     expect(last()).toMatchObject({ title: "Нет связи с сервером" });
   });
 });
+
+describe("пинг вне игры", () => {
+  function pingSetup() {
+    const pings: number[] = [];
+    const client = Object.assign(new Events<{ open: () => void, close: (willReconnect: boolean) => void, message: () => void }>(), { connection: { state: "open" } });
+    let time = 0, tick = () => {};
+    const reconnects: number[] = [];
+    new ConnectionMonitor({
+      client: client as never, inGame: () => false, now: () => time,
+      notifier: { show: () => {}, dismiss: () => {} },
+      schedule: callback => { tick = callback; return 1; }, cancel: () => {},
+      reconnect: () => { reconnects.push(time); }, ping: () => { pings.push(time); }
+    }).start();
+    return { client, pings, reconnects, advance: (ms: number) => { time += ms; tick(); } };
+  }
+
+  test("после тишины шлёт пинг, а без ответа переподключается", () => {
+    const { pings, reconnects, advance } = pingSetup();
+    advance(10_000);
+    expect(pings).toEqual([]);
+    advance(6000);
+    expect(pings).toEqual([16_000]);
+    advance(4000);
+    expect(reconnects).toEqual([]);
+    advance(6000);
+    expect(reconnects).toEqual([26_000]);
+  });
+
+  test("ответ на пинг - соединение живое, переподключения нет", () => {
+    const { client, pings, reconnects, advance } = pingSetup();
+    advance(16_000);
+    client.emit("message");
+    advance(10_000);
+    expect(reconnects).toEqual([]);
+    expect(pings.length).toBe(1);
+  });
+});

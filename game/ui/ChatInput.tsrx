@@ -99,7 +99,7 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 				<button class="gif-button" onClick={history} aria-label="Отправить игру">{"Игра"}</button>
 			}
 			<input ref={input} type="text" onFocus={onFocus} placeholder={placeholder} onInput={onInput} onKeyDown={(event) => { if(event.key == "Enter") submit(); }} />
-			<button class="icon-button" onClick={submit} aria-label="Отправить"><Icon name="send" color="black" size={24} /></button>
+			<button class="icon-button" onMouseDown={(event) => event.preventDefault()} onClick={submit} aria-label="Отправить"><Icon name="send" color="black" size={24} /></button>
 		</div>
 	</>
 }
