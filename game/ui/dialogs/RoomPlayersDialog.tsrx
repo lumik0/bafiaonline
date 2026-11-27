@@ -10,10 +10,14 @@ type Player = { playerObjectId?: string, username?: string, photo?: string, aliv
 /** кто сейчас в комнате (не заходя в неё) */
 export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room: RoomItem, close: () => void }) @{
 	const [players, setPlayers] = createSignal<Player[] | undefined>(undefined);
+	// друзья: у них зелёный значок, как у комнаты в списке
+	const [friendIds, setFriendIds] = createSignal<ReadonlySet<string>>(new Set());
+	const friendIcon = ctx.assets.url("textures/ui/4v.png");
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
 	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? ctx.bafia.avatar(id, true) : undefined; };
 
 	onMount(async () => {
+		void ctx.friends.friends().then(list => setFriendIds(new Set(list.filter(friend => !friend.incoming).map(friend => friend.playerObjectId)))).catch(() => {});
 		try {
 			setPlayers(await ctx.rooms.players(room.id));
 		} catch {
@@ -27,6 +31,7 @@ export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room
 			.player { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 6px; }
 			.name { flex: 1; font-size: 14px; }
 			.alive { font-size: 12px; }
+			.friend { width: 16px; height: 16px; margin-left: 4px; vertical-align: -3px; }
 			.empty { padding: 14px; text-align: center; opacity: .7; }
 			.enter { margin-top: 10px; width: 100%; }
 		</style>
@@ -37,7 +42,7 @@ export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room
 				@for (const player of players()!) {
 					<div class="player">
 						<div onClick={() => ctx.openProfile(player.playerObjectId ?? "")}><Avatar photo={() => player.photo ?? ""} gif={() => gifAvatar(player.playerObjectId)} assets={ctx.assets} size={30} /></div>
-						<span class="name" data-keep>{player.username ?? ""}<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} /></span>
+						<span class="name" data-keep>{player.username ?? ""}<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} />{friendIds().has(player.playerObjectId ?? "") ? <img class="friend" src={friendIcon} alt="" title="Друг" /> : null}</span>
 						<span class="alive" style={{ color: player.alive ? "#186400" : "#940000" }}>{player.alive ? "Жив" : "Умер"}</span>
 					</div>
 				} @empty {

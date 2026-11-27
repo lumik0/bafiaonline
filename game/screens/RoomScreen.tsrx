@@ -125,6 +125,8 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	});
 	const notice = session.on("notice", text => ctx.host.notifications.show({ key: "room-notice", kind: "warning", title: "Комната", text }));
 	const detachMods = ctx.mods.attachRoom(session);
+	// серверу Бафии сообщаем, в какой комнате официального сервера игрок (для значка "играют с Бафией")
+	if(!session.replay && !session.bafia) { ctx.bafia.setRoom(session.roomId); onCleanup(() => ctx.bafia.setRoom(undefined)); }
 	onCleanup(() => { ended.remove(); notice.remove(); over.remove(); modsChange.remove(); detachMods(); session.leave(); });
 
 	let wasAlive = true;

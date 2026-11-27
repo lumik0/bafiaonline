@@ -19,6 +19,8 @@ export function GlobalChatScreen({ ctx }: { ctx: GameContext }) @{
 	const background = fromEvents(ctx.assets, "change", () => ctx.assets.url("textures/backgrounds/day3.png"));
 
 	onMount(() => chat.open());
+	// серверу Бафии сообщаем, что игрок в общем чате: на кнопке "Чат" в меню видно, сколько там игроков Бафии
+	onMount(() => { ctx.bafia.setRoom("chat"); onCleanup(() => ctx.bafia.setRoom(undefined)); });
 	// после переподключения подписка на чат пропадает: подписываемся заново, иначе сообщения перестают показываться
 	const reconnect = ctx.auth.on("signedIn", (_account, reconnected) => { if(reconnected) chat.resubscribe(); });
 	onCleanup(() => { reconnect.remove(); chat.close(); });

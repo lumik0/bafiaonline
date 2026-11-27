@@ -27,6 +27,12 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 	const visible = () => orderRooms(rooms().filter(room => room.myStatus < 2 || matchesRoom(room, filter(), search())), filter().sortRules);
 
 	onMount(() => list.open());
+	// сколько игроков Бафии в каких комнатах: обновляется, пока открыт экран
+	onMount(() => {
+		ctx.bafia.refreshRoomCounts();
+		const timer = setInterval(() => ctx.bafia.refreshRoomCounts(), 10_000);
+		onCleanup(() => clearInterval(timer));
+	});
 
 	// комнаты Бафии: свои комнаты на сервере Бафии (до 50 игроков, свои правила); список обновляется, пока открыт экран
 	const [bafia, setBafia] = createSignal<{ rooms: BafiaRoomInfo[], canCreate: boolean, tabs: { official: boolean, bafia: boolean } } | undefined>(undefined);

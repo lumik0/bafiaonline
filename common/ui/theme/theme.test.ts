@@ -28,36 +28,55 @@ describe("ThemeManager", () => {
 
     theme.set("button-bg", "#00ff00");
     expect(vars.get("--button-bg")).toBe("#00ff00");
+    const copy = theme.active;
 
     theme.select("midnight");
     expect(vars.get("--button-bg")).toBe(presets.find(p => p.id == "midnight")!.values["button-bg"]);
     expect(vars.get("--bg")).toBe("#0b0d14");
 
     theme.select("classic");
+    expect(vars.get("--button-bg")).toBe("#d03a41");
+    theme.select(copy);
     expect(vars.get("--button-bg")).toBe("#00ff00");
     theme.reset("button-bg");
     expect(vars.get("--button-bg")).toBe("#d03a41");
+  });
+
+  test("первая правка встроенной темы создаёт её копию, встроенная остаётся как есть", () => {
+    const { target } = fakeTarget();
+    const theme = new ThemeManager(target);
+    theme.set("accent", "#111111");
+    expect(theme.active).not.toBe("classic");
+    expect(theme.themes.find(item => item.id == theme.active)).toMatchObject({ name: "Классика (своя)", builtIn: false });
+    theme.set("text", "#222222");
+    expect(theme.themes.filter(item => !item.builtIn)).toHaveLength(1);
+    theme.select("classic");
+    expect(theme.values.accent).toBe("#d03a41");
+    theme.setEffect("newyear");
+    expect(theme.themes.filter(item => !item.builtIn).map(item => item.name)).toEqual(["Классика (своя)", "Классика (своя 2)"]);
+    expect(theme.effect).toBe("newyear");
   });
 
   test("своя тема: создаётся как классика, выбирается, удаляется", () => {
     const { target, vars } = fakeTarget();
     const theme = new ThemeManager(target);
     theme.set("accent", "#111111");
+    const copy = theme.active;
 
     const id = theme.create("Моя");
     expect(theme.active).toBe(id);
-    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Тёмная", "Светлая", "Моя"]);
+    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Новый год", "Тёмная", "Светлая", "Классика (своя)", "Моя"]);
     expect(vars.get("--accent")).toBe("#d03a41");
 
     theme.set("accent", "#222222");
-    theme.select("classic");
+    theme.select(copy);
     expect(vars.get("--accent")).toBe("#111111");
 
     expect(theme.rename(id, "Другая")).toBe(true);
     theme.select(id);
     expect(theme.remove(id)).toBe(true);
     expect(theme.active).toBe("classic");
-    expect(theme.themes).toHaveLength(5);
+    expect(theme.themes).toHaveLength(7);
   });
 
   test("встроенные темы не удаляются и не переименовываются, но настраиваются", () => {
@@ -102,13 +121,14 @@ describe("ThemeManager", () => {
     first.set("chat-text", "#112233");
     first.select("midnight");
     first.set("accent", "#445566");
+    const forked = first.active;
     await first.flush();
 
     const { target, vars } = fakeTarget();
     const second = new ThemeManager(target, files);
     await second.load();
 
-    expect(second.active).toBe("midnight");
+    expect(second.active).toBe(forked);
     expect(vars.get("--accent")).toBe("#445566");
     second.select(id);
     expect(vars.get("--chat-text")).toBe("#112233");
@@ -141,7 +161,7 @@ describe("ThemeManager", () => {
 
     expect(theme.active).toBe("classic");
     expect(theme.overrides).toEqual({ "text": "#abcdef" });
-    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Тёмная", "Светлая", "Тема"]);
+    expect(theme.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Новый год", "Тёмная", "Светлая", "Тема"]);
   });
 
   test("экспорт и импорт переносят тему между игроками: она добавляется как новая", () => {
@@ -151,7 +171,7 @@ describe("ThemeManager", () => {
 
     const b = new ThemeManager(fakeTarget().target);
     expect(b.importJson(a.exportJson())).toBe(1);
-    expect(b.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Тёмная", "Светлая", "Красивая"]);
+    expect(b.themes.map(item => item.name)).toEqual(["Классика", "Полночь", "Хэллоуин", "Новый год", "Тёмная", "Светлая", "Красивая"]);
     expect(b.values.accent).toBe("#ff00aa");
     expect(b.overrides).toEqual({ accent: "#ff00aa" });
     expect(() => b.importJson("{}")).toThrow("не файл темы");
@@ -176,7 +196,7 @@ describe("ThemeManager", () => {
     await other.load();
     expect(other.effect).toBe("halloween");
     other.select("halloween");
-    expect(other.effect).toBe("none");
+    expect(other.effect).toBe("halloween");
 
     const imported = new ThemeManager(fakeTarget().target);
     imported.importJson(theme.exportJson());

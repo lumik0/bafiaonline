@@ -16,6 +16,8 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 		friends: ctx.assets.url("textures/ui/4v.png")
 	}));
 	const press = longPress();
+	// в комнате играют с Бафией: красный значок (тот же, что у друзей)
+	const withBafia = fromEvents(ctx.bafia, "change", () => ctx.bafia.inRoom(room.id));
 
 	<>
 		<style>
@@ -37,6 +39,8 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 			.roles img { width: 25px; height: 35px; object-fit: contain; }
 			.players { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 4px 10px; border-radius: 6px; background: rgba(200, 200, 200, .35); font-size: 13px; }
 			.players img { width: 18px; height: 18px; }
+			/* тот же значок, но красный */
+			.players img.bafia { filter: hue-rotate(-92deg) saturate(3) brightness(.9); }
 			@keyframes appear { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 		</style>
 		<div
@@ -71,6 +75,9 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 				<div class="players" onClick={(event) => { if(!players) return; event.stopPropagation(); players(); }}>
 					@if (room.friendsInRoom > 0) {
 						<img src={images().friends} alt="" />
+					}
+					@if (withBafia() > 0) {
+						<img class="bafia" src={images().friends} alt="" title="Играют с Бафией" />
 					}
 					<span>{"Игроки: " + room.playersNum + (room.minPlayers ? " [" + room.minPlayers + "/" + room.maxPlayers + "]" : "") + (players ? " ⭣" : "")}</span>
 				</div>

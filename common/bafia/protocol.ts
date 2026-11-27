@@ -203,6 +203,10 @@ export type ClientMessage =
   | { t: "presence", n: number, id: string, nick: string, user?: string, platform?: Platform, version?: string, browser?: Browser, site?: string, /** файл фото профиля игры (для стола в комнате Бафии) */ photo?: string }
   /** кто из этих игроков сейчас в Бафии */
   | { t: "who", n: number, ids: string[] }
+  /** я сейчас в этой комнате официального сервера (без `room` - вышел из неё) */
+  | { t: "inRoom", n: number, room?: string }
+  /** сколько игроков Бафии сейчас в каждой комнате официального сервера */
+  | { t: "roomCounts", n: number }
   /** значки «Позор» и «БАН» по никам (игрок может быть и не в сети): друзья, чат, комната, профиль */
   | { t: "marks", n: number, nicks: string[] }
   /** игра не пустила этого игрока при входе (бан): `seconds` - сколько осталось по словам официального сервера */
@@ -398,6 +402,8 @@ export type ServerMessage =
   | { t: "error", n: number, reason: string }
   /** `avatars` - пути аватарок игроков (id → `/a/номер`) */
   /** `banners` - пути баннеров профиля (id → `/b/номер`), `backs` - цвета фона профиля; только у игроков с премиумом */
+  /** комната → сколько в ней игроков Бафии (только непустые) */
+  | { t: "roomCounts", n: number, counts: Record<string, number> }
   | { t: "online", n: number, ids: string[], premium?: string[], colors?: Record<string, string>, avatars?: Record<string, string>, banners?: Record<string, string>, backs?: Record<string, string>, looks?: Record<string, ProfileLook> }
   /** ключ - `nickKey` ника; `shame` - очки «Позора» у тех, кому положен значок; `bans` - до какого времени (мс) действует бан; у остальных записи нет */
   /** ключи (`nickKey`) ников из `whoNicks`, которые сейчас в сети */
@@ -504,6 +510,9 @@ export function parseClientMessage(raw: string): ClientMessage | undefined {
       return text(value.room, 64) && /^[A-Za-z0-9_-]{1,64}$/.test(value.room) && typeof value.players == "number" && Number.isInteger(value.players) && value.players >= 3 && value.players <= 60 && roles.length && roles.length == counts.length && Array.isArray(value.enabled) && enabled.length == value.enabled.length && enabled.length <= 12
         ? { t: "gameRoles", n, room: value.room, players: value.players, enabled: [...new Set(enabled)], counts: Object.fromEntries(roles) as Record<string, number> } : undefined;
     }
+    case "inRoom":
+      return value.room === undefined || (typeof value.room == "string" && /^[A-Za-z0-9_:-]{1,64}$/.test(value.room)) ? { t: "inRoom", n, room: value.room } : undefined;
+    case "roomCounts": return { t: "roomCounts", n };
     case "played":
       return value.won === undefined || typeof value.won == "boolean" ? { t: "played", n, won: value.won } : undefined;
     case "seen": {

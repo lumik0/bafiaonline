@@ -233,6 +233,24 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     if(this.ready) void this.request({ t: "presence", id, nick, user, platform, version, browser, site, photo });
   }
 
+  /** комната официального сервера, где мы сейчас: после переподключения сообщается заново */
+  private room?: string;
+  /** комната → сколько в ней игроков Бафии */
+  roomCounts: Record<string, number> = {};
+
+  setRoom(room: string | undefined) {
+    this.room = room;
+    if(this.ready) void this.request({ t: "inRoom", ...(room ? { room } : {}) });
+  }
+
+  async loadRoomCounts() {
+    if(!this.ready) return;
+    const answer = await this.request({ t: "roomCounts" });
+    if(answer?.t != "roomCounts") return;
+    this.roomCounts = answer.counts;
+    this.emit("change");
+  }
+
   private async greet() {
     const hello = await this.request({ t: "hello", key: this.options.key, version: BAFIA_PROTOCOL_VERSION });
     if(hello?.t != "ok") {
@@ -254,6 +272,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     this.myLook = parseLook(hello.look);
     this.ready = true;
     this.startHeartbeat();
+    if(this.room) void this.request({ t: "inRoom", room: this.room });
     if(this.identity) await this.request({ t: "presence", ...this.identity });
     else if(this.banReport) {
       // после переподключения шлём остаток срока, а не исходный: иначе значок каждый раз продлевался бы
@@ -1356,6 +1375,15 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   loadHistory(id: string) { return this.consented?.loadHistory(id) ?? Promise.resolve(undefined); }
 
   played(won: boolean | undefined) { void this.link?.played(won); }
+  /** игрок зашёл в комнату официального сервера или вышел из неё */
+  setRoom(room: string | undefined) { this.link?.setRoom(room); }
+  /** игроков Бафии в комнате официального сервера (по последнему обновлению) */
+  inRoom(room: string): number { return this.link?.roomCounts[room] ?? 0; }
+  /** игроков Бафии в общем чате (он идёт в тех же счётчиках под именем "chat") */
+  get inChat(): number { return this.inRoom("chat"); }
+  /** всего игроков Бафии в комнатах официального сервера (без общего чата) */
+  get inRooms(): number { return Object.entries(this.link?.roomCounts ?? {}).reduce((sum, [room, count]) => room == "chat" ? sum : sum + count, 0); }
+  refreshRoomCounts() { void this.link?.loadRoomCounts(); }
   gameRoles(composition: { room: string, players: number, enabled: number[], counts: Record<number, number> }) { void this.link?.gameRoles(composition); }
 
   nicks(id: string, user?: string) { return this.consented?.nicks(id, user) ?? Promise.resolve(undefined); }

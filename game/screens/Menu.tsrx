@@ -1,4 +1,4 @@
-import { fromEvents } from "@common/ui";
+import { fromEvents, onCleanup, onMount } from "@common/ui";
 import type { Assets } from "@common/assets";
 import { formatNumber } from "@common/utils/format";
 import { version } from "@common/version";
@@ -34,8 +34,19 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 		trophy: assets.url("textures/ui/a1.webp"),
 		gold: assets.url("textures/money/dW.png"),
 		sliver: assets.url("textures/money/RV.png"),
+		friends: assets.url("textures/ui/4v.png"),
 		rank: assets.url(`textures/rank/rank${rankOf(user.level)}_36.png`)
 	}));
+	// сколько игроков Бафии сейчас в комнатах: красный значок на кнопке "Комнаты"
+	const inRooms = bafia ? fromEvents(bafia, "change", () => bafia.inRooms) : () => 0;
+	const inChat = bafia ? fromEvents(bafia, "change", () => bafia.inChat) : () => 0;
+	// счётчики обновляются, пока открыто меню
+	onMount(() => {
+		if(!bafia) return;
+		bafia.refreshRoomCounts();
+		const timer = setInterval(() => bafia.refreshRoomCounts(), 10_000);
+		onCleanup(() => clearInterval(timer));
+	});
 	const hidden = fromEvents(settings, "change", () => settings.data.hideUsername);
 	const progress = () => me().next > 0 ? Math.min(100, me().experience / me().next * 100) : 0;
 
@@ -82,6 +93,8 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 			.wide { display: grid; grid-template-columns: 24px 1fr minmax(24px, auto); align-items: center; gap: 8px; padding: 9px 12px; font-size: 15px; font-weight: 600; }
 			.label { text-align: center; }
 			.extra { display: flex; gap: 6px; justify-content: flex-end; }
+			.extra .count:has(img.bafia) { padding: 1px 6px; border-radius: 9px; background: rgba(255, 255, 255, .88); color: #111; font-weight: 700; }
+			.count img.bafia { filter: hue-rotate(-92deg) saturate(3) brightness(.9); }
 
 			.bottom { align-self: center; width: min(300px, 100%); display: flex; align-items: stretch; gap: 10px; padding-bottom: 6vh; }
 			.news { margin-left: 6px; padding: 0 6px; border-radius: 9px; background: #e5493a; color: #fff; font-size: 12px; font-weight: 700; }
@@ -134,11 +147,11 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 
 				<div class="main">
 					<div class="group">
-						<button class="wide" onClick={actions.rooms}><Icon name="rooms" /><span class="label">{"Комнаты"}</span><span></span></button>
+						<button class="wide" onClick={actions.rooms}><Icon name="rooms" /><span class="label">{"Комнаты"}</span><span class="extra">@if (inRooms() > 0) {<span class="count" title="Игроков Бафии в комнатах">{inRooms()}<img class="bafia" src={images().friends} alt="" /></span>}</span></button>
 						<button class="wide" onClick={actions.competitive}><Icon name="trophy" /><span class="label">{"Соревновательный"}</span><span></span></button>
 					</div>
 					<div class="group narrow">
-						<button class="wide" onClick={actions.chat}><Icon name="chat" /><span class="label">{"Чат"}</span><span></span></button>
+						<button class="wide" onClick={actions.chat}><Icon name="chat" /><span class="label">{"Чат"}</span><span class="extra">@if (inChat() > 0) {<span class="count" title="Игроков Бафии в чате">{inChat()}<img class="bafia" src={images().friends} alt="" /></span>}</span></button>
 						<button class="wide" onClick={actions.friends}>
 							<Icon name="person" /><span class="label">{"Друзья"}</span>
 							<span class="extra">

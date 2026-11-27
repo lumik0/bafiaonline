@@ -103,7 +103,8 @@ export const defaultWallpaper = { path: "textures/backgrounds/menu3.png", positi
 /** эффекты поверх интерфейса: частицы и свечение. Выбираются отдельно от цветов */
 export const effects = [
   { id: "none", label: "Без эффектов" },
-  { id: "halloween", label: "Хэллоуин" }
+  { id: "halloween", label: "Хэллоуин" },
+  { id: "newyear", label: "Новый год" }
 ] as const;
 
 export type EffectId = typeof effects[number]["id"];
@@ -156,6 +157,40 @@ export const presets: readonly ThemePreset[] = [
       "window-border": "#5a2d99",
       "dock-bg": "rgba(42, 19, 64, 0.85)",
       "dock-border": "#7a4a20"
+    }
+  },
+  {
+    id: "newyear", label: "Новый год", effect: "newyear", values: {
+      ...classic,
+      "bg": "#07140f",
+      "text": "#f4f8f4",
+      "accent": "#d63a3a",
+      "surface": "rgba(30, 90, 60, 0.45)",
+      "surface-border": "#2f7a52",
+      "dialog-bg": "#f4f8f4",
+      "header-bg": "#b3262e",
+      "header-text": "#fff6e0",
+      "button-bg": "#1f8a4c",
+      "button-text": "#f4fff6",
+      "button-hover": "#156b3a",
+      "button-active": "#0f4f2b",
+      "button-disabled": "#17402a",
+      "button-border": "#07140f",
+      "input-accent": "#d63a3a",
+      "menu-overlay": "rgba(8, 40, 30, 0.45)",
+      "chat-panel": "rgba(244, 252, 255, 0.6)",
+      "chat-mention": "#c4163a",
+      "chat-night": "#2d4a99",
+      "chat-day": "#c47a0a",
+      "progress-fill": "#d63a3a",
+      "desktop-bg": "#0a1a14",
+      "window-bg": "#07140f",
+      "window-title-bg": "#1a5a3a",
+      "window-title-inactive-bg": "#123d28",
+      "window-title-text": "#fff6e0",
+      "window-border": "#2f7a52",
+      "dock-bg": "rgba(18, 61, 40, 0.85)",
+      "dock-border": "#2f7a52"
     }
   },
   // светлая и тёмная темы: каждая со своими обоями

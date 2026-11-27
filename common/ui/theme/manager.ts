@@ -173,7 +173,7 @@ export class ThemeManager extends Events<{ change: (changed: TokenKey[]) => void
   set(key: TokenKey, value: string): boolean {
     const token = getToken(key);
     if(!token || !isValidValue(token.kind, value)) return false;
-    this.current.overrides[key] = value.trim();
+    this.editable().overrides[key] = value.trim();
     this.changed();
     return true;
   }
@@ -198,9 +198,25 @@ export class ThemeManager extends Events<{ change: (changed: TokenKey[]) => void
 
   setEffect(id: string): boolean {
     if(!effects.some(effect => effect.id == id)) return false;
-    this.current.effect = id;
+    this.editable().effect = id;
     this.changed();
     return true;
+  }
+
+  /**
+   * тема, которую можно менять: у встроенной первая правка создаёт её копию («Классика (своя)») и выбирает её,
+   * чтобы встроенные темы оставались как есть
+   */
+  private editable(): StoredTheme {
+    const current = this.current;
+    if(!isBuiltIn(current.id)) return current;
+    const taken = new Set(this.settings.themes.map(theme => theme.name));
+    let name = `${current.name} (своя)`;
+    for(let number = 2; taken.has(name); number++) name = `${current.name} (своя ${number})`;
+    const copy: StoredTheme = { id: "theme-" + randomId(), name, base: current.base, effect: current.effect, overrides: { ...current.overrides } };
+    this.settings.themes.push(copy);
+    this.settings.active = copy.id;
+    return copy;
   }
 
   /** новая тема начинается как «Классика» и сразу выбирается */
