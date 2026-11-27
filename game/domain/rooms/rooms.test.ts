@@ -70,7 +70,7 @@ describe("сортировка списка комнат", () => {
   test("сохранённые правила приводятся в порядок: мусор уходит, недостающее добавляется, повторов нет", () => {
     expect(normalizeSortRules(undefined)).toEqual(defaultSortRules());
     const fixed = normalizeSortRules([{ key: "players", on: true, desc: false }, { key: "players", on: true }, { key: "нет", on: true }, 5, { key: "title" }]);
-    expect(fixed.map(rule => rule.key)).toEqual(["players", "title", "friends", "status", "soon", "level", "free", "vip", "password"]);
+    expect(fixed.map(rule => rule.key)).toEqual(["players", "title", "friends", "status", "bafia", "soon", "level", "free", "vip", "password"]);
     expect(fixed[0]).toEqual({ key: "players", on: true, desc: false });
     expect(fixed[1]).toEqual({ key: "title", on: false, desc: false });
   });

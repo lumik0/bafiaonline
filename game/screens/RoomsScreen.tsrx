@@ -24,7 +24,9 @@ export function RoomsScreen({ ctx }: { ctx: GameContext }) @{
 	const filter = fromEvents(ctx.roomFilter, "change", () => ({ ...ctx.roomFilter.data, roles: [...ctx.roomFilter.data.roles], sortRules: ctx.roomFilter.data.sortRules.map(rule => ({ ...rule })) }));
 	const [search, setSearch] = createSignal("");
 	// комнаты, где ты играешь или тебя убили, видны всегда: ни фильтр, ни поиск их не скрывают
-	const visible = () => orderRooms(rooms().filter(room => room.myStatus < 2 || matchesRoom(room, filter(), search())), filter().sortRules);
+	// счётчики игроков Бафии меняются сами: сортировка по ним пересчитывается
+	const bafiaCounts = fromEvents(ctx.bafia, "change", () => ({ ...(ctx.bafia.roomCounts) }));
+	const visible = () => { const counts = bafiaCounts(); return orderRooms(rooms().filter(room => room.myStatus < 2 || matchesRoom(room, filter(), search())), filter().sortRules, id => counts[id] ?? 0); };
 
 	onMount(() => list.open());
 	// сколько игроков Бафии в каких комнатах: обновляется, пока открыт экран

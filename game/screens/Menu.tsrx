@@ -10,6 +10,7 @@ import { animationOf, DecorationType, nickStyle, photoRing } from "../domain/dec
 import { Avatar } from "../ui/Avatar.tsrx";
 import { Lottie } from "../ui/Lottie.tsrx";
 import { Icon } from "../ui/Icon.tsrx";
+import { BafiaIcon } from "../ui/BafiaIcon.tsrx";
 import type { MenuActions } from "./menu-actions";
 
 const rankOf = (level: number) => Math.min(8, Math.max(1, Math.round(level / 2)));
@@ -94,7 +95,6 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 			.label { text-align: center; }
 			.extra { display: flex; gap: 6px; justify-content: flex-end; }
 			.extra .count:has(img.bafia) { padding: 1px 6px; border-radius: 9px; background: rgba(255, 255, 255, .88); color: #111; font-weight: 700; }
-			.count img.bafia { filter: hue-rotate(-92deg) saturate(3) brightness(.9); }
 
 			.bottom { align-self: center; width: min(300px, 100%); display: flex; align-items: stretch; gap: 10px; padding-bottom: 6vh; }
 			.news { margin-left: 6px; padding: 0 6px; border-radius: 9px; background: #e5493a; color: #fff; font-size: 12px; font-weight: 700; }
@@ -147,11 +147,11 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 
 				<div class="main">
 					<div class="group">
-						<button class="wide" onClick={actions.rooms}><Icon name="rooms" /><span class="label">{"Комнаты"}</span><span class="extra">@if (inRooms() > 0) {<span class="count" title="Игроков Бафии в комнатах">{inRooms()}<img class="bafia" src={images().friends} alt="" /></span>}</span></button>
+						<button class="wide" onClick={actions.rooms}><Icon name="rooms" /><span class="label">{"Комнаты"}</span><span class="extra">@if (inRooms() > 0) {<span class="count" title="Игроков Бафии в комнатах">{inRooms()}<BafiaIcon url={images().friends} size={14} /></span>}</span></button>
 						<button class="wide" onClick={actions.competitive}><Icon name="trophy" /><span class="label">{"Соревновательный"}</span><span></span></button>
 					</div>
 					<div class="group narrow">
-						<button class="wide" onClick={actions.chat}><Icon name="chat" /><span class="label">{"Чат"}</span><span class="extra">@if (inChat() > 0) {<span class="count" title="Игроков Бафии в чате">{inChat()}<img class="bafia" src={images().friends} alt="" /></span>}</span></button>
+						<button class="wide" onClick={actions.chat}><Icon name="chat" /><span class="label">{"Чат"}</span><span class="extra">@if (inChat() > 0) {<span class="count" title="Игроков Бафии в чате">{inChat()}<BafiaIcon url={images().friends} size={14} /></span>}</span></button>
 						<button class="wide" onClick={actions.friends}>
 							<Icon name="person" /><span class="label">{"Друзья"}</span>
 							<span class="extra">

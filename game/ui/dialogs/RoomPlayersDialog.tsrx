@@ -1,6 +1,7 @@
 import { createSignal, fromEvents, onMount } from "@common/ui";
 import { Avatar } from "../Avatar.tsrx";
 import { Marks } from "../Marks.tsrx";
+import { BafiaIcon } from "../BafiaIcon.tsrx";
 import { enterRoom } from "../../domain/rooms/enter";
 import type { RoomItem } from "../../domain/rooms/room";
 import type { GameContext } from "../../context";
@@ -14,12 +15,16 @@ export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room
 	const [friendIds, setFriendIds] = createSignal<ReadonlySet<string>>(new Set());
 	const friendIcon = ctx.assets.url("textures/ui/4v.png");
 	const bafiaVersion = fromEvents(ctx.bafia, "change", () => ({}));
+	const withBafia = (id: string | undefined) => { bafiaVersion(); return !!id && ctx.bafia.online.has(id); };
 	const gifAvatar = (id: string | undefined) => { bafiaVersion(); return id ? ctx.bafia.avatar(id, true) : undefined; };
 
 	onMount(async () => {
 		void ctx.friends.friends().then(list => setFriendIds(new Set(list.filter(friend => !friend.incoming).map(friend => friend.playerObjectId)))).catch(() => {});
 		try {
-			setPlayers(await ctx.rooms.players(room.id));
+			const list = await ctx.rooms.players(room.id);
+			setPlayers(list);
+			// кто из них играет с Бафией: красный значок
+			ctx.bafia.watch(list.map(player => ({ id: player.playerObjectId, nick: player.username ?? "", photo: player.photo })));
 		} catch {
 			setPlayers([]);
 		}
@@ -31,6 +36,7 @@ export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room
 			.player { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 6px; }
 			.name { flex: 1; font-size: 14px; }
 			.alive { font-size: 12px; }
+			.bmark { margin-left: 4px; vertical-align: -3px; display: inline-block; line-height: 0; }
 			.friend { width: 16px; height: 16px; margin-left: 4px; vertical-align: -3px; }
 			.empty { padding: 14px; text-align: center; opacity: .7; }
 			.enter { margin-top: 10px; width: 100%; }
@@ -42,7 +48,7 @@ export function RoomPlayersDialog({ ctx, room, close }: { ctx: GameContext, room
 				@for (const player of players()!) {
 					<div class="player">
 						<div onClick={() => ctx.openProfile(player.playerObjectId ?? "")}><Avatar photo={() => player.photo ?? ""} gif={() => gifAvatar(player.playerObjectId)} assets={ctx.assets} size={30} /></div>
-						<span class="name" data-keep>{player.username ?? ""}<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} />{friendIds().has(player.playerObjectId ?? "") ? <img class="friend" src={friendIcon} alt="" title="Друг" /> : null}</span>
+						<span class="name" data-keep>{player.username ?? ""}<Marks bafia={ctx.bafia} nick={() => player.username ?? ""} />{withBafia(player.playerObjectId) ? <span class="bmark"><BafiaIcon url={friendIcon} size={16} /></span> : null}{friendIds().has(player.playerObjectId ?? "") ? <img class="friend" src={friendIcon} alt="" title="Друг" /> : null}</span>
 						<span class="alive" style={{ color: player.alive ? "#186400" : "#940000" }}>{player.alive ? "Жив" : "Умер"}</span>
 					</div>
 				} @empty {

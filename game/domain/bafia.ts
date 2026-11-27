@@ -1378,6 +1378,8 @@ export class Bafia extends Events<{ change: () => void, notice: (text: string, r
   /** игрок зашёл в комнату официального сервера или вышел из неё */
   setRoom(room: string | undefined) { this.link?.setRoom(room); }
   /** игроков Бафии в комнате официального сервера (по последнему обновлению) */
+  /** все счётчики: комната → игроков Бафии */
+  get roomCounts(): Readonly<Record<string, number>> { return this.link?.roomCounts ?? {}; }
   inRoom(room: string): number { return this.link?.roomCounts[room] ?? 0; }
   /** игроков Бафии в общем чате (он идёт в тех же счётчиках под именем "chat") */
   get inChat(): number { return this.inRoom("chat"); }

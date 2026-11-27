@@ -21,6 +21,8 @@ export interface RoomItem {
   myStatus: number
   /** ник того, кто пригласил тебя в эту комнату */
   inviter?: string
+  /** игроков Бафии в комнате (по данным сервера Бафии); заполняется при сортировке */
+  bafiaPlayers?: number
 }
 
 export function toRoom(info: Info): RoomItem | undefined {
@@ -48,7 +50,7 @@ export function sortRooms(rooms: readonly RoomItem[]): RoomItem[] {
   return [...rooms].sort((a, b) => a.myStatus - b.myStatus || a.status - b.status || a.minLevel - b.minLevel);
 }
 
-export type SortKey = "friends" | "status" | "soon" | "level" | "players" | "free" | "title" | "vip" | "password";
+export type SortKey = "friends" | "status" | "bafia" | "soon" | "level" | "players" | "free" | "title" | "vip" | "password";
 
 /** один критерий сортировки: включён ли он и в какую сторону. Порядок в списке - приоритет */
 export interface SortRule {
@@ -61,6 +63,7 @@ export interface SortRule {
 export const sortCriteria: Record<SortKey, { label: string, hint: string, /** Подписи направлений: по возрастанию / по убыванию */ dir: [string, string], compare: (a: RoomItem, b: RoomItem) => number, desc: boolean, on: boolean }> = {
   friends: { label: "Друзья в комнате", hint: "сколько твоих друзей играет", dir: ["меньше друзей сверху", "больше друзей сверху"], compare: (a, b) => a.friendsInRoom - b.friendsInRoom, desc: true, on: false },
   status: { label: "Статус", hint: "регистрация, подготовка, игра", dir: ["регистрация сверху", "игра сверху"], compare: (a, b) => a.status - b.status, desc: false, on: true },
+  bafia: { label: "Игроки Бафии", hint: "комнаты, где играют с Бафией (красный значок)", dir: ["меньше игроков Бафии сверху", "больше игроков Бафии сверху"], compare: (a, b) => (a.bafiaPlayers ?? 0) - (b.bafiaPlayers ?? 0), desc: true, on: false },
   soon: { label: "Скоро старт", hint: "комнаты с обратным отсчётом перед игрой", dir: ["скоро старт снизу", "скоро старт сверху"], compare: (a, b) => Number(a.status == 1) - Number(b.status == 1), desc: true, on: false },
   level: { label: "Ранг", hint: "уровень комнаты", dir: ["низкий ранг сверху", "высокий ранг сверху"], compare: (a, b) => a.minLevel - b.minLevel, desc: false, on: true },
   players: { label: "Количество игроков", hint: "сколько сейчас в комнате", dir: ["меньше игроков сверху", "больше игроков сверху"], compare: (a, b) => a.playersNum - b.playersNum, desc: true, on: false },
@@ -94,9 +97,10 @@ export function normalizeSortRules(raw: unknown): SortRule[] {
  * сначала комнаты, где вы играете или вас убили, потом включённые критерии
  * если всё равно - порядок «по статусу и рангу»
  */
-export function orderRooms(rooms: readonly RoomItem[], rules: readonly SortRule[]): RoomItem[] {
+export function orderRooms(rooms: readonly RoomItem[], rules: readonly SortRule[], bafiaIn: (roomId: string) => number = () => 0): RoomItem[] {
   const active = rules.filter(rule => rule.on);
-  return sortRooms(rooms).sort((a, b) => {
+  const counted = active.some(rule => rule.key == "bafia") ? rooms.map(room => ({ ...room, bafiaPlayers: bafiaIn(room.id) })) : rooms;
+  return sortRooms(counted).sort((a, b) => {
     if(a.myStatus != b.myStatus) return a.myStatus - b.myStatus;
     // комнаты, куда тебя пригласили, выше остальных
     if(!!a.inviter != !!b.inviter) return a.inviter ? -1 : 1;

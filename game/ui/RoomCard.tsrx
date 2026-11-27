@@ -1,4 +1,5 @@
 import { fromEvents } from "@common/ui";
+import { BafiaIcon } from "./BafiaIcon.tsrx";
 import { longPress } from "@common/ui/long-press";
 import { roomRank, sortRoles, statusColor, statusText, type RoomItem } from "../domain/rooms/room";
 import type { GameContext } from "../context";
@@ -39,8 +40,6 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 			.roles img { width: 25px; height: 35px; object-fit: contain; }
 			.players { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 4px 10px; border-radius: 6px; background: rgba(200, 200, 200, .35); font-size: 13px; }
 			.players img { width: 18px; height: 18px; }
-			/* тот же значок, но красный */
-			.players img.bafia { filter: hue-rotate(-92deg) saturate(3) brightness(.9); }
 			@keyframes appear { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 		</style>
 		<div
@@ -77,7 +76,7 @@ export function RoomCard({ ctx, room, open, menu, players }: {
 						<img src={images().friends} alt="" />
 					}
 					@if (withBafia() > 0) {
-						<img class="bafia" src={images().friends} alt="" title="Играют с Бафией" />
+						<BafiaIcon url={images().friends} size={18} title="Играют с Бафией" />
 					}
 					<span>{"Игроки: " + room.playersNum + (room.minPlayers ? " [" + room.minPlayers + "/" + room.maxPlayers + "]" : "") + (players ? " ⭣" : "")}</span>
 				</div>
