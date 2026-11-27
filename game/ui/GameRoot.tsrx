@@ -6,6 +6,8 @@ import { BadgeTipOverlay } from "./BadgeTipOverlay.tsrx";
 import { CrashScreen } from "./CrashScreen.tsrx";
 import { WindowControlsContext } from "./window-controls";
 import { isAppMode } from "@common/utils/native";
+import { isIOS } from "@common/utils/mobile";
+import { bindVisualViewport } from "./viewport";
 import type { GameContext } from "../context";
 import type { Routes } from "../routes";
 import type { Screens } from "@common/ui/nav/navigator";
@@ -44,6 +46,9 @@ export function GameRoot({ ctx, screens }: { ctx: GameContext, screens: Screens<
 		showClose: !ctx.host.window.options.titleBar && !isAppMode(),
 		close: () => void ctx.dialogs.confirm("Закрыть игру?", { yes: "Закрыть" }).then(ok => ok && ctx.host.window.close())
 	};
+
+	// iPhone: страница по высоте видимой области, не дёргается при клавиатуре
+	onMount(() => { if(isIOS()) onCleanup(bindVisualViewport()); });
 
 	// Esc и клавиша ` («ё»/тильда) - «назад», как на Android. Окно поверх экрана Esc обрабатывает само;
 	// клавиша ` не срабатывает в поле ввода (это обычный символ) и в неактивном окне игры

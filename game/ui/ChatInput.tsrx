@@ -27,6 +27,14 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 		setTimeout(end, 0);
 		setTimeout(end, 60);
 	};
+	// на телефоне фокус ставим сами без прокрутки к полю: штатный фокус заставляет браузер двигать страницу, и она дёргается при открытии клавиатуры
+	const touchFocus = (event: TouchEvent) => {
+		if(!isMobile() || document.activeElement === input) return;
+		event.preventDefault();
+		input.focus({ preventScroll: true });
+		const end = input.value.length;
+		input.setSelectionRange(end, end);
+	};
 	const [panelOpen, setPanelOpen] = createSignal(false);
 	const [tab, setTab] = createSignal<"emoji" | "gif">("emoji");
 	const gifsOn = bafia ? fromEvents(bafia, "change", () => bafia.enabled) : () => false;
@@ -101,7 +109,7 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 			@if (bafia && history && gifsOn()) {
 				<button class="gif-button" onClick={history} aria-label="Отправить игру">{"Игра"}</button>
 			}
-			<input ref={input} type="text" onFocus={onFocus} placeholder={placeholder} onInput={onInput} onKeyDown={(event) => { if(event.key == "Enter") submit(); }} />
+			<input ref={input} type="text" onFocus={onFocus} onTouchEnd={touchFocus} placeholder={placeholder} onInput={onInput} onKeyDown={(event) => { if(event.key == "Enter") submit(); }} />
 			<button class="icon-button" onPointerDown={(event) => { wasFocused = document.activeElement === input; event.preventDefault(); }} onMouseDown={(event) => event.preventDefault()} onClick={submit} aria-label="Отправить"><Icon name="send" color="black" size={24} /></button>
 		</div>
 	</>

@@ -1,11 +1,11 @@
 import { createSignal, onCleanup, onMount } from "@common/ui";
-import { isIOS, isMobile } from "@common/utils/mobile";
+import { isIOS } from "@common/utils/mobile";
 
 /** открыта ли на iPhone клавиатура (на Android панели не сжимаются: перестройка экрана при каждом открытии мерцала и тормозила): фокус в поле ввода или видимая область заметно ниже окна (iOS не меняет высоту окна, поэтому смотрим на `visualViewport`) */
 export function useKeyboardOpen(): () => boolean {
   const [open, setOpen] = createSignal(false);
   onMount(() => {
-    if(!isMobile() || !isIOS()) return;
+    if(!isIOS()) return;
     const viewport = window.visualViewport;
     const textField = () => {
       const active = document.activeElement;
