@@ -118,7 +118,8 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
 
     if(first) this.receive(first);
     if(!this.replay) this.tick = setInterval(() => {
-      if(this.left || this.state.timer <= 0 || Date.now() - this.lastTimerAt < 1800) return;
+      // без связи таймер не крутим: иначе комната выглядит живой, хотя сервер уже убрал игрока
+      if(this.left || this.state.timer <= 0 || Date.now() - this.lastTimerAt < 1800 || (client.connection && client.connection.state != "open")) return;
       this.state.setTimer(this.state.timer - 1);
     }, 1000);
     // игрока создаём после входа: сервер тогда присылает состояние комнаты

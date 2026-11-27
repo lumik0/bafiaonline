@@ -48,7 +48,7 @@ export function sortRooms(rooms: readonly RoomItem[]): RoomItem[] {
   return [...rooms].sort((a, b) => a.myStatus - b.myStatus || a.status - b.status || a.minLevel - b.minLevel);
 }
 
-export type SortKey = "friends" | "status" | "level" | "players" | "free" | "title" | "vip" | "password";
+export type SortKey = "friends" | "status" | "soon" | "level" | "players" | "free" | "title" | "vip" | "password";
 
 /** один критерий сортировки: включён ли он и в какую сторону. Порядок в списке - приоритет */
 export interface SortRule {
@@ -61,6 +61,7 @@ export interface SortRule {
 export const sortCriteria: Record<SortKey, { label: string, hint: string, /** Подписи направлений: по возрастанию / по убыванию */ dir: [string, string], compare: (a: RoomItem, b: RoomItem) => number, desc: boolean, on: boolean }> = {
   friends: { label: "Друзья в комнате", hint: "сколько твоих друзей играет", dir: ["меньше друзей сверху", "больше друзей сверху"], compare: (a, b) => a.friendsInRoom - b.friendsInRoom, desc: true, on: false },
   status: { label: "Статус", hint: "регистрация, подготовка, игра", dir: ["регистрация сверху", "игра сверху"], compare: (a, b) => a.status - b.status, desc: false, on: true },
+  soon: { label: "Скоро старт", hint: "комнаты с обратным отсчётом перед игрой", dir: ["скоро старт снизу", "скоро старт сверху"], compare: (a, b) => Number(a.status == 1) - Number(b.status == 1), desc: true, on: false },
   level: { label: "Ранг", hint: "уровень комнаты", dir: ["низкий ранг сверху", "высокий ранг сверху"], compare: (a, b) => a.minLevel - b.minLevel, desc: false, on: true },
   players: { label: "Количество игроков", hint: "сколько сейчас в комнате", dir: ["меньше игроков сверху", "больше игроков сверху"], compare: (a, b) => a.playersNum - b.playersNum, desc: true, on: false },
   free: { label: "Свободные места", hint: "сколько ещё влезет", dir: ["меньше мест сверху", "больше мест сверху"], compare: (a, b) => (a.maxPlayers - a.playersNum) - (b.maxPlayers - b.playersNum), desc: true, on: false },

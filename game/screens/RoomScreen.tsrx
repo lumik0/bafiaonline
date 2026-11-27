@@ -184,7 +184,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			.body { flex: 1; min-height: 0; display: flex; }
 			.left { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 			.chatbox { flex: 1; min-height: 0; }
-			.table { position: relative; flex: none; max-width: calc(100% - 120px); display: flex; flex-direction: column; margin: 10px 4px 5px 10px; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); }
+			.table { position: relative; flex: none; max-width: calc(100% - 120px); display: flex; flex-direction: column; margin: 10px 4px 5px 10px; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: linear-gradient(var(--shade-now, transparent), var(--shade-now, transparent)), var(--chat-panel); }
 			.table .scroll { flex: 1; min-height: 0; overflow-y: auto; border-radius: 4px; }
 			.zoom { width: 100%; box-sizing: border-box; }
 			/* ручка шириной 14px поверх левого края списка игроков: за тонкую полоску было трудно ухватиться */
@@ -197,7 +197,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			.phone .table { margin: 5px 4px 5px 0; }
 			@keyframes rotate { to { transform: rotate(360deg); } }
 		</style>
-		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "--bg-h": window.screen.height + "px", "--bg-day": layer(images().day), "--bg-night": layer(images().night), "--night-opacity": view().night ? "1" : "0" }}>
+		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "--bg-h": window.screen.height + "px", "--bg-day": layer(images().day), "--bg-night": layer(images().night), "--night-opacity": view().night ? "1" : "0", "--shade-now": view().night ? "var(--night-shade)" : "transparent" }}>
 			<AppBar
 				title={view().title}
 				keepCase

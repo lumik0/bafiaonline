@@ -258,6 +258,7 @@ export function ThemeEditor({ theme, assets, dialogs }: { theme: ThemeManager, a
 				<div class="sample-message">{"Текст обычного сообщения"}</div>
 				<span class="time">{"01.01.1970 07:00"}</span>
 			</PreviewCard>
+			<SwatchCard pickers={pickers} token="night-shade" title="Затемнение панелей ночью" />
 			<TextRow pickers={pickers} token="text-dark" title="Основной текст" text="Основной текст" />
 			<TextRow pickers={pickers} token="text" title="Контрастный текст" text="Контрастный текст" />
 			<TextRow pickers={pickers} token="chat-system" title="Второстепенный текст" text="Второстепенный текст" />

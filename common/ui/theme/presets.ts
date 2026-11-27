@@ -36,6 +36,7 @@ const classic: ThemeValues = {
   "input-accent": "#d03a41",
 
   "chat-panel": "rgba(255, 255, 255, 0.5)",
+  "night-shade": "rgba(0, 0, 0, 0.15)",
   "chat-text": "#000000",
   "chat-name": "#1b1b1b",
   "chat-system": "#333333",

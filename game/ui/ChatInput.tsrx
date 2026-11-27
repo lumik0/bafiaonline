@@ -98,6 +98,9 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 			.footer { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px 5px; }
 			.footer input { flex: 1; min-width: 0; padding: 8px 10px; }
 			.icon-button { background: none !important; border: none; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #8a8f98; }
+			/* зона нажатия 44px при значке 30px: вёрстка не меняется */
+			.icon-button { position: relative; }
+			.icon-button::after { content: ""; position: absolute; inset: -7px; }
 			.icon-button.on { color: var(--accent); }
 			.gif-button { flex: none; padding: 4px 6px; font-size: 12px; font-weight: 700; border-radius: 6px; }
 		</style>

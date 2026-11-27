@@ -36,7 +36,7 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 
 	<>
 		<style>
-			.info { position: relative; overflow: hidden; display: flex; align-items: stretch; margin: 3px 10px 0; min-height: 124px; box-sizing: border-box; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
+			.info { position: relative; overflow: hidden; display: flex; align-items: stretch; margin: 3px 10px 0; min-height: 124px; box-sizing: border-box; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: linear-gradient(var(--shade-now, transparent), var(--shade-now, transparent)), var(--chat-panel); color: var(--chat-text); }
 			.me { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 8px; font-size: 12px; text-align: center; }
 			/* ник - отдельная крупная цель нажатия под карточкой роли: не обрезается краем панели и не попадает под карточку */
 			.me .nickline { display: block; margin-top: 2px; padding: 5px 10px; min-height: 18px; line-height: 1.2; cursor: pointer; }

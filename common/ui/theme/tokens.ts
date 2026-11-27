@@ -69,6 +69,7 @@ export const tokenGroups = [
   {
     id: "chat", label: "Чат", tokens: [
       color("chat-panel", "Фон списка сообщений"),
+      color("night-shade", "Затемнение панелей ночью"),
       color("chat-text", "Текст сообщений"),
       color("chat-name", "Ники"),
       color("chat-system", "Системные сообщения"),

@@ -116,7 +116,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 	<>
 		<style>
 			.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-			.messages { flex: 1; min-height: 0; overflow-anchor: none; overflow-y: auto; overflow-x: hidden; margin: 8px 10px 5px; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-text); }
+			.messages { flex: 1; min-height: 0; overflow-anchor: none; overflow-y: auto; overflow-x: hidden; margin: 8px 10px 5px; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: linear-gradient(var(--shade-now, transparent), var(--shade-now, transparent)), var(--chat-panel); color: var(--chat-text); }
 			.group { display: flex; gap: 6px; padding: 4px 6px; text-align: left; align-items: flex-start; }
 			.column { display: flex; flex-direction: column; min-width: 0; word-break: break-word; }
 			.nick { position: relative; isolation: isolate; color: var(--chat-name); font-weight: 600; font-size: 13px; cursor: pointer; align-self: flex-start; }

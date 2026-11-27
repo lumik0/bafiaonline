@@ -20,6 +20,10 @@ export function AppBar(props: { title: string, subtitle?: string, keepCase?: boo
 			.subtitle { font-size: 13px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 			.back { padding: var(--appbar-icon-padding, 6px); background: transparent; border: none; border-radius: 50%; display: flex; color: inherit; }
 			.close { padding: var(--appbar-icon-padding, 6px); background: transparent; border: none; border-radius: 50%; display: flex; color: inherit; margin-right: -6px; }
+			/* зона нажатия шире значка (минимум около 44px), вёрстка не меняется */
+			.back, .close { position: relative; }
+			.back::after { content: ""; position: absolute; inset: -10px -8px -10px -16px; }
+			.close::after { content: ""; position: absolute; inset: -10px -16px -10px -8px; }
 			@media (hover: hover) { .close:enabled:hover { background: rgba(255, 255, 255, .15); } }
 			@media (hover: hover) { .back:enabled:hover { background: rgba(255, 255, 255, .15); } }
 		</style>
