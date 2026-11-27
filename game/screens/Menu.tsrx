@@ -39,6 +39,8 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 		rank: assets.url(`textures/rank/rank${rankOf(user.level)}_36.png`)
 	}));
 	// сколько игроков Бафии сейчас в комнатах: красный значок на кнопке "Комнаты"
+	// шапка Деда Мороза: из внешнего вида с премиумом
+	const myHat = bafia ? fromEvents(bafia, "change", () => bafia.myLook.hat == "santa") : () => false;
 	const inRooms = bafia ? fromEvents(bafia, "change", () => bafia.inRooms) : () => 0;
 	const inChat = bafia ? fromEvents(bafia, "change", () => bafia.inChat) : () => 0;
 	// счётчики обновляются, пока открыто меню
@@ -125,7 +127,7 @@ export function Menu({ user, assets, settings, actions, bafia }: { user: User, a
 
 				<div class="hero">
 					<div class="photo">
-						<Avatar photo={() => me().photo} gif={myGif} ring={() => photoRing(me().decorations)} animation={() => animationOf(me().decorations, DecorationType.PhotoBorderAnimation)} assets={assets} size={120} />
+						<Avatar photo={() => me().photo} gif={myGif} ring={() => photoRing(me().decorations)} animation={() => animationOf(me().decorations, DecorationType.PhotoBorderAnimation)} hat={myHat} assets={assets} size={120} />
 						<button class="camera" onClick={actions.changePhoto} aria-label="Сменить фото"><Icon name="edit" size={16} /></button>
 					</div>
 					<div class="namerow">

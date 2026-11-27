@@ -45,7 +45,7 @@ export function SettingGroup(props: { title?: string, children?: unknown }) @{
  * переключатель вместо квадратной галочки. `onChange` получает новое значение и сам элемент: если выбор отменили
  * (например, отказались от согласия), элемент можно вернуть обратно
  */
-export function Toggle(props: { checked: boolean, label: string, onChange: (value: boolean, input: HTMLInputElement) => void }) @{
+export function Toggle(props: { checked: boolean, label: string, disabled?: boolean, onChange: (value: boolean, input: HTMLInputElement) => void }) @{
 	<>
 		<style>
 			.switch { position: relative; display: inline-block; flex: none; width: 50px; height: 30px; cursor: pointer; }
@@ -54,10 +54,12 @@ export function Toggle(props: { checked: boolean, label: string, onChange: (valu
 			.track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--switch-off-thumb, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, .35); transform: scale(var(--switch-off-scale, 1)); transition: transform .18s, background .18s; }
 			input:checked + .track { background: var(--switch-on-track, var(--accent)); box-shadow: none; }
 			input:checked + .track::after { transform: translateX(20px); background: #fff; }
+			input:disabled { cursor: default; }
+			input:disabled + .track { opacity: .5; }
 			input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
 		</style>
 		<label class="switch">
-			<input type="checkbox" role="switch" aria-label={props.label} checked={props.checked} onChange={(event) => props.onChange(event.currentTarget.checked, event.currentTarget)} />
+			<input type="checkbox" role="switch" aria-label={props.label} checked={props.checked} disabled={props.disabled} onChange={(event) => props.onChange(event.currentTarget.checked, event.currentTarget)} />
 			<span class="track"></span>
 		</label>
 	</>

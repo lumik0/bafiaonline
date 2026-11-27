@@ -241,7 +241,7 @@ function ProfileBody({ ctx, profile, playerObjectId, reload, close }: { ctx: Gam
 					// <span class="chip" title="Рейтинг"><b class="trophy">{"🏆"}</b>{player.matchMakingScore ?? 0}</span>
 				</div>
 				<div class="photo" onClick={() => void ctx.dialogs.manager.open({ title: player.username, render: () => AvatarView({ photo: player.photo, assets: ctx.assets, gif: gifAvatar() }) })}>
-					<Avatar photo={() => player.photo ?? ""} gif={gifAvatar} ring={() => avatarFrame(look(), photoRing(decorations))} animation={() => animationOf(decorations, DecorationType.PhotoBorderAnimation)} assets={ctx.assets} size={110} />
+					<Avatar photo={() => player.photo ?? ""} gif={gifAvatar} ring={() => avatarFrame(look(), photoRing(decorations))} animation={() => animationOf(decorations, DecorationType.PhotoBorderAnimation)} hat={() => look()?.hat == "santa"} assets={ctx.assets} size={110} />
 					<div class={player.isOnline ? "online on" : "online"}></div>
 				</div>
 				<div class="right">

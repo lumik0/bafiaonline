@@ -38,7 +38,7 @@ export function PlayersPanel({ users, myName, hideName, assets, mention, profile
 		<div class={typing() ? "players small" : "players"}>
 			@for (const user of users()) {
 				<div class="player">
-					<div class="grow" onClick={() => profile(user.playerObjectId ?? "")}><Avatar photo={() => user.photo ?? ""} gif={() => avatar?.(user.playerObjectId ?? "")} ring={() => avatarFrame(bafia?.look(user.playerObjectId ?? ""), photoRing(user.decorations))} assets={assets} size={25} /></div>
+					<div class="grow" onClick={() => profile(user.playerObjectId ?? "")}><Avatar photo={() => user.photo ?? ""} gif={() => avatar?.(user.playerObjectId ?? "")} ring={() => avatarFrame(bafia?.look(user.playerObjectId ?? ""), photoRing(user.decorations))} hat={() => bafia?.look(user.playerObjectId ?? "")?.hat == "santa"} assets={assets} size={25} /></div>
 					<span class={hideName() && user.username == myName() ? "nick blur" : "nick"} data-keep style={nickStyle(user.decorations)} onMouseDown={keepFocus} onPointerDown={keepFocus} onClick={() => mention(user.username)}>{user.username}<span class="vip">{user.vip ?? ""}</span>{inBafia?.(user.playerObjectId ?? "") || bafia?.special(user.username) ? <CheckBadge color={badgeColor?.(user.playerObjectId ?? "") ?? "var(--accent)"} fire={!!bafia?.special(user.username)} title={bafia?.special(user.username) ? bafia.special(user.username)![0]!.toUpperCase() + bafia.special(user.username)!.slice(1) : badgeColor?.(user.playerObjectId ?? "") ? "Играет в Бафии, премиум" : "Играет в Бафии"} /> : null}<Marks bafia={bafia} nick={() => user.username} /></span>
 				</div>
 			}

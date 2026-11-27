@@ -117,6 +117,8 @@ export interface ProfileLook {
   theme?: ProfileTheme
   /** номер закреплённой гифки */
   pin?: string
+  /** шапка на аватарке: Деда Мороза */
+  hat?: "santa"
 }
 
 /** разбирает и чистит внешний вид профиля; чужие поля отбрасывает, пустое даёт `{}` */
@@ -131,6 +133,7 @@ export function parseLook(value: unknown): ProfileLook {
   if(typeof value.effect == "string" && (PROFILE_EFFECTS as readonly string[]).includes(value.effect)) look.effect = value.effect as ProfileEffect;
   if(typeof value.theme == "string" && Object.hasOwn(PROFILE_THEMES, value.theme)) look.theme = value.theme as ProfileTheme;
   if(typeof value.pin == "string" && GIF_ID.test(value.pin)) look.pin = value.pin;
+  if(value.hat === "santa") look.hat = "santa";
   return look;
 }
 

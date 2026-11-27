@@ -406,7 +406,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 									<div class="preview" style={previewBg() ? { background: previewBg(), color: previewTheme()?.text ?? readableOn(previewBg()) } : undefined}>
 										<div class="previewBanner" style={myBanner() ? { "background-image": `url("${myBanner()}")` } : undefined}>{myBanner() ? "" : "баннер"}</div>
 										<div class="previewBody">
-											<div class="photo"><Avatar photo={() => ctx.user.photo ?? ""} gif={() => myAvatar()} ring={() => avatarFrame(lookNow())} assets={ctx.assets} size={72} /></div>
+											<div class="photo"><Avatar photo={() => ctx.user.photo ?? ""} gif={() => myAvatar()} ring={() => avatarFrame(lookNow())} hat={() => lookNow().hat == "santa"} assets={ctx.assets} size={72} /></div>
 											<div class="previewName" data-keep><span style={nickEffect(lookNow(), badgeColor())}>{ctx.user.username || "Твой ник"}</span></div>
 											@if (lookNow().status) {
 												<div class="previewStatus" data-keep>{lookNow().status}</div>
@@ -431,6 +431,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 									<SettingRow label="Статус" hint={premium() ? "Строка под ником, до 60 символов" : "Нужен премиум"}>
 										<input type="text" maxlength={BAFIA_LIMITS.status} disabled={!premium()} value={lookNow().status ?? ""} placeholder="О себе" style={{ width: "160px" }}
 											onInput={(event) => setDraftStatus(event.currentTarget.value)} onChange={(event) => void changeLook({ status: event.currentTarget.value.trim() })} />
+									</SettingRow>
+									<SettingRow label="Шапка Деда Мороза" hint={premium() ? "Новогодняя шапка на твоей аватарке, её видят все" : "Нужен премиум"}>
+										<Toggle label="Шапка Деда Мороза" checked={myLook().hat == "santa"} disabled={!premium()} onChange={(value) => void changeLook({ hat: value ? "santa" : undefined })} />
 									</SettingRow>
 									<SettingRow label="Рамка аватарки" hint={premium() ? "Цветная рамка вокруг аватарки" : "Нужен премиум"}>
 										<div class="swatches">
