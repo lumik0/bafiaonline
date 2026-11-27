@@ -101,13 +101,14 @@ export interface ThemePreset {
 export const defaultWallpaper = { path: "textures/backgrounds/menu3.png", position: "left center" };
 
 /** эффекты поверх интерфейса: частицы и свечение. Выбираются отдельно от цветов */
-export const effects = [
+export const effects: readonly { id: string, label: string, /** не показывается в списке эффектов: включается только файлом темы */ hidden?: boolean }[] = [
   { id: "none", label: "Без эффектов" },
   { id: "halloween", label: "Хэллоуин" },
-  { id: "newyear", label: "Новый год" }
-] as const;
+  { id: "newyear", label: "Новый год" },
+  { id: "tomjerry", label: "Том и Джерри", hidden: true }
+];
 
-export type EffectId = typeof effects[number]["id"];
+export type EffectId = string;
 
 export const presets: readonly ThemePreset[] = [
   { id: "classic", label: "Классика", values: classic },

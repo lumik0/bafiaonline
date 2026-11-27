@@ -2,7 +2,7 @@ import { fromEvents } from "@common/ui";
 import type { Dialogs } from "@common/ui/dialog/dialogs";
 import { isMobile } from "@common/utils/mobile";
 import { effects, tokenGroups, type ThemeManager, type TokenKey } from "@common/ui/theme";
-import type { Assets } from "@common/assets";
+import { imageSlots, type Assets } from "@common/assets";
 import { ColorDialog } from "./ColorDialog.tsrx";
 import { ImageSlots } from "./ImageSlots.tsrx";
 
@@ -12,6 +12,53 @@ function download(name: string, text: string) {
 	link.download = name;
 	link.click();
 	URL.revokeObjectURL(link.href);
+}
+
+const MAX_IMAGE = 5 * 1024 * 1024;
+
+/** тип картинки по первым байтам: в хранилище лежит только содержимое */
+function sniffMime(bytes: Uint8Array): string {
+	if(bytes[0] == 0x89 && bytes[1] == 0x50) return "image/png";
+	if(bytes[0] == 0xff && bytes[1] == 0xd8) return "image/jpeg";
+	if(bytes[0] == 0x47 && bytes[1] == 0x49) return "image/gif";
+	if(bytes[0] == 0x52 && bytes[1] == 0x49) return "image/webp";
+	return "image/png";
+}
+
+function toBase64(bytes: Uint8Array): string {
+	let text = "";
+	for(let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+	return btoa(text);
+}
+
+/** файл темы: цвета и эффект, а заменённые картинки (фон меню, дня и ночи, аватар) идут в нём же */
+async function exportTheme(theme: ThemeManager, assets: Assets | undefined): Promise<string> {
+	const data = JSON.parse(theme.exportJson()) as Record<string, unknown>;
+	const images: Record<string, string> = {};
+	if(assets) for(const slot of imageSlots) {
+		const bytes = await assets.readCustom(slot.path);
+		if(bytes) images[slot.path] = `data:${sniffMime(bytes)};base64,${toBase64(bytes)}`;
+	}
+	if(Object.keys(images).length) data.images = images;
+	return JSON.stringify(data, null, 2);
+}
+
+/** картинки из файла темы ставятся на свои места; чужие пути и не картинки пропускаются */
+async function importImages(json: string, assets: Assets | undefined): Promise<number> {
+	if(!assets) return 0;
+	const images = (JSON.parse(json) as { images?: Record<string, unknown> }).images;
+	if(typeof images != "object" || images === null) return 0;
+	let done = 0;
+	for(const slot of imageSlots) {
+		const value = images[slot.path];
+		const match = typeof value == "string" ? /^data:(image\/[a-z+.-]+);base64,([A-Za-z0-9+/=]+)$/.exec(value) : null;
+		if(!match) continue;
+		const bytes = Uint8Array.from(atob(match[2]!), char => char.charCodeAt(0));
+		if(bytes.length > MAX_IMAGE) continue;
+		await assets.setCustom(slot.path, bytes, match[1]!);
+		done++;
+	}
+	return done;
 }
 
 const FILL = "M16.56 8.94 7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10 10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5zM0 20h24v4H0z";
@@ -161,7 +208,9 @@ export function ThemeEditor({ theme, assets, dialogs }: { theme: ThemeManager, a
 			const file = input.files?.[0];
 			if(!file) return;
 			try {
-				theme.importJson(await file.text());
+				const text = await file.text();
+				theme.importJson(text);
+				await importImages(text, assets);
 			} catch(error) {
 				void dialogs.alert(error instanceof Error ? error.message : String(error));
 			}
@@ -227,13 +276,13 @@ export function ThemeEditor({ theme, assets, dialogs }: { theme: ThemeManager, a
 				<div class="extra">
 					<label>{"Эффект"}
 						<select onChange={(event) => theme.setEffect(event.currentTarget.value)}>
-							@for (const item of effects) {
+							@for (const item of effects.filter(entry => !entry.hidden || entry.id == effect())) {
 								<option value={item.id} selected={effect() == item.id}>{item.label}</option>
 							}
 						</select>
 					</label>
 					<div class="actions two">
-						<button onClick={() => download("bafia-theme.json", theme.exportJson())}>{"Экспорт"}</button>
+						<button onClick={() => void exportTheme(theme, assets).then(text => download("bafia-theme.json", text))}>{"Экспорт"}</button>
 						<button onClick={pickFile}>{"Импорт"}</button>
 					</div>
 				</div>

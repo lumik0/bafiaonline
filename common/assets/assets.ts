@@ -112,6 +112,11 @@ export class Assets extends Events<{ change: (path: string) => void }> {
     await this.reload(path);
   }
 
+  /** байты своей картинки (для экспорта темы) или `undefined`, если она не заменена */
+  async readCustom(path: string): Promise<Uint8Array | undefined> {
+    return this.custom.has(path) ? this.files.readBytes(`${CUSTOM_ROOT}/${path}`) : undefined;
+  }
+
   async clearCustom(path: string) {
     await this.files.remove(`${CUSTOM_ROOT}/${path}`);
     this.custom.delete(path);

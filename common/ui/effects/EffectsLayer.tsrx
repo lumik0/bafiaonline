@@ -3,6 +3,7 @@ import { isMobile } from "@common/utils/mobile";
 import type { ThemeManager } from "@common/ui/theme";
 import { Halloween } from "./Halloween.tsrx";
 import { NewYear } from "./NewYear.tsrx";
+import { TomJerry } from "./TomJerry.tsrx";
 
 /** эффект выбранной темы поверх всего интерфейса; не перехватывает нажатия */
 export function EffectsLayer({ theme }: { theme: ThemeManager }) @{
@@ -14,6 +15,9 @@ export function EffectsLayer({ theme }: { theme: ThemeManager }) @{
 		}
 		@if (effect() == "newyear") {
 			<NewYear light={isMobile()} />
+		}
+		@if (effect() == "tomjerry") {
+			<TomJerry light={isMobile()} />
 		}
 	</>
 }
