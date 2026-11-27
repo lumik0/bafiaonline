@@ -27,7 +27,6 @@ export function PlayersPanel({ users, myName, hideName, assets, mention, profile
 	<>
 		<style>
 			.players.small { height: 42px; }
-			.players { transition: height .15s; }
 			.players { flex: none; height: 155px; margin: 10px 10px 0; box-sizing: border-box; overflow: auto; border-radius: 4px; outline: 2px solid rgba(190, 190, 190, .8); background: var(--chat-panel); color: var(--chat-name); display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; }
 			.player { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 6px; text-align: left; }
 			.nick { font-size: 13px; cursor: pointer; white-space: nowrap; }

@@ -47,7 +47,7 @@ export class GifCache {
     const entry: Entry = { at: this.now(), size: 0, shown: Promise.resolve(url) };
     entry.shown = (async() => {
       try {
-        const response = await this.http(url, { referrerPolicy: "no-referrer" });
+        const response = await this.http(url, { referrerPolicy: "no-referrer", signal: AbortSignal.timeout(20_000) });
         if(!response.ok) throw new Error(String(response.status));
         const blob = await response.blob();
         // запись могли уже убрать (устарела или вытеснена): тогда адрес не создаём, чтобы не оставлять утечку

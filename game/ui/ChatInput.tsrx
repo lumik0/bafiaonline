@@ -46,11 +46,14 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 		onCleanup(() => document.removeEventListener("keydown", keydown));
 	});
 
+	let wasFocused = false;
 	const submit = () => {
 		const value = input.value;
 		if(!value.trim()) return;
 		input.value = "";
 		send(value);
+		// на телефоне кнопка могла забрать фокус - возвращаем, чтобы клавиатура не сползала
+		if(isMobile() && wasFocused) input.focus({ preventScroll: true });
 	};
 	const onInput = () => {
 		if(!expand) return;
@@ -99,7 +102,7 @@ export function ChatInput({ ctx, assets, send, expand, controller, bafia, histor
 				<button class="gif-button" onClick={history} aria-label="Отправить игру">{"Игра"}</button>
 			}
 			<input ref={input} type="text" onFocus={onFocus} placeholder={placeholder} onInput={onInput} onKeyDown={(event) => { if(event.key == "Enter") submit(); }} />
-			<button class="icon-button" onMouseDown={(event) => event.preventDefault()} onClick={submit} aria-label="Отправить"><Icon name="send" color="black" size={24} /></button>
+			<button class="icon-button" onPointerDown={(event) => { wasFocused = document.activeElement === input; event.preventDefault(); }} onMouseDown={(event) => event.preventDefault()} onClick={submit} aria-label="Отправить"><Icon name="send" color="black" size={24} /></button>
 		</div>
 	</>
 }

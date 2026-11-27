@@ -11,7 +11,7 @@ describe("чёрный список", () => {
     expect(sameWho({ nick: "", at: 0 }, { nick: "" })).toBe(false);
   });
 
-  test("добавление: дубль, лимит 5 и 15 с премиумом, пустое", () => {
+  test("добавление: дубль, лимит 5 и 50 с премиумом, пустое", () => {
     let list = [] as ReturnType<typeof cleanBlacklist>;
     for(let index = 1; index <= 5; index++) {
       const result = addToBlacklist(list, { nick: "игрок" + index, playerId: "p" + index }, blacklistLimit(false), index);

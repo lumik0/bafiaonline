@@ -44,6 +44,9 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
   private autoKicked = new Set<string>();
   private kickQueue: string[] = [];
   private autoKickTimer?: ReturnType<typeof setTimeout>;
+  /** когда сервер последний раз присылал таймер: если пакеты пропали, считаем секунды сами */
+  private lastTimerAt = 0;
+  private tick?: ReturnType<typeof setInterval>;
   private lastAutoKick?: string;
   /** номер голосования: растёт с каждым новым, чтобы окно открывалось на каждое, даже если конец прежнего потерялся */
   kickVoteSerial = 0;
@@ -114,6 +117,10 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     this.handle = client.on("message", message => this.receive(message));
 
     if(first) this.receive(first);
+    if(!this.replay) this.tick = setInterval(() => {
+      if(this.left || this.state.timer <= 0 || Date.now() - this.lastTimerAt < 1800) return;
+      this.state.setTimer(this.state.timer - 1);
+    }, 1000);
     // игрока создаём после входа: сервер тогда присылает состояние комнаты
     client.trySend("createPlayer", { roomId: this.roomId, modelType: this.state.settings.modelType });
   }
@@ -135,7 +142,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
       case "chatUsers": if(state.inGame) return; state.setLobby(message.data.users); return this.watchBlacklist();
       case "playerJoined": if(state.inGame) return; state.playerJoined(message.data.player); return this.watchBlacklist();
       case "playerLeft": return state.inGame ? undefined : state.playerLeft(message.data.playerObjectId);
-      case "timer": return state.setTimer(message.data.seconds);
+      case "timer": this.lastTimerAt = Date.now(); return state.setTimer(message.data.seconds);
       case "playersStat": {
         this.lastStat = message.raw;
         const { canGiveUp, ...counts } = message.data;
@@ -144,6 +151,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
       case "gameStatus": state.applyStatus(message.data.status); state.changed(); return this.maybeSave();
       case "gameDayTime": {
         const wasDay = state.dayTime == 2;
+        if(message.data.timer !== undefined) this.lastTimerAt = Date.now();
         state.setDayTime(message.data.dayTime, message.data.timer);
         // хост рулетки в начале дня (обсуждение) пишет в чат, кто за кого голосует
         if(!this.replay && !wasDay && message.data.dayTime == 2 && state.phase == "game") {
@@ -324,6 +332,7 @@ export class RoomSession extends Events<{ change: () => void, ended: (reason: En
     if(this.left || this.replay) return;
     this.left = true;
     clearTimeout(this.autoKickTimer);
+    clearInterval(this.tick);
     this.kickQueue = [];
     this.handle?.remove();
     try {

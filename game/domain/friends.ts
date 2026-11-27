@@ -34,7 +34,7 @@ export function toFriendItem(entry: Entry): FriendItem | undefined {
     isOnline: !!user.isOnline,
     updated: entry.updated,
     newMessages: entry.newMessages ?? 0,
-    incoming: entry.accepted === 0,
+    incoming: entry.accepted === 0 && !entry.friend,
     roomId: typeof room?.o == "string" ? room.o : undefined,
     decorations: normalizeDecorations(user.decorations)
   };

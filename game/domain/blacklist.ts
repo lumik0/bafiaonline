@@ -6,7 +6,7 @@ export interface BlackEntry { userId?: string, playerId?: string, nick: string, 
 export interface WhoIs { userId?: string, playerId?: string, nick?: string }
 
 export const BLACKLIST_LIMIT = 5;
-export const BLACKLIST_LIMIT_PREMIUM = 15;
+export const BLACKLIST_LIMIT_PREMIUM = 50;
 export const blacklistLimit = (premium: boolean) => premium ? BLACKLIST_LIMIT_PREMIUM : BLACKLIST_LIMIT;
 
 /** это тот же игрок: совпал id пользователя, id игрока или ник (без учёта регистра и пробелов) */

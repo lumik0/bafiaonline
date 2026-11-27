@@ -179,7 +179,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 	const myLook = fromEvents(ctx.bafia, "change", () => ctx.bafia.myLook);
 	const [draftStatus, setDraftStatus] = createSignal<string | undefined>(undefined);
 	const lookNow = (): ProfileLook => ({ ...myLook(), ...(draftStatus() !== undefined ? { status: draftStatus() || undefined } : {}) });
-	const badgeColor = () => PREMIUM_COLORS[(ctx.bafia.color in PREMIUM_COLORS ? ctx.bafia.color : "gold") as keyof typeof PREMIUM_COLORS];
+	// цвет хранится в настройках, не в событиях бафии: иначе подсветка выбранного не обновляется
+	const colorName = fromEvents(ctx.settings, "change", () => ctx.bafia.color);
+	const badgeColor = () => PREMIUM_COLORS[(colorName() in PREMIUM_COLORS ? colorName() : "gold") as keyof typeof PREMIUM_COLORS];
 	const previewTheme = () => themeBackground(lookNow());
 	const previewBg = () => previewTheme()?.background ?? draftBg() ?? myBg();
 	/** меняет одно поле внешнего вида и отправляет всё на сервер; пустое значение убирает поле */
@@ -480,7 +482,7 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 										<SettingRow label="Цвет фона галочки">
 											<div class="swatches">
 												@for (const [name, hex] of Object.entries(PREMIUM_COLORS)) {
-													<button class={ctx.bafia.color == name ? "swatch on" : "swatch"} style={{ background: hex }} aria-label={name} onClick={() => ctx.bafia.setColor(name)}></button>
+													<button class={colorName() == name ? "swatch on" : "swatch"} style={{ background: hex }} aria-label={name} onClick={() => ctx.bafia.setColor(name)}></button>
 												}
 											</div>
 										</SettingRow>

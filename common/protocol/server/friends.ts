@@ -9,7 +9,7 @@ const friendEntry = t.object({
   friend: optionalField(K.FRIEND, chatUser),
   user: optionalField(K.USER, chatUser),
   newMessages: optionalField(K.NEW_MESSAGES, t.numeric),
-  /** 0 - входящая заявка, ждёт вашего ответа */
+  /** 0 - заявка ещё не принята; входящая приходит с `user`, исходящая с `friend` */
   accepted: optionalField(K.ACCEPTED, t.numeric),
   updated: optionalField(K.UPDATED, t.number),
   /** комната, где друг играет; схема появится с экраном комнат */

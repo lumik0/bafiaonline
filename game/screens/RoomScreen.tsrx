@@ -52,8 +52,6 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	// обои - два слоя, между которыми плавно меняется прозрачность (у background-image переходов нет)
 	const layer = (url: string | undefined) => url ? "url(" + url + ")" : "none";
 
-	// у ночных и дневных панелей разная прозрачность, как в старой версии
-	const panel = () => view().night ? "rgb(255 255 255 / 30%)" : "";
 
 	// шестерёнка в шапке есть, только если какой-то мод добавил настройки комнаты
 	const [hasSettings, setHasSettings] = createSignal(false);
@@ -172,8 +170,9 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 
 	<>
 		<style>
-			.room { position: relative; isolation: isolate; display: flex; flex-direction: column; height: 100%; }
-			.room::before, .room::after { content: ""; position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+			.room { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; height: 100%; }
+			/* высота обоев не зависит от клавиатуры: картинка не масштабируется заново при каждом кадре подъёма */
+			.room::before, .room::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: max(100%, var(--bg-h, 100%)); z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
 			.room::before { background-image: var(--bg-day); }
 			.room::after { background-image: var(--bg-night); opacity: var(--night-opacity, 0); transition: opacity 2s ease-in-out; }
 			.title { user-select: text; -webkit-user-select: text; }
@@ -198,7 +197,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			.phone .table { margin: 5px 4px 5px 0; }
 			@keyframes rotate { to { transform: rotate(360deg); } }
 		</style>
-		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "--bg-day": layer(images().day), "--bg-night": layer(images().night), "--night-opacity": view().night ? "1" : "0", "--chat-panel": panel() || undefined }}>
+		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "--bg-h": window.screen.height + "px", "--bg-day": layer(images().day), "--bg-night": layer(images().night), "--night-opacity": view().night ? "1" : "0" }}>
 			<AppBar
 				title={view().title}
 				keepCase
