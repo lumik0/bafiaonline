@@ -73,7 +73,7 @@ export class PrivateChat extends Events<{ change: () => void }> {
         this.loaded = true;
         this.emit("change");
         // открыли переписку - всё полученное считается прочитанным
-        this.client.send("acceptPrivateMessages", { friendshipId: this.friendshipId });
+        this.client.trySend("acceptPrivateMessages", { friendshipId: this.friendshipId });
       }),
       this.client.on("privateChatMessage", data => {
         this.messages = [...this.messages, toMessage(data.message)].slice(-MAX);
@@ -88,7 +88,8 @@ export class PrivateChat extends Events<{ change: () => void }> {
       this.client.on("privateTypingStarted", () => { this.typing = true; this.emit("change"); }),
       this.client.on("privateTypingStopped", () => { this.typing = false; this.emit("change"); })
     );
-    this.client.send("openPrivateChat", { friendshipId: this.friendshipId });
+    // без связи не падаем: после переподключения подписку откроет `resubscribe`
+    this.client.trySend("openPrivateChat", { friendshipId: this.friendshipId });
   }
 
   /**
@@ -127,7 +128,7 @@ export class PrivateChat extends Events<{ change: () => void }> {
 
   /** связь переоткрылась: подписка на переписку пропала (вход в аккаунт переключил её), открываем заново, сервер пришлёт сообщения целиком */
   resubscribe() {
-    if(this.handles.length) this.client.send("openPrivateChat", { friendshipId: this.friendshipId });
+    if(this.handles.length) this.client.trySend("openPrivateChat", { friendshipId: this.friendshipId });
   }
 
   send(text: string) {

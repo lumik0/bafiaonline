@@ -62,6 +62,18 @@ describe("GlobalChat", () => {
 });
 
 describe("PrivateChat", () => {
+  test("открытие без связи не падает (краш при открытии экрана), подписка уходит после переподключения", async() => {
+    const { network, client, settings } = await setup();
+    client.close();
+    const chat = new PrivateChat(client, settings, "fr1");
+    expect(() => chat.open()).not.toThrow();
+    expect(() => chat.resubscribe()).not.toThrow();
+    client.connect();
+    await tick();
+    chat.resubscribe();
+    expect(network.last.sent.at(-1)).toMatchObject({ ty: "acpc", fp: "fr1" });
+  });
+
   test("открытие, история, пометка прочитанным, новые сообщения и «печатает»", async() => {
     const { network, client, settings } = await setup();
     const chat = new PrivateChat(client, settings, "fr1");
