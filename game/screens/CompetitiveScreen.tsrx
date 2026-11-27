@@ -44,6 +44,7 @@ export function CompetitiveScreen({ ctx }: { ctx: GameContext }) @{
 
 	<>
 		<style>
+			.auto { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 6px 0; font-size: 14px; cursor: pointer; }
 			.page { display: flex; flex-direction: column; height: 100%; }
 			.body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
 			.rating { display: flex; justify-content: center; }
@@ -108,6 +109,7 @@ export function CompetitiveScreen({ ctx }: { ctx: GameContext }) @{
 									<button class="help" onClick={showEnergy} aria-label="Что такое энергия">{"?"}</button>
 								</div>
 							}
+							<label class="auto"><input type="checkbox" checked={ctx.settings.data.autoAcceptMatch} onChange={(event) => ctx.settings.update(data => { data.autoAcceptMatch = event.currentTarget.checked; })} />{"Автопринятие игры"}</label>
 							<div class="info">{infoText()}</div>
 							<div class="actions">
 								@if (state().phase == "idle") {

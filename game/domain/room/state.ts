@@ -71,6 +71,9 @@ function toLobbyPlayer(raw: RosterPlayer | undefined): LobbyPlayer | undefined {
   return { userObjectId: raw?.objectId ?? raw?.user?.objectId, playerObjectId: user.playerObjectId, username: user.username ?? "", photo: user.photo, vip: vipText(user.vip), decorations: normalizeDecorations(user.decorations) };
 }
 
+const MARKS_TTL = 3 * 60 * 60_000;
+const savedMarks = new Map<string, { at: number, marks: Record<string, number> }>();
+
 /**
  * всё, что игрок видит в комнате: кто за столом, роли, фаза, таймер, сообщения. Чистая логика без сети и DOM:
  * сессия подаёт сюда пакеты сервера, экран читает отсюда
@@ -108,7 +111,21 @@ export class RoomState extends Events<{ change: () => void }> {
 
   changed() {
     this.rememberHost();
+    this.restoreMarks();
     this.emit("change");
+  }
+
+  /** пометки ролей лежат вне комнаты (по id комнаты и нику): выход и повторный вход в ту же игру их не сбрасывает */
+  private restoreMarks() {
+    const key = this.settings.id;
+    if(!key) return;
+    if(this.status == 4) return void savedMarks.delete(key);
+    const saved = savedMarks.get(key);
+    if(!saved || Date.now() - saved.at > MARKS_TTL || !this.inGame) return;
+    for(const player of this.players) {
+      const role = saved.marks[player.username];
+      if(player.preRole === undefined && role !== undefined) player.preRole = role;
+    }
   }
 
   /** кто считался хостом, когда создатель комнаты неизвестен: первый игрок, которого мы увидели; запоминаем его самого, а не место в списке */
@@ -231,7 +248,13 @@ export class RoomState extends Events<{ change: () => void }> {
   /** пометка роли над игроком; `undefined` - снять */
   markRole(playerObjectId: string, role: number | undefined) {
     const player = this.playerBy(playerObjectId);
-    if(player) player.preRole = role;
+    if(player) {
+      player.preRole = role;
+      const key = this.settings.id;
+      const saved = savedMarks.get(key) ?? { at: 0, marks: {} };
+      if(role === undefined) delete saved.marks[player.username]; else saved.marks[player.username] = role;
+      savedMarks.set(key, { at: Date.now(), marks: saved.marks });
+    }
     this.changed();
   }
 

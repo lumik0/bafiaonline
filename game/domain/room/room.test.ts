@@ -85,6 +85,18 @@ describe("игра", () => {
     expect(state.dayTime).toBe(2);
   });
 
+  test("пометки ролей переживают выход из комнаты и повторный вход в ту же игру", () => {
+    const first = startGame(Role.Mafia);
+    first.markRole("p5", Role.Doctor);
+    first.markRole("p6", Role.Sheriff);
+    first.markRole("p6", undefined);
+
+    // новая сессия той же комнаты: игроки пришли без пометок
+    const second = startGame(Role.Mafia);
+    expect(second.playerBy("p5")?.preRole).toBe(Role.Doctor);
+    expect(second.playerBy("p6")?.preRole).toBeUndefined();
+  });
+
   test("в конце игры состояние без списка игроков не стирает стол", () => {
     const state = startGame(Role.Civilian);
     state.applyStatistics(stats({ gs: { s: 4, t: 0 } }));
