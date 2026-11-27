@@ -128,18 +128,26 @@ describe("Matchmaking", () => {
     await push({ ty: "mmcuag" });
     expect(match.state.acceptedByMe).toBe(true);
 
+    // приняли мы, а кто-то нет: остаёмся в поиске, найденная позже игра подхватывается
     await push({ ty: "mmunag" });
-    expect(match.state.phase).toBe("idle");
-    match.search();
+    expect(match.state.phase).toBe("searching");
     await push({ ty: "mmss" });
+    expect(match.state.phase).toBe("idle");
+    await push({ ty: "mmfun", mmfun: 3 });
+    expect(match.state.phase).toBe("searching");
+    await push({ ty: "mmss" });
+    // не приняли мы сами: поиск закончен
+    match.search();
+    await push({ ty: "mmag", mmlt: 20, mmagua: 1, mmbpa: 12 });
+    await push({ ty: "mmunag" });
     expect(match.state.phase).toBe("idle");
 
     match.search();
     await push({ ty: "mmneue" });
     match.search();
     await push({ ty: "nelfmm", data: "5" });
-    expect(notices.map(text => text.slice(0, 20))).toEqual(["Игра не найдена: кто", "Недостаточно энергии", "Чтобы играть в сорев"]);
-    expect(notices[2]).toContain("не ниже 5");
+    expect(notices.map(text => text.slice(0, 20))).toEqual(["Кто-то не принял игр", "Игра не найдена: кто", "Недостаточно энергии", "Чтобы играть в сорев"]);
+    expect(notices[3]).toContain("не ниже 5");
     match.stop();
   });
 });

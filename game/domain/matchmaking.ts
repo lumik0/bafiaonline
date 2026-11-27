@@ -85,7 +85,7 @@ export class Matchmaking extends Events<{
   private handle?: Handle;
   private timer?: ReturnType<typeof setInterval>;
 
-  constructor(private client: ServerClient) {
+  constructor(private client: ServerClient, private autoAccept: () => boolean = () => false) {
     super();
   }
 
@@ -147,20 +147,29 @@ export class Matchmaking extends Events<{
       }
       case "matchmakingAcceptedByMe": return this.patch({ acceptedByMe: true });
       case "matchmakingStopped": return this.patch({ phase: "idle", found: undefined });
-      case "matchmakingNotAccepted":
+      case "matchmakingNotAccepted": {
         this.stopTimer();
-        this.patch({ phase: "idle", found: undefined });
-        return void this.emit("notice", "Игра не найдена: кто-то не принял её. Попробуй ещё раз");
+        // кто принял, того сервер оставляет в поиске: остаёмся в нём, иначе следующие пакеты поиска игнорируются и экран зависает
+        const stay = this.state.acceptedByMe;
+        this.patch({ phase: stay ? "searching" : "idle", found: undefined, acceptedByMe: false });
+        if(stay) this.client.send("getMatchmakingStatus", {});
+        return void this.emit("notice", stay ? "Кто-то не принял игру, продолжаем поиск" : "Игра не найдена: кто-то не принял её. Попробуй ещё раз");
+      }
       case "matchmakingNoEnergy":
         this.patch({ phase: "idle" });
         return void this.emit("notice", "Недостаточно энергии. Дождись, когда она восстановится, или купи VIP: у VIP-игроков энергия бесконечна");
       case "matchmakingLevelTooLow":
         this.patch({ phase: "idle" });
         return void this.emit("notice", `Чтобы играть в соревновательном режиме, нужен уровень не ниже ${String(message.data.level)}`);
-      case "matchmakingFound": return this.state.phase == "searching" ? this.patch({ found: message.data.found }) : undefined;
+      case "matchmakingFound":
+        // поиск мог продолжиться после неудачной игры, а экран уже показывал покой
+        if(this.state.phase == "idle") return this.patch({ phase: "searching", found: message.data.found });
+        return this.state.phase == "searching" ? this.patch({ found: message.data.found }) : undefined;
       case "matchmakingAccept":
         this.countdown(message.data.secondsLeft ?? 0);
-        return this.patch({ phase: "accepting", accepted: message.data.accepted ?? 0, acceptedByMe: false, canReturn: false });
+        this.patch({ phase: "accepting", accepted: message.data.accepted ?? 0, acceptedByMe: false, canReturn: false });
+        if(this.autoAccept()) this.accept();
+        return;
       case "matchmakingAccepted": return this.patch({ accepted: message.data.accepted });
       case "matchmakingRoles":
         this.countdown(message.data.secondsLeft ?? 30);
@@ -199,8 +208,16 @@ export class Matchmaking extends Events<{
   private countdown(seconds: number) {
     this.stopTimer();
     this.patch({ secondsLeft: seconds });
+    let expired = 0;
     this.timer = setInterval(() => {
-      if(this.state.secondsLeft > 0) this.patch({ secondsLeft: this.state.secondsLeft - 1 });
+      if(this.state.secondsLeft > 0) return this.patch({ secondsLeft: this.state.secondsLeft - 1 });
+      // время вышло, а сервер молчит: не висим на кнопке, спрашиваем состояние заново
+      if(this.state.phase == "accepting" && ++expired == 4) {
+        this.stopTimer();
+        this.patch({ phase: "idle", found: undefined, acceptedByMe: false });
+        this.client.send("stopMatchmakingSearch", {});
+        this.client.send("getMatchmakingStatus", {});
+      }
     }, 1000);
   }
 

@@ -8,6 +8,8 @@ export const defaultGameSettings = (mobile: boolean) => ({
   debug: false,
   developer: false,
   hideUsername: false,
+  /** соревновательный: принимать найденную игру сразу, без нажатия */
+  autoAcceptMatch: false,
   /** весь интерфейс с маленькой буквы (ники, сообщения и названия комнат не меняются) */
   lowercase: false,
   /** анимация перехода между экранами, как на Android */

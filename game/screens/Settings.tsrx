@@ -302,6 +302,9 @@ export function Settings({ ctx }: { ctx: GameContext }) @{
 								<Toggle label="Подсказки в игре" checked={data().tips.enabled} onChange={(value) => set(settings => { settings.tips.enabled = value; })} />
 							</SettingRow>
 							<SettingRow label="Показать подсказки заново"><button onClick={() => { resetTips(ctx.settings); ctx.host.notifications.show({ title: "Подсказки", kind: "success", text: "Выполненные подсказки снова будут появляться." }); }}>{"Сбросить"}</button></SettingRow>
+							<SettingRow label="Автопринятие в соревновательном" hint="Найденная игра принимается сразу, без нажатия кнопки">
+								<Toggle label="Автопринятие в соревновательном" checked={data().autoAcceptMatch} onChange={(value) => set(settings => { settings.autoAcceptMatch = value; })} />
+							</SettingRow>
 							<SettingRow label="Скрывать никнейм везде" hint="Твой ник размывается на экране, удобно для записи и скриншотов">
 								<Toggle label="Скрывать никнейм везде" checked={data().hideUsername} onChange={(value) => set(settings => { settings.hideUsername = value; })} />
 							</SettingRow>

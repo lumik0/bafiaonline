@@ -10,7 +10,7 @@ import type { GameContext } from "../context";
 
 /** соревновательный режим: поиск игры, принятие, выбор ролей, возврат в начатую игру */
 export function CompetitiveScreen({ ctx }: { ctx: GameContext }) @{
-	const match = new Matchmaking(ctx.client);
+	const match = new Matchmaking(ctx.client, () => ctx.settings.data.autoAcceptMatch);
 	const state = fromEvents(match, "change", () => match.state);
 	const roles = () => SELECTABLE_ROLES.map(id => ({
 		id,

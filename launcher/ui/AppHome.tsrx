@@ -31,6 +31,8 @@ export function AppHome({ model }: { model: LauncherModel }) @{
 			.top .version { font-size: 12px; opacity: .8; }
 			.scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 24px; display: flex; flex-direction: column; gap: 8px; }
 			.section { margin: 12px 4px 0; font-size: 14px; font-weight: 500; color: var(--accent); }
+			/* блоки не сжимаются: у списка overflow hidden, и в колонке он обрезался вместо прокрутки страницы */
+			.scroll > * { flex: none; }
 			.list { border-radius: 16px; overflow: hidden; background: rgba(128, 128, 128, .16); }
 			.item { display: flex; align-items: center; gap: 16px; min-height: 64px; box-sizing: border-box; padding: 8px 8px 8px 16px; border-bottom: 1px solid rgba(128, 128, 128, .2); color: inherit; text-decoration: none; }
 			.item:last-child { border-bottom: none; }
