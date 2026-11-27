@@ -15,6 +15,7 @@ import { Marks } from "./Marks.tsrx";
 import { avatarFrame, nickEffect, premiumFrame } from "../domain/premium-style";
 import type { Bafia } from "../domain/bafia";
 import type { GameContext } from "../context";
+import { keepFocus } from "./keep-focus";
 
 const EMOJI = ["sm1", "sm2", "sm3", "sm4", "sm5", "sm6"];
 
@@ -143,7 +144,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 						<div class="group">
 							<div class="grow" onClick={() => onAvatar?.(row.group.user.playerObjectId ?? "")}><Avatar photo={() => row.group.user.photo ?? ""} gif={() => gifAvatar(row.group.user.playerObjectId)} asset={() => row.group.user.asset} ring={() => avatarFrame(lookOf(row.group.user.playerObjectId), photoRing(row.group.user.decorations))} animation={() => animationOf(row.group.user.decorations, DecorationType.PhotoBorderAnimation)} assets={assets} size={35} /></div>
 							<div class="column">
-								<span class={hideName() && row.group.user.username == myName() ? "nick blur" : "nick"} data-keep style={{ ...nickStyle(row.group.user.decorations), ...premiumFrame(premiumColor(row.group.user.playerObjectId)), ...(row.group.entries[0]?.nickTone ? { color: "var(--" + toneToken(row.group.entries[0].nickTone) + ")" } : {}) }} onClick={() => controller?.mention?.(row.group.user.username)}>
+								<span class={hideName() && row.group.user.username == myName() ? "nick blur" : "nick"} data-keep style={{ ...nickStyle(row.group.user.decorations), ...premiumFrame(premiumColor(row.group.user.playerObjectId)), ...(row.group.entries[0]?.nickTone ? { color: "var(--" + toneToken(row.group.entries[0].nickTone) + ")" } : {}) }} onMouseDown={keepFocus} onPointerDown={keepFocus} onClick={() => controller?.mention?.(row.group.user.username)}>
 									{animationOf(row.group.user.decorations, DecorationType.UsernameAnimation) ? <Lottie animation={() => animationOf(row.group.user.decorations, DecorationType.UsernameAnimation)} inset="-15% -10%" /> : null}{nickPrefix?.(row.group.user.username) ? <span class="index">{nickPrefix(row.group.user.username)}</span> : null}<span style={nickEffect(lookOf(row.group.user.playerObjectId), premiumColor(row.group.user.playerObjectId))}>{row.group.user.username}</span>{badgeOf(row.group.user.playerObjectId, row.group.user.username) ? <CheckBadge color={badgeOf(row.group.user.playerObjectId, row.group.user.username)!.color} title={badgeOf(row.group.user.playerObjectId, row.group.user.username)!.title} fire={badgeOf(row.group.user.playerObjectId, row.group.user.username)!.fire} /> : null}<Marks bafia={bafia} nick={() => row.group.user.username} /><span class="vip">{row.group.user.vip ?? ""}</span>{row.group.entries[0]?.label ? <span class="label">{" · " + row.group.entries[0].label}</span> : null}
 								</span>
 								@for (const entry of row.group.entries) {
@@ -174,7 +175,7 @@ export function ChatView({ ctx, entries, myName, hideName, assets, send, onAvata
 						<div class="line event" style={{ color: "var(--" + eventToken(row.entry) + ")", background: "var(--" + eventToken(row.entry) + "-bg, transparent)" }}>
 							<span>{"Игрок "}</span>
 							<span class="who grow" onClick={() => onAvatar?.(row.entry.user?.playerObjectId ?? "")}><Avatar photo={() => row.entry.user?.photo ?? ""} gif={() => gifAvatar(row.entry.user?.playerObjectId)} ring={() => photoRing(row.entry.user?.decorations)} assets={assets} size={20} /></span>
-							<span class={hideName() && row.entry.user?.username == myName() ? "link blur" : "link"} data-keep style={nickStyle(row.entry.user?.decorations)} onClick={() => controller?.mention?.(row.entry.user?.username ?? "")}>{row.entry.user?.username ?? ""}</span>
+							<span class={hideName() && row.entry.user?.username == myName() ? "link blur" : "link"} data-keep style={nickStyle(row.entry.user?.decorations)} onMouseDown={keepFocus} onPointerDown={keepFocus} onClick={() => controller?.mention?.(row.entry.user?.username ?? "")}>{row.entry.user?.username ?? ""}</span>
 							<span>{row.entry.kind == "join" ? " вошёл" : row.entry.kind == "leave" ? " вышел" : " " + row.entry.text}</span>
 						</div>
 					} @else {

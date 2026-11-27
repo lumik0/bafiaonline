@@ -5,6 +5,7 @@ import { isMafia } from "../../domain/room/state";
 import type { RoomSession } from "../../domain/room/session";
 import { YourRoleDialog } from "../dialogs/YourRoleDialog.tsrx";
 import type { GameContext } from "../../context";
+import { keepFocus } from "../keep-focus";
 
 const ALL_ROLES = Object.values(Role).filter((value): value is Role => typeof value == "number");
 
@@ -94,7 +95,7 @@ export function GameInfo({ ctx, session, mention }: { ctx: GameContext, session:
 						<div class="vote">{info().vote}</div>
 					}
 				</div>
-				<span class={hidden() ? "nickline blur" : "nickline"} data-keep onClick={(event) => { event.stopPropagation(); mention?.(myName()); }}>{showIndex() ? <span class="index">{(info().index + 1) + " "}</span> : null}{myName()}</span>
+				<span class={hidden() ? "nickline blur" : "nickline"} data-keep onMouseDown={keepFocus} onPointerDown={keepFocus} onClick={(event) => { event.stopPropagation(); mention?.(myName()); }}>{showIndex() ? <span class="index">{(info().index + 1) + " "}</span> : null}{myName()}</span>
 			</div>
 			<div class="affected">
 				@for (const role of info().affected) {

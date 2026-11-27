@@ -9,6 +9,7 @@ import { completeTip } from "../../domain/tips";
 import { roleNames, Role } from "../../domain/enums";
 import type { RoomSession } from "../../domain/room/session";
 import type { GameContext } from "../../context";
+import { keepFocus } from "../keep-focus";
 
 const ALL_ROLES = Object.values(Role).filter((value): value is Role => typeof value == "number");
 
@@ -66,6 +67,7 @@ export function PlayersGrid({ ctx, session, mention, tip }: { ctx: GameContext, 
 				<div
 					class="cell grow"
 					data-player={view.playerObjectId}
+					onMouseDown={keepFocus}
 					onClick={() => press(view)}
 					onContextMenu={(event) => { event.preventDefault(); if((event as PointerEvent).pointerType != "touch") void menu(view, event); }}
 					onPointerDown={(event) => longTap.down(event, () => void menu(view, event))}
