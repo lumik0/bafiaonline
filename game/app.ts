@@ -26,6 +26,8 @@ import { officialMod } from "./mods/official";
 import { bindBrowserBack } from "./ui/browser-back";
 import { bindEdgeSwipeBack, bindNativeBack } from "./ui/native-back";
 import { appPlatform, isNativeApp } from "@common/utils/native";
+import { App } from "@capacitor/app";
+import { APK_URL, installedShell, SHELL_RELEASE_URL, shellUpdateAvailable } from "@common/shell";
 import { rehostListed, rehostRoom } from "./domain/rooms/rehost";
 import { resetPassword } from "./ui/reset-password";
 import { waitAndJoin } from "./ui/room-actions";
@@ -368,6 +370,16 @@ export async function startGame(host: GameHost, options: StartOptions = {}): Pro
       send: async reply => { const result = await ctx.bafia.sendFeedback("reply", reply, target); return "ok" in result ? undefined : feedbackProblems[result.error]; }
     }
   }));
+  // новая оболочка приложения (Android): баннер со ссылкой на apk; игра внутри обновляется сама, это нужно редко
+  if(isNativeApp() && appPlatform() == "android") void (async() => {
+    const info = await App.getInfo().catch(() => undefined);
+    const load = async() => ((await (await fetch(SHELL_RELEASE_URL, { headers: { accept: "application/vnd.github+json" } })).json()) as { body?: string }).body;
+    if(!await shellUpdateAvailable(installedShell(info?.version), load)) return;
+    host.notifications.show({
+      key: "shell-update", title: "Вышло обновление приложения", text: "Нажми, чтобы скачать новую версию apk и установить поверх", kind: "info", timeout: 0,
+      action: async() => void window.open(APK_URL, "_blank", "noopener")
+    });
+  })();
   // приглашение в комнату Бафии от администратора: баннер, нажатие - сразу в комнату (во время игры не мешаем)
   ctx.bafia.on("invite", invite => {
     if(nav.top?.name == "room") return;

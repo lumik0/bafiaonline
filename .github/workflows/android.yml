@@ -26,9 +26,11 @@ jobs:
       - name: Версия
         run: |
           VERSION=$(grep -oE '"[0-9]+\.[0-9]+(\.[0-9]+)?"' common/version.ts | head -1 | tr -d '"')
-          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VERSION\"/" android/app/build.gradle
+          SHELL_VERSION=$(grep -oE 'SHELL_VERSION = [0-9]+' common/shell.ts | grep -oE '[0-9]+')
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VERSION+s$SHELL_VERSION\"/" android/app/build.gradle
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Версия $VERSION, сборка ${{ github.run_number }}"
+          echo "SHELL_VERSION=$SHELL_VERSION" >> "$GITHUB_ENV"
+          echo "Версия $VERSION, оболочка $SHELL_VERSION, сборка ${{ github.run_number }}"
       - name: Ключ подписи
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/bafia.p12"
       - name: Сборка apk
@@ -53,4 +55,4 @@ jobs:
         run: |
           gh release view app >/dev/null 2>&1 || gh release create app --title "Приложение для Android и iOS" --notes "Сборки приложения. Игра внутри обновляется сама, переустанавливать приложение нужно только при смене самой оболочки."
           gh release upload app bafia.apk --clobber
-          gh release edit app --notes "Android: версия $VERSION, сборка ${{ github.run_number }}. Игра внутри обновляется сама, переустанавливать приложение нужно только при смене самой оболочки."
+          gh release edit app --notes "Android: версия $VERSION, сборка ${{ github.run_number }}. Оболочка: $SHELL_VERSION. Игра внутри обновляется сама, переустанавливать приложение нужно только при смене самой оболочки."
