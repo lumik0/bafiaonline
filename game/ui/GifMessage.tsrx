@@ -29,6 +29,7 @@ export function GifMessage({ bafia, id }: { bafia: Bafia | undefined, id: string
 			.box, .wait { display: block; box-sizing: border-box; width: 200px; max-width: 100%; height: 150px; margin: 4px 0; border-radius: 8px; overflow: hidden; background: rgba(128, 128, 128, .22); }
 			.box { position: relative; }
 			.gif { display: block; width: 100%; height: 100%; object-fit: contain; }
+			.pending { position: absolute; left: 6px; bottom: 6px; padding: 1px 8px; border-radius: 999px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 11px; }
 			.fav { position: absolute; top: 8px; right: 6px; padding: 0 6px; line-height: 1.5; border-radius: 999px; background: rgba(0, 0, 0, .45); color: #fff; font-size: 15px; opacity: .75; }
 			.fav.on { color: #ffd54a; opacity: 1; }
 			.wait { animation: gifwait 1.2s ease-in-out infinite; }
@@ -47,6 +48,9 @@ export function GifMessage({ bafia, id }: { bafia: Bafia | undefined, id: string
 						@if (src()) {
 							<span class="box">
 							<img class="gif" src={src()} alt={gif()!.title} title={gif()!.title} referrerpolicy="no-referrer" onError={() => setBroken(true)} />
+							@if (gif()!.pending) {
+								<span class="pending">{"на проверке: видишь только ты"}</span>
+							}
 							<button class={favorite() ? "fav on" : "fav"} title={favorite() ? "Убрать из избранного" : "В избранное"} onClick={() => bafia!.toggleFavorite(id, gif()?.title ?? "")}>{favorite() ? "★" : "☆"}</button>
 							</span>
 						} @else {
@@ -55,7 +59,7 @@ export function GifMessage({ bafia, id }: { bafia: Bafia | undefined, id: string
 					}
 				} @else {
 					@if (gif() === null) {
-						<span class="note">{"[такой гифки нет]"}</span>
+						<span class="note">{"[гифка ещё не одобрена или удалена]"}</span>
 					} @else {
 						<span class="wait" title="Гифка загружается"></span>
 					}

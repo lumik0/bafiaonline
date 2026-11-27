@@ -467,7 +467,7 @@ export class BafiaLink extends Events<{ change: () => void, notice: (text: strin
     const asking = this.request({ t: "gif", id }).then((answer): GifItem | null | undefined => {
       if(answer?.t != "gif") return undefined;
       // даже если сервер пришлёт чужую ссылку, браузер её не откроет
-      return (answer.url && this.accept({ id, url: answer.url, title: answer.title ?? "" })) || null;
+      return (answer.url && this.accept({ id, url: answer.url, title: answer.title ?? "", ...(answer.pending ? { pending: true } : {}) })) || null;
     });
     this.gifCache.set(id, asking);
     void asking.then(result => { if(result === undefined) this.gifCache.delete(id); });

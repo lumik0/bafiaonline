@@ -119,7 +119,7 @@ test("гифка в сообщении: пока скачивается - заг
 
   const second = ui.mount(() => GifMessage({ bafia, id: "none" }) as never, root);
   await tick();
-  expect(root.textContent).toContain("такой гифки нет");
+  expect(root.textContent).toContain("гифка ещё не одобрена или удалена");
   second();
   root.remove();
 });

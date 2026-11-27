@@ -303,6 +303,8 @@ export interface GifItem {
   title: string
   /** уменьшенная копия для сетки выбора; нет - показываем саму гифку */
   thumb?: string
+  /** гифка ещё на проверке: другие игроки её не видят (приходит только автору) */
+  pending?: boolean
 }
 
 /** состояние официального сервера игры по сообщениям игроков (или вручную): `down` - недоступен, `text` - что показать игрокам */
@@ -413,7 +415,7 @@ export type ServerMessage =
   | { t: "bafiaStats", n: number, games: number, wins: number, roles: { role: number, games: number, wins: number }[], recent: { at: number, title: string, role: number, won: boolean }[], top: { nick: string, games: number, wins: number }[] }
   | { t: "myStats", n: number, seconds: number, days: number, since?: string }
   /** `url` нет, если такой гифки в каталоге нет */
-  | { t: "gif", n: number, id: string, url?: string, title?: string }
+  | { t: "gif", n: number, id: string, url?: string, title?: string, /** гифка ещё на проверке: её видит только тот, кто загрузил */ pending?: boolean }
   | { t: "gifs", n: number, items: GifItem[] }
   /** до какого времени (мс) действует премиум; нет - не действует */
   /** список комнат Бафии; `canCreate` - можно ли тебе создать свою */
