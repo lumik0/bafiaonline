@@ -7,7 +7,7 @@ function make(count: number, build: (index: number) => Record<string, string>) {
 
 /** том и джерри: всплывают сердечки, падает сыр, по низу экрана убегает мышонок, а за ним несётся кот, и остаются следы лапок */
 export function TomJerry({ light }: { light?: boolean }) @{
-	const scale = light ? 0.5 : 1;
+	const scale = light ? 0.35 : 0.7;
 	const count = (n: number) => Math.max(1, Math.round(n * scale));
 
 	const hearts = make(count(14), () => ({
@@ -26,10 +26,10 @@ export function TomJerry({ light }: { light?: boolean }) @{
 	<>
 		<style>
 			.tj { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 9000; }
-			.heart, .cheese { position: absolute; left: var(--x); opacity: 0; will-change: transform, opacity; }
+			.heart, .cheese { position: absolute; left: var(--x); opacity: 0; }
 			.heart { bottom: -40px; font-size: var(--size); animation: up var(--dur) ease-in-out var(--delay) infinite; }
 			.cheese { top: -40px; font-size: var(--size); animation: down var(--dur) linear var(--delay) infinite; }
-			.run { position: absolute; bottom: 14px; left: 0; font-size: 30px; line-height: 1; white-space: nowrap; animation: run 9s linear infinite; will-change: transform; }
+			.run { position: absolute; bottom: 14px; left: 0; font-size: 30px; line-height: 1; white-space: nowrap; animation: run 9s linear infinite; }
 			.run span { display: inline-block; animation: hop .35s ease-in-out infinite; }
 			.run .cat { margin-left: 70px; font-size: 40px; animation-duration: .45s; }
 			.paw { position: absolute; bottom: calc(10px + var(--up)); left: var(--x); font-size: 12px; opacity: 0; animation: paw var(--dur) linear var(--delay) infinite; }

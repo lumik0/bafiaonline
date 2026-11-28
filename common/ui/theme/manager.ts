@@ -144,6 +144,11 @@ export class ThemeManager extends Events<{ change: (changed: TokenKey[]) => void
     return getPreset(this.current.base)?.wallpaper ?? defaultWallpaper;
   }
 
+  /** свои обои комнаты у основы темы (день и ночь) */
+  get rooms(): { day: string, night: string } | undefined {
+    return getPreset(this.current.base)?.rooms;
+  }
+
   /** эффект выбранной темы: свой, иначе тот, что задан у основы */
   get effect(): string {
     const { effect, base } = this.current;

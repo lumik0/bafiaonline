@@ -95,6 +95,8 @@ export interface ThemePreset {
   effect?: string
   /** обои меню и всех экранов: путь в образе игры; без них - стандартные */
   wallpaper?: { path: string, position: string }
+  /** свои обои комнаты днём и ночью (если игрок не заменил их сам) */
+  rooms?: { day: string, night: string }
 }
 
 /** обои по умолчанию (у «Классики» и своих тем): человек в костюме слева */
@@ -105,12 +107,12 @@ export const effects: readonly { id: string, label: string, /** не показ�
   { id: "none", label: "Без эффектов" },
   { id: "halloween", label: "Хэллоуин" },
   { id: "newyear", label: "Новый год" },
-  { id: "tomjerry", label: "Том и Джерри", hidden: true }
+  { id: "tomjerry", label: "Том и Джерри" }
 ];
 
 export type EffectId = string;
 
-export const presets: readonly ThemePreset[] = [
+const builtIns: ThemePreset[] = [
   { id: "classic", label: "Классика", values: classic },
   {
     id: "midnight", label: "Полночь", values: {
@@ -273,6 +275,33 @@ export const presets: readonly ThemePreset[] = [
     }
   }
 ];
+
+const darkValues = builtIns.find(preset => preset.id == "dark")!.values;
+
+/** «Том и Джерри»: тёмная тема с красным акцентом, своими обоями и эффектом */
+const tomJerry: ThemePreset = {
+  id: "tomjerry", label: "Том и Джерри", effect: "tomjerry",
+  wallpaper: { path: "textures/backgrounds/tj-menu.jpg", position: "center" },
+  rooms: { day: "textures/backgrounds/tj-day.jpg", night: "textures/backgrounds/tj-night.jpg" },
+  values: {
+    ...darkValues,
+    "accent": "#e8334a",
+    "header-bg": "#121214",
+    "header-text": "#ffffff",
+    "button-bg": "#e8334a",
+    "button-hover": "#c4243a",
+    "button-active": "#9c1a2c",
+    "button-disabled": "#4a1b22",
+    "input-accent": "#e8334a",
+    "button-shop-bg": "#b5702f",
+    "button-shop-text": "#fff7ec",
+    "chat-mention": "#ff6b81",
+    "progress-fill": "#e8334a",
+    "menu-overlay": "rgba(0, 0, 0, 0.45)"
+  }
+};
+
+export const presets: readonly ThemePreset[] = [...builtIns, tomJerry];
 
 export const defaultPresetId = "classic";
 /** встроенные темы нельзя удалить, но можно настроить */

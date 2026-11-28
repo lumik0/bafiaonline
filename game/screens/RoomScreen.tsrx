@@ -44,11 +44,14 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 	const hideName = fromEvents(ctx.settings, "change", () => ctx.settings.data.hideUsername);
 	const layout = fromEvents(ctx.settings, "change", () => ({ width: ctx.settings.data.game.widthPL, zoom: ctx.settings.data.game.zoomPL }));
 	const images = fromEvents(ctx.assets, "change", () => ({
-		day: ctx.assets.url("textures/backgrounds/day3.png"),
-		night: ctx.assets.url("textures/backgrounds/night3.png"),
 		loading: ctx.assets.url("textures/loading/2f.png"),
 		roles: Object.fromEntries(ROLE_IDS.map(id => [id, ctx.assets.url(`textures/roles/${id}.png`)])) as Record<number, string>
 	}));
+	// обои комнаты: свои у игрока важнее, потом обои темы, потом обычные
+	const roomTheme = fromEvents(ctx.theme, "change", () => ctx.theme.rooms);
+	const loadedAssets = fromEvents(ctx.assets, "change", () => ({}));
+	const wallpaper = (own: string, themed: string | undefined) => { loadedAssets(); return ctx.assets.url(!ctx.assets.isCustom(own) && themed ? themed : own); };
+	const bg = () => ({ day: wallpaper("textures/backgrounds/day3.png", roomTheme()?.day), night: wallpaper("textures/backgrounds/night3.png", roomTheme()?.night) });
 	// обои - два слоя, между которыми плавно меняется прозрачность (у background-image переходов нет)
 	const layer = (url: string | undefined) => url ? "url(" + url + ")" : "none";
 
@@ -199,7 +202,7 @@ export function RoomScreen({ ctx, session }: { ctx: GameContext, session: RoomSe
 			.phone .table { margin: 5px 4px 5px 0; }
 			@keyframes rotate { to { transform: rotate(360deg); } }
 		</style>
-		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "--bg-h": window.screen.height + "px", "--bg-day": layer(images().day), "--bg-night": layer(images().night), "--night-opacity": view().night ? "1" : "0", "--shade-now": view().night ? "var(--night-shade)" : "transparent" }}>
+		<div class={isMobile() ? "room phone" : "room"} ref={room} style={{ "--bg-h": window.screen.height + "px", "--bg-day": layer(bg().day), "--bg-night": layer(bg().night), "--night-opacity": view().night ? "1" : "0", "--shade-now": view().night ? "var(--night-shade)" : "transparent" }}>
 			<AppBar
 				title={view().title}
 				keepCase
